@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { adminStats, pendingVerifications } from "@/lib/data";
 import VerifiedBadge from "@/components/VerifiedBadge";
 
@@ -8,6 +9,32 @@ const tabs = ["Dashboard", "Verifications", "Users", "Providers", "Reports"];
 
 export default function AdminPage() {
   const [tab, setTab] = useState("Dashboard");
+  const [authed, setAuthed] = useState(false);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (localStorage.getItem("nc_admin_auth") !== "true") {
+      router.replace("/admin/login");
+    } else {
+      setAuthed(true);
+    }
+  }, [router]);
+
+  const logout = () => {
+    localStorage.removeItem("nc_admin_auth");
+    router.replace("/admin/login");
+  };
+
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <svg className="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    );
+  }
   const [verifications, setVerifications] = useState(pendingVerifications);
 
   const approve = (id: string) =>
@@ -54,14 +81,23 @@ export default function AdminPage() {
             ))}
           </nav>
 
-          <div className="p-4 border-t border-slate-800">
-            <div className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-800 cursor-pointer transition-colors">
+          <div className="p-4 border-t border-slate-800 space-y-2">
+            <div className="flex items-center gap-3 p-3 rounded-xl">
               <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-sm">A</div>
               <div>
                 <p className="text-white text-xs font-semibold">Admin User</p>
-                <p className="text-slate-400 text-xs">Super Admin</p>
+                <p className="text-slate-400 text-xs">admin@nursecare.ke</p>
               </div>
             </div>
+            <button
+              onClick={logout}
+              className="w-full flex items-center gap-2 px-3 py-2.5 rounded-xl text-slate-400 hover:bg-red-900/40 hover:text-red-400 transition-colors text-sm font-medium"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              Sign Out
+            </button>
           </div>
         </aside>
 
