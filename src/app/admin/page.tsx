@@ -14,15 +14,16 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (localStorage.getItem("nc_admin_auth") !== "true") {
-      router.replace("/admin/login");
+      window.location.href = "/admin/login";
     } else {
       setAuthed(true);
     }
-  }, [router]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const logout = () => {
     localStorage.removeItem("nc_admin_auth");
-    router.replace("/admin/login");
+    window.location.href = "/admin/login";
   };
 
   if (!authed) {

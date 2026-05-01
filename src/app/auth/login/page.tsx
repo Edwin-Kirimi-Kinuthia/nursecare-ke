@@ -6,18 +6,29 @@ import Link from "next/link";
 export default function LoginPage() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    await new Promise((r) => setTimeout(r, 1200));
-    setLoading(false);
+    await new Promise((r) => setTimeout(r, 1000));
+
+    if (!form.email || !form.password) {
+      setError("Please enter your email and password.");
+      setLoading(false);
+      return;
+    }
+
+    // Store session and redirect
+    localStorage.setItem("nc_user_auth", "true");
+    localStorage.setItem("nc_user_email", form.email);
+    window.location.href = "/dashboard";
   };
 
   return (
     <div className="pt-16 min-h-screen bg-gradient-to-br from-blue-950 to-blue-900 flex items-center justify-center px-4 py-16">
       <div className="w-full max-w-md">
-        {/* Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-8 sm:p-10">
           {/* Logo */}
           <div className="text-center mb-8">
@@ -39,7 +50,7 @@ export default function LoginPage() {
                 placeholder="you@example.com"
                 value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-shadow"
+                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
             <div>
@@ -53,9 +64,15 @@ export default function LoginPage() {
                 placeholder="••••••••"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm transition-shadow"
+                className="w-full px-4 py-3.5 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
               />
             </div>
+
+            {error && (
+              <div className="bg-red-50 border border-red-200 text-red-700 text-sm font-medium px-4 py-3 rounded-xl">
+                {error}
+              </div>
+            )}
 
             <button
               type="submit"
@@ -116,7 +133,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-center text-blue-300/60 text-xs mt-6">
-          Licensed by Kenya Medical Practitioners & Dentists Council
+          Licensed by Kenya Medical Practitioners &amp; Dentists Council
         </p>
       </div>
     </div>

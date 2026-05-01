@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 
 const bookings = [
@@ -11,8 +11,31 @@ const bookings = [
 
 const tabs = ["Overview", "My Bookings", "Emergency", "Settings"];
 
+
+
 export default function DashboardPage() {
   const [tab, setTab] = useState("Overview");
+  const [authed, setAuthed] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem("nc_user_auth") !== "true") {
+      window.location.href = "/auth/login";
+    } else {
+      setAuthed(true);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (!authed) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <svg className="w-8 h-8 text-blue-400 animate-spin" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+        </svg>
+      </div>
+    );
+  }
 
   return (
     <div className="pt-16 min-h-screen bg-slate-50">

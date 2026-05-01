@@ -20,7 +20,7 @@ export default function AdminLoginPage() {
 
     if (form.email === ADMIN_EMAIL && form.password === ADMIN_PASSWORD) {
       localStorage.setItem("nc_admin_auth", "true");
-      router.push("/admin");
+      window.location.href = "/admin";
     } else {
       setError("Invalid email or password.");
       setLoading(false);
