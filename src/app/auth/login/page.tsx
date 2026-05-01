@@ -27,6 +27,14 @@ export default function LoginPage() {
       return;
     }
 
+    // Doctor credentials → go to doctor portal
+    if (form.email === "doctor@nursecare.ke" && form.password === "Doctor@NurseCare2026") {
+      localStorage.setItem("nc_doctor_auth", "true");
+      localStorage.setItem("nc_doctor_profile", JSON.stringify({ name: "Dr. Sarah Mwangi", email: "doctor@nursecare.ke" }));
+      window.location.href = "/doctor/dashboard";
+      return;
+    }
+
     // Regular user → seed profile if first login, then go to dashboard
     localStorage.setItem("nc_user_auth", "true");
     if (!localStorage.getItem("nc_user_profile")) {

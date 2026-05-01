@@ -218,6 +218,211 @@ export const testimonials: Testimonial[] = [
   },
 ];
 
+export interface Doctor {
+  id: string;
+  name: string;
+  initials: string;
+  title: string;
+  role: "medical_officer" | "clinical_officer";
+  specialty: string;
+  subSpecialty?: string;
+  verified: boolean;
+  rating: number;
+  reviews: number;
+  consultationFee: number;
+  experience: number;
+  languages: string[];
+  bio: string;
+  available: boolean;
+  color: string;
+  qualifications: string[];
+  availableSlots: string[];
+  totalPatients: number;
+}
+
+export const doctors: Doctor[] = [
+  {
+    id: "d1",
+    name: "Dr. Daniel Omondi",
+    initials: "DO",
+    title: "Dr.",
+    role: "medical_officer",
+    specialty: "General Medicine",
+    verified: true,
+    rating: 4.9,
+    reviews: 203,
+    consultationFee: 1200,
+    experience: 10,
+    languages: ["English", "Swahili"],
+    bio: "Experienced Medical Officer with a decade of clinical practice in leading Nairobi hospitals. Skilled in managing acute and chronic conditions with a patient-centred, evidence-based approach.",
+    available: true,
+    color: "bg-blue-600",
+    qualifications: ["MBChB — University of Nairobi", "Kenya Medical Practitioners License", "ACLS Certified"],
+    availableSlots: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+    totalPatients: 1840,
+  },
+  {
+    id: "d2",
+    name: "Dr. Aisha Mwenda",
+    initials: "AM",
+    title: "Dr.",
+    role: "medical_officer",
+    specialty: "Pediatrics",
+    verified: true,
+    rating: 5.0,
+    reviews: 147,
+    consultationFee: 1400,
+    experience: 8,
+    languages: ["English", "Swahili", "Arabic"],
+    bio: "Passionate pediatric Medical Officer dedicated to the health and wellbeing of children from birth to adolescence. Gentle, reassuring approach that parents and children love.",
+    available: true,
+    color: "bg-pink-500",
+    qualifications: ["MBChB — Aga Khan University", "Pediatric Advanced Life Support (PALS)", "Kenya Medical Practitioners License"],
+    availableSlots: ["8:00 AM", "9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM"],
+    totalPatients: 1203,
+  },
+  {
+    id: "d3",
+    name: "CO. Robert Kibet",
+    initials: "RK",
+    title: "CO.",
+    role: "clinical_officer",
+    specialty: "General Clinical Medicine",
+    verified: true,
+    rating: 4.8,
+    reviews: 189,
+    consultationFee: 800,
+    experience: 12,
+    languages: ["English", "Swahili", "Kalenjin"],
+    bio: "Highly experienced Clinical Officer providing comprehensive primary care consultations. Expert in diagnosing and managing common illnesses, chronic disease monitoring, and preventive health.",
+    available: true,
+    color: "bg-teal-600",
+    qualifications: ["Diploma in Clinical Medicine — Kenya Medical Training College", "Clinical Officers Council License", "BLS Certified"],
+    availableSlots: ["8:00 AM", "9:00 AM", "10:00 AM", "1:00 PM", "2:00 PM", "3:00 PM", "4:00 PM"],
+    totalPatients: 2640,
+  },
+  {
+    id: "d4",
+    name: "Dr. Njeri Kamau",
+    initials: "NK",
+    title: "Dr.",
+    role: "medical_officer",
+    specialty: "Obstetrics & Gynaecology",
+    subSpecialty: "Maternal-Foetal Medicine",
+    verified: true,
+    rating: 4.9,
+    reviews: 94,
+    consultationFee: 1800,
+    experience: 11,
+    languages: ["English", "Swahili", "Kikuyu"],
+    bio: "Specialist Medical Officer in obstetrics and gynaecology. Provides expert consultations for pregnancy concerns, gynaecological conditions, fertility questions, and women's health.",
+    available: false,
+    color: "bg-purple-500",
+    qualifications: ["MBChB — University of Nairobi", "MMed Obstetrics & Gynaecology", "Kenya Medical Practitioners License"],
+    availableSlots: ["10:00 AM", "11:00 AM", "3:00 PM", "4:00 PM"],
+    totalPatients: 876,
+  },
+  {
+    id: "d5",
+    name: "CO. Esther Waweru",
+    initials: "EW",
+    title: "CO.",
+    role: "clinical_officer",
+    specialty: "Reproductive Health",
+    verified: true,
+    rating: 4.9,
+    reviews: 112,
+    consultationFee: 900,
+    experience: 7,
+    languages: ["English", "Swahili"],
+    bio: "Clinical Officer specialising in reproductive and sexual health. Compassionate and non-judgmental consultations covering family planning, STI management, antenatal care, and sexual health education.",
+    available: true,
+    color: "bg-rose-500",
+    qualifications: ["Higher Diploma in Reproductive Health — KMTC", "Clinical Officers Council License", "Family Planning Certified"],
+    availableSlots: ["9:00 AM", "10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM"],
+    totalPatients: 980,
+  },
+  {
+    id: "d6",
+    name: "Dr. Kevin Otieno",
+    initials: "KO",
+    title: "Dr.",
+    role: "medical_officer",
+    specialty: "Internal Medicine",
+    subSpecialty: "Diabetes & Hypertension",
+    verified: true,
+    rating: 4.8,
+    reviews: 156,
+    consultationFee: 1500,
+    experience: 14,
+    languages: ["English", "Swahili", "Luo"],
+    bio: "Internal Medicine specialist with deep expertise in managing diabetes, hypertension, and other chronic metabolic conditions. Dedicated to long-term patient relationships and preventive care.",
+    available: true,
+    color: "bg-indigo-600",
+    qualifications: ["MBChB — Moi University", "MMed Internal Medicine", "Kenya Medical Practitioners License", "Diabetes Educator Certified"],
+    availableSlots: ["9:00 AM", "10:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+    totalPatients: 1540,
+  },
+  {
+    id: "d7",
+    name: "CO. Brian Muthoni",
+    initials: "BM",
+    title: "CO.",
+    role: "clinical_officer",
+    specialty: "Orthopaedics",
+    verified: true,
+    rating: 4.7,
+    reviews: 78,
+    consultationFee: 1000,
+    experience: 9,
+    languages: ["English", "Swahili"],
+    bio: "Clinical Officer specialising in orthopaedic and musculoskeletal conditions. Expert in managing back pain, joint problems, sports injuries, and post-fracture rehabilitation guidance.",
+    available: true,
+    color: "bg-orange-500",
+    qualifications: ["Higher Diploma in Orthopaedics — KMTC", "Clinical Officers Council License", "Sports Medicine Certificate"],
+    availableSlots: ["8:00 AM", "9:00 AM", "10:00 AM", "1:00 PM", "2:00 PM"],
+    totalPatients: 720,
+  },
+  {
+    id: "d8",
+    name: "Dr. Amina Sharif",
+    initials: "AS",
+    title: "Dr.",
+    role: "medical_officer",
+    specialty: "Mental Health",
+    subSpecialty: "Anxiety & Depression",
+    verified: true,
+    rating: 5.0,
+    reviews: 88,
+    consultationFee: 1600,
+    experience: 9,
+    languages: ["English", "Swahili", "Arabic"],
+    bio: "Medical Officer with specialised training in mental health. Offers confidential consultations for anxiety, depression, stress, and general mental wellbeing in a safe, supportive environment.",
+    available: true,
+    color: "bg-violet-500",
+    qualifications: ["MBChB — Aga Khan University", "Postgraduate Diploma in Mental Health", "Kenya Medical Practitioners License"],
+    availableSlots: ["10:00 AM", "11:00 AM", "2:00 PM", "3:00 PM", "4:00 PM"],
+    totalPatients: 640,
+  },
+];
+
+export interface MedicalNote {
+  id: string;
+  doctorId: string;
+  doctorName: string;
+  patientName: string;
+  patientEmail: string;
+  date: string;
+  chiefComplaint: string;
+  history: string;
+  examination: string;
+  diagnosis: string;
+  treatment: string;
+  prescription: string;
+  followUp: string;
+  consultationType: "video" | "in-person";
+}
+
 export const adminStats = {
   totalProviders: 523,
   verifiedProviders: 487,

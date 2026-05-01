@@ -19,6 +19,7 @@ export default function Navbar() {
   const [dropOpen, setDropOpen] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isUser, setIsUser] = useState(false);
+  const [isDoctor, setIsDoctor] = useState(false);
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const dropRef = useRef<HTMLDivElement>(null);
@@ -27,12 +28,24 @@ export default function Navbar() {
     const checkAuth = () => {
       const adminAuth = localStorage.getItem("nc_admin_auth") === "true";
       const userAuth = localStorage.getItem("nc_user_auth") === "true";
+      const doctorAuth = localStorage.getItem("nc_doctor_auth") === "true";
       setIsAdmin(adminAuth);
       setIsUser(userAuth);
+      setIsDoctor(doctorAuth);
 
       if (adminAuth) {
         setUserName("Admin");
         setUserEmail("admin@nursecare.ke");
+      } else if (doctorAuth) {
+        const raw = localStorage.getItem("nc_doctor_profile");
+        if (raw) {
+          const p = JSON.parse(raw);
+          setUserName(p.name || "Doctor");
+          setUserEmail(p.email || "doctor@nursecare.ke");
+        } else {
+          setUserName("Doctor");
+          setUserEmail("doctor@nursecare.ke");
+        }
       } else if (userAuth) {
         const raw = localStorage.getItem("nc_user_profile");
         if (raw) {
@@ -58,12 +71,14 @@ export default function Navbar() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const loggedIn = isAdmin || isUser;
+  const loggedIn = isAdmin || isUser || isDoctor;
 
   const handleLogout = () => {
     localStorage.removeItem("nc_admin_auth");
     localStorage.removeItem("nc_user_auth");
     localStorage.removeItem("nc_user_profile");
+    localStorage.removeItem("nc_doctor_auth");
+    localStorage.removeItem("nc_doctor_profile");
     window.location.href = "/";
   };
 
@@ -90,6 +105,7 @@ export default function Navbar() {
             <Link href="/" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">Home</Link>
             <Link href="/services" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">Services</Link>
             <Link href="/providers" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">Find Nurses</Link>
+            <Link href="/consultations" className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all">Consultations</Link>
             <Link href="/emergency" className="px-4 py-2 text-sm font-semibold text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg transition-all flex items-center gap-1.5">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
               Emergency
@@ -111,6 +127,7 @@ export default function Navbar() {
                   <div className="text-left">
                     <p className="text-sm font-semibold text-slate-900 leading-none">{userName || "Account"}</p>
                     {isAdmin && <p className="text-xs text-blue-600 font-medium mt-0.5">Admin</p>}
+                  {isDoctor && <p className="text-xs text-teal-600 font-medium mt-0.5">Doctor</p>}
                   </div>
                   <svg className={`w-4 h-4 text-slate-400 transition-transform ${dropOpen ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -139,11 +156,19 @@ export default function Navbar() {
                           Super Admin
                         </div>
                       )}
+                      {isDoctor && (
+                        <div className="mt-2 inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs font-bold px-2.5 py-1 rounded-full">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                          </svg>
+                          Doctor Portal
+                        </div>
+                      )}
                     </div>
 
                     {/* Links */}
                     <div className="py-1">
-                      {!isAdmin && (
+                      {!isAdmin && !isDoctor && (
                         <Link href="/profile" onClick={() => setDropOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors">
                           <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -152,14 +177,23 @@ export default function Navbar() {
                           My Profile
                         </Link>
                       )}
-                      <Link href={isAdmin ? "/admin" : "/dashboard"} onClick={() => setDropOpen(false)}
+                      <Link href={isAdmin ? "/admin" : isDoctor ? "/doctor/dashboard" : "/dashboard"} onClick={() => setDropOpen(false)}
                         className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors">
                         <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                         </svg>
-                        {isAdmin ? "Admin Panel" : "My Dashboard"}
+                        {isAdmin ? "Admin Panel" : isDoctor ? "Doctor Portal" : "My Dashboard"}
                       </Link>
-                      {!isAdmin && (
+                      {isDoctor && (
+                        <Link href="/consultations" onClick={() => setDropOpen(false)}
+                          className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-teal-600 transition-colors">
+                          <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10l4.553-2.069A1 1 0 0121 8.82v6.36a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                          </svg>
+                          Browse Consultations
+                        </Link>
+                      )}
+                      {!isAdmin && !isDoctor && (
                         <Link href="/dashboard" onClick={() => setDropOpen(false)}
                           className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 hover:text-blue-600 transition-colors">
                           <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -207,6 +241,7 @@ export default function Navbar() {
           <Link href="/" className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>Home</Link>
           <Link href="/services" className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>Services</Link>
           <Link href="/providers" className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>Find Nurses</Link>
+          <Link href="/consultations" className="block px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>Consultations</Link>
           <Link href="/emergency" className="block px-4 py-3 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl" onClick={() => setOpen(false)}>🚨 Emergency Help</Link>
 
           <div className="pt-3 border-t border-slate-100 space-y-2">
@@ -222,11 +257,11 @@ export default function Navbar() {
                     <p className="text-slate-500 text-xs truncate">{userEmail}</p>
                   </div>
                 </div>
-                {!isAdmin && (
+                {!isAdmin && !isDoctor && (
                   <Link href="/profile" className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>👤 My Profile</Link>
                 )}
-                <Link href={isAdmin ? "/admin" : "/dashboard"} className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>
-                  {isAdmin ? "🛡 Admin Panel" : "📋 My Dashboard"}
+                <Link href={isAdmin ? "/admin" : isDoctor ? "/doctor/dashboard" : "/dashboard"} className="block px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 rounded-xl" onClick={() => setOpen(false)}>
+                  {isAdmin ? "🛡 Admin Panel" : isDoctor ? "🩺 Doctor Portal" : "📋 My Dashboard"}
                 </Link>
                 <button onClick={handleLogout} className="w-full text-left px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-xl transition-colors">
                   ← Log out
