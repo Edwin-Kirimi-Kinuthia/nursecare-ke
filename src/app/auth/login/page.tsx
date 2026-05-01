@@ -20,7 +20,14 @@ export default function LoginPage() {
       return;
     }
 
-    // Store session and redirect
+    // Admin credentials → go to admin panel
+    if (form.email === "admin@nursecare.ke" && form.password === "NurseCare@Admin2026") {
+      localStorage.setItem("nc_admin_auth", "true");
+      window.location.href = "/admin";
+      return;
+    }
+
+    // Regular user → go to dashboard
     localStorage.setItem("nc_user_auth", "true");
     localStorage.setItem("nc_user_email", form.email);
     window.location.href = "/dashboard";
