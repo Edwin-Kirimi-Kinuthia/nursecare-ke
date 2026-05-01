@@ -27,9 +27,25 @@ export default function LoginPage() {
       return;
     }
 
-    // Regular user → go to dashboard
+    // Regular user → seed profile if first login, then go to dashboard
     localStorage.setItem("nc_user_auth", "true");
-    localStorage.setItem("nc_user_email", form.email);
+    if (!localStorage.getItem("nc_user_profile")) {
+      const name = form.email.split("@")[0].replace(/[._]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      localStorage.setItem("nc_user_profile", JSON.stringify({
+        name,
+        email: form.email,
+        phone: "",
+        location: "",
+        dob: "",
+        blood: "",
+        allergies: "",
+        conditions: "",
+        medications: "",
+        ec_name: "",
+        ec_relationship: "",
+        ec_phone: "",
+      }));
+    }
     window.location.href = "/dashboard";
   };
 

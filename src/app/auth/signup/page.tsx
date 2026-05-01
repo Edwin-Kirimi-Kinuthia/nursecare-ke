@@ -20,6 +20,28 @@ export default function SignupPage() {
     if (role === "provider" && step === 1) { setStep(2); return; }
     setLoading(true);
     await new Promise((r) => setTimeout(r, 1500));
+
+    if (role === "patient") {
+      localStorage.setItem("nc_user_auth", "true");
+      localStorage.setItem("nc_user_profile", JSON.stringify({
+        name: form.name,
+        email: form.email,
+        phone: form.phone,
+        location: "",
+        dob: "",
+        blood: "",
+        allergies: "",
+        conditions: "",
+        medications: "",
+        ec_name: "",
+        ec_relationship: "",
+        ec_phone: "",
+      }));
+      setLoading(false);
+      setDone(true);
+      return;
+    }
+
     setLoading(false);
     setDone(true);
   };
