@@ -1,0 +1,195 @@
+// CareBora database schema (Prisma).
+//
+// Identity & profiles (M0/M1) below. Transactional domains are added in their
+// milestones: appointments/availability (M2), consultations/prescriptions (M3),
+// payments/ledger (M4), products/orders (M5), home-visit requests (M6).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  patient
+  doctor
+  nurse
+  physio
+  pharmacy
+  admin
+}
+
+enum VerificationStatus {
+  unverified
+  pending
+  in_review
+  verified
+  rejected
+}
+
+enum DocumentType {
+  national_id
+  practice_licence
+  academic_certificate
+  facility_licence
+  other
+}
+
+/// Base identity. One row per person/entity, regardless of role.
+model User {
+  id              String    @id @default(uuid()) @db.Uuid
+  role            UserRole  @default(patient)
+  email           String    @unique
+  phone           String?   @unique
+  fullName        String    @map("full_name")
+  avatarUrl       String?   @map("avatar_url")
+  emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
+  phoneVerifiedAt DateTime? @map("phone_verified_at") @db.Timestamptz(6)
+  isActive        Boolean   @default(true) @map("is_active")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  credentials           Credentials?
+  sessions              Session[]
+  verificationCodes     VerificationCode[]
+  patientProfile        PatientProfile?
+  providerProfile       ProviderProfile?
+  verificationDocuments VerificationDocument[] @relation("DocumentOwner")
+  reviewedDocuments     VerificationDocument[] @relation("DocumentReviewer")
+  auditLogs             AuditLog[]             @relation("AuditActor")
+
+  @@index([role])
+  @@map("users")
+}
+
+/// Password credentials, separated from the user record.
+model Credentials {
+  userId       String   @id @map("user_id") @db.Uuid
+  passwordHash String   @map("password_hash")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credentials")
+}
+
+/// Refresh-token sessions (revocable). Access tokens stay stateless JWTs.
+model Session {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @map("user_id") @db.Uuid
+  refreshTokenHash String    @map("refresh_token_hash")
+  userAgent        String?   @map("user_agent")
+  ipAddress        String?   @map("ip_address")
+  expiresAt        DateTime  @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+/// Short-lived numeric codes for phone/email verification (OTP).
+model VerificationCode {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  channel    String // "sms" | "email"
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
+  consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("verification_codes")
+}
+
+/// Patient-specific profile data.
+model PatientProfile {
+  userId                String    @id @map("user_id") @db.Uuid
+  dateOfBirth           DateTime? @map("date_of_birth") @db.Timestamptz(6)
+  gender                String?
+  county                String?
+  town                  String?
+  addressLine           String?   @map("address_line")
+  bloodGroup            String?   @map("blood_group")
+  allergies             String[]  @default([])
+  chronicConditions     String[]  @default([]) @map("chronic_conditions")
+  emergencyContactName  String?   @map("emergency_contact_name")
+  emergencyContactPhone String?   @map("emergency_contact_phone")
+  createdAt             DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt             DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("patient_profiles")
+}
+
+/// Provider profile for doctors, nurses, physios, pharmacies.
+model ProviderProfile {
+  userId             String             @id @map("user_id") @db.Uuid
+  specialty          String?
+  subSpecialty       String?            @map("sub_specialty")
+  bio                String?
+  licenceNumber      String?            @map("licence_number")
+  licenceBody        String?            @map("licence_body")
+  yearsExperience    Int                @default(0) @map("years_experience")
+  languages          String[]           @default([])
+  qualifications     String[]           @default([])
+  services           String[]           @default([])
+  consultationFeeKes Int?               @map("consultation_fee_kes")
+  homeVisitFeeKes    Int?               @map("home_visit_fee_kes")
+  county             String?
+  town               String?
+  verificationStatus VerificationStatus @default(unverified) @map("verification_status")
+  isAvailable        Boolean            @default(false) @map("is_available")
+  ratingAvg          Int                @default(0) @map("rating_avg")
+  ratingCount        Int                @default(0) @map("rating_count")
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([verificationStatus])
+  @@index([specialty])
+  @@map("provider_profiles")
+}
+
+/// KYC / licence documents uploaded by providers for verification.
+model VerificationDocument {
+  id           String       @id @default(uuid()) @db.Uuid
+  userId       String       @map("user_id") @db.Uuid
+  type         DocumentType
+  fileUrl      String       @map("file_url")
+  reviewedById String?      @map("reviewed_by") @db.Uuid
+  reviewedAt   DateTime?    @map("reviewed_at") @db.Timestamptz(6)
+  notes        String?
+  createdAt    DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user     User  @relation("DocumentOwner", fields: [userId], references: [id], onDelete: Cascade)
+  reviewer User? @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+
+  @@index([userId])
+  @@map("verification_documents")
+}
+
+/// Audit trail for clinical and admin actions (compliance).
+model AuditLog {
+  id         String   @id @default(uuid()) @db.Uuid
+  actorId    String?  @map("actor_id") @db.Uuid
+  action     String
+  entityType String?  @map("entity_type")
+  entityId   String?  @map("entity_id")
+  metadata   Json?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([actorId])
+  @@map("audit_logs")
+}

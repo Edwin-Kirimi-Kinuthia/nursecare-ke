@@ -1,0 +1,28 @@
+# Local development services for CareBora.
+# Prod uses Neon (Postgres) on Vercel; this is just a consistent local database.
+#
+#   docker compose up -d      # start Postgres in the background
+#   docker compose down       # stop it (data persists in the named volume)
+#   docker compose down -v    # stop and wipe the database
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: carebora-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: carebora
+      POSTGRES_PASSWORD: carebora
+      POSTGRES_DB: carebora
+    ports:
+      - "5432:5432"
+    volumes:
+      - carebora_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U carebora -d carebora"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  carebora_pgdata:

@@ -1,0 +1,31 @@
+{
+  "name": "carebora",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CareBora — API-first telehealth platform for Kenya",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "db:generate": "npm run db:generate -w @carebora/db",
+    "db:migrate": "npm run db:migrate -w @carebora/db",
+    "db:deploy": "npm run db:deploy -w @carebora/db",
+    "db:push": "npm run db:push -w @carebora/db",
+    "db:studio": "npm run db:studio -w @carebora/db",
+    "db:seed": "npm run db:seed -w @carebora/db"
+  },
+  "devDependencies": {
+    "prettier": "^3.4.2",
+    "turbo": "^2.5.0",
+    "typescript": "^5.7.3"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "npm@10.8.2"
+}
