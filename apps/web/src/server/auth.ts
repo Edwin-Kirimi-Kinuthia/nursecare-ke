@@ -1,0 +1,94 @@
+import { NextResponse } from "next/server";
+import { verifyAccessToken, type AccessClaims } from "@carebora/core";
+import { ApiError, type UserRole } from "@carebora/shared";
+import type { RequestMeta } from "@carebora/core";
+
+export const ACCESS_COOKIE = "cb_access";
+export const REFRESH_COOKIE = "cb_refresh";
+
+const IS_PROD = process.env.NODE_ENV === "production";
+const ACCESS_TTL = Number(process.env.JWT_ACCESS_TTL ?? "900");
+const REFRESH_TTL = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
+
+function readCookie(req: Request, name: string): string | null {
+  const header = req.headers.get("cookie");
+  if (!header) return null;
+  for (const part of header.split(";")) {
+    const [k, ...v] = part.trim().split("=");
+    if (k === name) return decodeURIComponent(v.join("="));
+  }
+  return null;
+}
+
+/** Pull the access token from the Authorization header (mobile) or cookie (web). */
+function extractToken(req: Request): string | null {
+  const header = req.headers.get("authorization");
+  if (header?.startsWith("Bearer ")) return header.slice(7).trim();
+  return readCookie(req, ACCESS_COOKIE);
+}
+
+/** Read the refresh token from the httpOnly cookie (web path). */
+export function readRefreshCookie(req: Request): string | null {
+  return readCookie(req, REFRESH_COOKIE);
+}
+
+/** Stamp auth cookies onto a NextResponse (mutates and returns it). */
+export function setAuthCookies(
+  res: NextResponse,
+  tokens: { accessToken: string; refreshToken: string },
+): NextResponse {
+  res.cookies.set(ACCESS_COOKIE, tokens.accessToken, {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: "lax",
+    path: "/",
+    maxAge: ACCESS_TTL,
+  });
+  res.cookies.set(REFRESH_COOKIE, tokens.refreshToken, {
+    httpOnly: true,
+    secure: IS_PROD,
+    sameSite: "lax",
+    path: "/api/v1/auth",
+    maxAge: REFRESH_TTL,
+  });
+  return res;
+}
+
+/** Clear auth cookies on a response (for logout). */
+export function clearAuthCookies(res: NextResponse): NextResponse {
+  res.cookies.set(ACCESS_COOKIE, "", { httpOnly: true, path: "/", maxAge: 0 });
+  res.cookies.set(REFRESH_COOKIE, "", { httpOnly: true, path: "/api/v1/auth", maxAge: 0 });
+  return res;
+}
+
+/** Returns the auth claims if a valid token is present, else null. */
+export async function getAuth(req: Request): Promise<AccessClaims | null> {
+  const token = extractToken(req);
+  if (!token) return null;
+  try {
+    return await verifyAccessToken(token);
+  } catch {
+    return null;
+  }
+}
+
+/** Require a valid session; optionally restrict to specific roles. Throws otherwise. */
+export async function requireAuth(
+  req: Request,
+  roles?: UserRole[],
+): Promise<AccessClaims> {
+  const auth = await getAuth(req);
+  if (!auth) throw ApiError.unauthorized();
+  if (roles && !roles.includes(auth.role)) throw ApiError.forbidden();
+  return auth;
+}
+
+/** Best-effort request metadata for audit/session records. */
+export function requestMeta(req: Request): RequestMeta {
+  return {
+    userAgent: req.headers.get("user-agent"),
+    ip:
+      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+      req.headers.get("x-real-ip"),
+  };
+}

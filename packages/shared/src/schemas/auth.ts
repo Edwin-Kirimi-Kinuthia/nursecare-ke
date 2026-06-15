@@ -1,0 +1,58 @@
+import { z } from "zod";
+
+/** Roles a user can self-register as (admin is provisioned, never self-signup). */
+export const SIGNUP_ROLES = [
+  "patient",
+  "doctor",
+  "nurse",
+  "physio",
+  "pharmacy",
+] as const;
+
+/** Kenyan/international phone in E.164-ish form, e.g. +254712345678. */
+const phoneSchema = z
+  .string()
+  .trim()
+  .regex(/^\+?[0-9]{9,15}$/, "Enter a valid phone number");
+
+export const registerSchema = z.object({
+  fullName: z.string().trim().min(2, "Name is too short").max(120),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  phone: phoneSchema.optional(),
+  password: z
+    .string()
+    .min(8, "Password must be at least 8 characters")
+    .max(128),
+  role: z.enum(SIGNUP_ROLES).default("patient"),
+});
+export type RegisterInput = z.infer<typeof registerSchema>;
+
+export const loginSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  password: z.string().min(1, "Password is required"),
+});
+export type LoginInput = z.infer<typeof loginSchema>;
+
+export const refreshSchema = z.object({
+  refreshToken: z.string().min(1).optional(),
+});
+export type RefreshInput = z.infer<typeof refreshSchema>;
+
+/** Shape returned for the authenticated user across the API. */
+export interface PublicUser {
+  id: string;
+  email: string;
+  fullName: string;
+  phone: string | null;
+  role: (typeof SIGNUP_ROLES)[number] | "admin";
+  avatarUrl: string | null;
+  emailVerified: boolean;
+  phoneVerified: boolean;
+  createdAt: string | Date;
+}
+
+export interface AuthResult {
+  user: PublicUser;
+  accessToken: string;
+  refreshToken: string;
+}

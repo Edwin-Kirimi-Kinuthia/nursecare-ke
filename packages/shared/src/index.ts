@@ -1,5 +1,6 @@
 export * from "./errors";
 export * from "./http";
+export * from "./schemas";
 
 /** Roles a CareBora account can hold. Mirrors the DB enum in @carebora/db. */
 export const UserRole = {

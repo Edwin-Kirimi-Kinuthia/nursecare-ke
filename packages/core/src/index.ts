@@ -5,8 +5,10 @@
  * rules inline. This keeps the domain portable — a standalone server or a
  * different transport could reuse it untouched.
  *
- * Services are added per milestone:
- *   - auth.service / profile.service     (M1)
+ * Implemented:
+ *   - auth.service (register / login / refresh / logout / getProfile)  (M1)
+ *   - profile.service (patient/provider GET + PATCH)                   (M1)
+ * Added per later milestone:
  *   - provider.service / booking.service (M2)
  *   - consultation.service               (M3)
  *   - payment.service                    (M4)
@@ -26,3 +28,12 @@ export const health = {
     }
   },
 };
+
+export { authService } from "./auth/auth.service";
+export type { RequestMeta } from "./auth/auth.service";
+export {
+  verifyAccessToken,
+  signAccessToken,
+  type AccessClaims,
+} from "./auth/tokens";
+export { profileService } from "./profile/profile.service";
