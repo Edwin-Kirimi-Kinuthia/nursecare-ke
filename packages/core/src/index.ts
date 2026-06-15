@@ -8,8 +8,8 @@
  * Implemented:
  *   - auth.service (register / login / refresh / logout / getProfile)  (M1)
  *   - profile.service (patient/provider GET + PATCH)                   (M1)
+ *   - providerService / availabilityService / appointmentService        (M2)
  * Added per later milestone:
- *   - provider.service / booking.service (M2)
  *   - consultation.service               (M3)
  *   - payment.service                    (M4)
  *   - pharmacy.service / order.service   (M5)
@@ -37,3 +37,6 @@ export {
   type AccessClaims,
 } from "./auth/tokens";
 export { profileService } from "./profile/profile.service";
+export { providerService } from "./booking/provider.service";
+export { availabilityService } from "./booking/availability.service";
+export { appointmentService } from "./booking/appointment.service";

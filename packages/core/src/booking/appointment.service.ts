@@ -1,0 +1,151 @@
+import { db, Prisma } from "@carebora/db";
+import {
+  ApiError,
+  PROVIDER_ROLES,
+  type AppointmentsQuery,
+  type CreateAppointmentInput,
+  type PatchAppointmentInput,
+  type UserRole,
+} from "@carebora/shared";
+
+const APPOINTMENT_INCLUDE = {
+  slot: true,
+  provider: {
+    select: {
+      userId: true,
+      specialty: true,
+      consultationFeeKes: true,
+      homeVisitFeeKes: true,
+      user: { select: { fullName: true, avatarUrl: true } },
+    },
+  },
+  patient: { select: { id: true, fullName: true, avatarUrl: true } },
+} satisfies Prisma.AppointmentInclude;
+
+export const appointmentService = {
+  /** Patient books a slot. Fails if the slot is already taken. */
+  async create(patientId: string, input: CreateAppointmentInput) {
+    const slot = await db.slot.findUnique({ where: { id: input.slotId } });
+    if (!slot) throw ApiError.notFound("Slot not found");
+    if (slot.isBooked) throw ApiError.conflict("This slot is already booked");
+    if (slot.startsAt <= new Date()) throw ApiError.badRequest("Cannot book a slot in the past");
+
+    const provider = await db.providerProfile.findUnique({
+      where: { userId: slot.providerId },
+    });
+    if (!provider) throw ApiError.notFound("Provider not found");
+
+    const feeKes =
+      slot.appointmentType === "teleconsult"
+        ? (provider.consultationFeeKes ?? 0)
+        : (provider.homeVisitFeeKes ?? 0);
+
+    try {
+      const [appointment] = await db.$transaction([
+        db.appointment.create({
+          data: {
+            patientId,
+            providerId: slot.providerId,
+            slotId: slot.id,
+            appointmentType: slot.appointmentType,
+            feeKes,
+            patientNotes: input.patientNotes ?? null,
+          },
+          include: APPOINTMENT_INCLUDE,
+        }),
+        db.slot.update({ where: { id: slot.id }, data: { isBooked: true } }),
+      ]);
+      return appointment;
+    } catch (err) {
+      if (
+        err instanceof Prisma.PrismaClientKnownRequestError &&
+        err.code === "P2002"
+      ) {
+        throw ApiError.conflict("This slot was just booked by someone else");
+      }
+      throw err;
+    }
+  },
+
+  /** List appointments for the calling user (patient sees theirs, provider sees theirs). */
+  async list(userId: string, role: UserRole, query: AppointmentsQuery) {
+    const isProvider = PROVIDER_ROLES.includes(role);
+    const where = {
+      ...(isProvider ? { providerId: userId } : { patientId: userId }),
+      ...(query.status ? { status: query.status } : {}),
+    };
+    const [appointments, total] = await Promise.all([
+      db.appointment.findMany({
+        where,
+        include: APPOINTMENT_INCLUDE,
+        orderBy: { slot: { startsAt: "asc" } },
+        skip: query.offset,
+        take: query.limit,
+      }),
+      db.appointment.count({ where }),
+    ]);
+    return { appointments, total, limit: query.limit, offset: query.offset };
+  },
+
+  /** Get a single appointment — accessible by the patient or the provider. */
+  async getById(appointmentId: string, userId: string, role: UserRole) {
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+      include: APPOINTMENT_INCLUDE,
+    });
+    if (!appointment) throw ApiError.notFound("Appointment not found");
+
+    const isProvider = PROVIDER_ROLES.includes(role);
+    const owns =
+      (isProvider && appointment.providerId === userId) ||
+      (!isProvider && appointment.patientId === userId);
+    if (!owns) throw ApiError.forbidden();
+
+    return appointment;
+  },
+
+  /** Update appointment status or notes. RBAC: providers confirm/complete/no_show; patients cancel. */
+  async patch(
+    appointmentId: string,
+    userId: string,
+    role: UserRole,
+    input: PatchAppointmentInput,
+  ) {
+    const appointment = await db.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment) throw ApiError.notFound("Appointment not found");
+
+    const isProvider = PROVIDER_ROLES.includes(role);
+    const isPatient = role === "patient";
+
+    if (isProvider && appointment.providerId !== userId) throw ApiError.forbidden();
+    if (isPatient && appointment.patientId !== userId) throw ApiError.forbidden();
+
+    if (input.status) {
+      const providerStatuses = ["confirmed", "completed", "no_show"] as const;
+      const patientStatuses = ["cancelled"] as const;
+
+      if (isProvider && !(providerStatuses as readonly string[]).includes(input.status)) {
+        throw ApiError.forbidden("Providers can only confirm, complete, or mark no-show");
+      }
+      if (isPatient && !(patientStatuses as readonly string[]).includes(input.status)) {
+        throw ApiError.forbidden("Patients can only cancel appointments");
+      }
+    }
+
+    // Free the slot if the appointment is cancelled
+    if (input.status === "cancelled" && appointment.status !== "cancelled") {
+      await db.slot.update({ where: { id: appointment.slotId }, data: { isBooked: false } });
+    }
+
+    return db.appointment.update({
+      where: { id: appointmentId },
+      data: {
+        ...(input.status ? { status: input.status } : {}),
+        ...(input.notes !== undefined ? { notes: input.notes } : {}),
+      },
+      include: APPOINTMENT_INCLUDE,
+    });
+  },
+};

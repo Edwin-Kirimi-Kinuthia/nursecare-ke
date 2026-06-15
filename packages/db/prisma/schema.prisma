@@ -3,6 +3,10 @@
 // Identity & profiles (M0/M1) below. Transactional domains are added in their
 // milestones: appointments/availability (M2), consultations/prescriptions (M3),
 // payments/ledger (M4), products/orders (M5), home-visit requests (M6).
+//
+// M2 additions: AppointmentType, AppointmentStatus enums; Availability, Slot,
+// Appointment models. Appointment.consultationId / paymentId are UUID stubs
+// (no FK yet) — M3 and M4 migrations add the constraints.
 
 generator client {
   provider = "prisma-client-js"
@@ -38,6 +42,19 @@ enum DocumentType {
   other
 }
 
+enum AppointmentType {
+  teleconsult
+  home_visit
+}
+
+enum AppointmentStatus {
+  requested
+  confirmed
+  completed
+  cancelled
+  no_show
+}
+
 /// Base identity. One row per person/entity, regardless of role.
 model User {
   id              String    @id @default(uuid()) @db.Uuid
@@ -60,6 +77,7 @@ model User {
   verificationDocuments VerificationDocument[] @relation("DocumentOwner")
   reviewedDocuments     VerificationDocument[] @relation("DocumentReviewer")
   auditLogs             AuditLog[]             @relation("AuditActor")
+  appointments          Appointment[]          @relation("PatientAppointments")
 
   @@index([role])
   @@map("users")
@@ -155,6 +173,10 @@ model ProviderProfile {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  availabilities Availability[]
+  slots          Slot[]
+  appointments   Appointment[]
+
   @@index([verificationStatus])
   @@index([specialty])
   @@map("provider_profiles")
@@ -192,4 +214,80 @@ model AuditLog {
 
   @@index([actorId])
   @@map("audit_logs")
+}
+
+// ─── M2: Marketplace & Booking ───────────────────────────────────────────────
+
+/// Recurring weekly availability template set by a provider.
+/// dayOfWeek: 0 = Sunday … 6 = Saturday.
+/// startMinute / endMinute: minutes since midnight (540 = 09:00, 1020 = 17:00).
+model Availability {
+  id              String          @id @default(uuid()) @db.Uuid
+  providerId      String          @map("provider_id") @db.Uuid
+  appointmentType AppointmentType @map("appointment_type")
+  dayOfWeek       Int             @map("day_of_week")
+  startMinute     Int             @map("start_minute")
+  endMinute       Int             @map("end_minute")
+  slotDuration    Int             @default(30) @map("slot_duration")
+  isActive        Boolean         @default(true) @map("is_active")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  provider ProviderProfile @relation(fields: [providerId], references: [userId], onDelete: Cascade)
+  slots    Slot[]
+
+  @@index([providerId])
+  @@index([providerId, dayOfWeek])
+  @@map("availabilities")
+}
+
+/// A concrete bookable time slot, generated from an Availability or created manually.
+/// @@unique on (providerId, startsAt) is the DB-level double-booking guard.
+model Slot {
+  id              String          @id @default(uuid()) @db.Uuid
+  providerId      String          @map("provider_id") @db.Uuid
+  availabilityId  String?         @map("availability_id") @db.Uuid
+  appointmentType AppointmentType @map("appointment_type")
+  startsAt        DateTime        @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime        @map("ends_at") @db.Timestamptz(6)
+  isBooked        Boolean         @default(false) @map("is_booked")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  provider     ProviderProfile @relation(fields: [providerId], references: [userId], onDelete: Cascade)
+  availability Availability?   @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+  appointment  Appointment?
+
+  @@unique([providerId, startsAt])
+  @@index([providerId, isBooked, startsAt])
+  @@index([providerId, appointmentType, isBooked])
+  @@map("slots")
+}
+
+/// A patient's confirmed booking of a Slot.
+/// feeKes is snapshotted at booking time — never recomputed from live provider fees.
+/// consultationId / paymentId are UUID columns without FK constraints until M3 / M4.
+model Appointment {
+  id              String            @id @default(uuid()) @db.Uuid
+  patientId       String            @map("patient_id") @db.Uuid
+  providerId      String            @map("provider_id") @db.Uuid
+  slotId          String            @unique @map("slot_id") @db.Uuid
+  appointmentType AppointmentType   @map("appointment_type")
+  status          AppointmentStatus @default(requested)
+  feeKes          Int               @map("fee_kes")
+  patientNotes    String?           @map("patient_notes")
+  notes           String?
+  consultationId  String?           @map("consultation_id") @db.Uuid
+  paymentId       String?           @map("payment_id") @db.Uuid
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient  User            @relation("PatientAppointments", fields: [patientId], references: [id])
+  provider ProviderProfile @relation(fields: [providerId], references: [userId])
+  slot     Slot            @relation(fields: [slotId], references: [id])
+
+  @@index([patientId, status])
+  @@index([providerId, status])
+  @@index([providerId, createdAt])
+  @@map("appointments")
 }
