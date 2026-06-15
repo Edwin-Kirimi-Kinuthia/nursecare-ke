@@ -5,3 +5,4 @@ export * from "./consultation";
 export * from "./payment";
 export * from "./pharmacy";
 export * from "./homevisit";
+export * from "./admin";

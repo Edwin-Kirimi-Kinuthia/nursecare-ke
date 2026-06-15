@@ -1,7 +1,10 @@
 import type {
+  AdminPatchUserInput,
+  AdminUsersQuery,
   ApiResult,
   AppointmentsQuery,
   AssignHomeVisitInput,
+  AuditLogsQuery,
   AuthResult,
   CreateAppointmentInput,
   CreateAvailabilityInput,
@@ -25,8 +28,10 @@ import type {
   ProvidersQuery,
   PublicUser,
   RegisterInput,
+  ReviewVerificationInput,
   SendMessageInput,
   SlotsQuery,
+  VerificationsQuery,
 } from "@carebora/shared";
 import { ApiError, ErrorCode } from "@carebora/shared";
 
@@ -248,6 +253,36 @@ export class CareBoraClient {
   }
   patchHomeVisit(visitId: string, input: PatchHomeVisitInput) {
     return this.patch<HomeVisit>(`/home-visits/${visitId}`, input);
+  }
+
+  // ── Admin — Users (M7) ──
+  adminListUsers(query?: Partial<AdminUsersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<AdminUserListResult>(`/admin/users?${params}`);
+  }
+  adminGetUser(userId: string) {
+    return this.request<AdminUserDetail>(`/admin/users/${userId}`);
+  }
+  adminPatchUser(userId: string, input: AdminPatchUserInput) {
+    return this.patch<AdminUserSummary>(`/admin/users/${userId}`, input);
+  }
+
+  // ── Admin — Verifications (M7) ──
+  adminListVerifications(query?: Partial<VerificationsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<VerificationListResult>(`/admin/verifications?${params}`);
+  }
+  adminReviewVerification(userId: string, input: ReviewVerificationInput) {
+    return this.post<VerificationReviewResult>(`/admin/verifications/${userId}/review`, input);
+  }
+
+  // ── Admin — Stats & Audit (M7) ──
+  adminGetStats() {
+    return this.request<PlatformStats>("/admin/stats");
+  }
+  adminListAuditLogs(query?: Partial<AuditLogsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<AuditLogListResult>(`/admin/audit-logs?${params}`);
   }
 }
 
@@ -586,6 +621,105 @@ export interface HomeVisit {
 
 export interface HomeVisitListResult {
   visits: HomeVisit[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── M7: Admin & Operations ───────────────────────────────────────────────────
+
+export interface AdminUserSummary {
+  id: string;
+  role: string;
+  email: string;
+  phone: string | null;
+  fullName: string;
+  avatarUrl: string | null;
+  isActive: boolean;
+  emailVerifiedAt: string | null;
+  phoneVerifiedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VerificationDocument {
+  id: string;
+  userId: string;
+  type: string;
+  fileUrl: string;
+  reviewedById: string | null;
+  reviewedAt: string | null;
+  notes: string | null;
+  createdAt: string;
+}
+
+export interface AdminUserDetail extends AdminUserSummary {
+  patientProfile: PatientProfile | null;
+  providerProfile: ProviderProfile | null;
+  verificationDocuments: VerificationDocument[];
+  sessions: Array<{
+    id: string;
+    userAgent: string | null;
+    ipAddress: string | null;
+    createdAt: string;
+    expiresAt: string;
+  }>;
+}
+
+export interface AdminUserListResult {
+  users: AdminUserSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface VerificationProvider {
+  userId: string;
+  specialty: string | null;
+  verificationStatus: string;
+  licenceNumber: string | null;
+  yearsExperience: number;
+  createdAt: string;
+  updatedAt: string;
+  user: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null; createdAt: string };
+  verificationDocuments: VerificationDocument[];
+}
+
+export interface VerificationListResult {
+  providers: VerificationProvider[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface VerificationReviewResult {
+  userId: string;
+  verificationStatus: string;
+  user: { id: string; fullName: string; email: string };
+  verificationDocuments: VerificationDocument[];
+}
+
+export interface PlatformStats {
+  users: { total: number; byRole: Record<string, number> };
+  appointments: { total: number; byStatus: Record<string, number> };
+  payments: { completedCount: number; totalRevenueKes: number; platformFeeKes: number };
+  orders: { total: number; byStatus: Record<string, number> };
+  homeVisits: { total: number; byStatus: Record<string, number> };
+}
+
+export interface AuditLogEntry {
+  id: string;
+  actorId: string | null;
+  action: string;
+  entityType: string | null;
+  entityId: string | null;
+  metadata: Record<string, unknown> | null;
+  createdAt: string;
+  actor: { id: string; fullName: string; email: string; role: string } | null;
+}
+
+export interface AuditLogListResult {
+  logs: AuditLogEntry[];
   total: number;
   limit: number;
   offset: number;

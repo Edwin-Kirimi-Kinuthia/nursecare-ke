@@ -49,3 +49,4 @@ export { paymentService } from "./payment/payment.service";
 export { productService } from "./pharmacy/product.service";
 export { orderService } from "./pharmacy/order.service";
 export { homeVisitService } from "./homevisit/homevisit.service";
+export { adminService } from "./admin/admin.service";
