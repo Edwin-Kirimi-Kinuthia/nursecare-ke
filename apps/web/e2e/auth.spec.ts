@@ -4,9 +4,11 @@ const UNIQUE = Date.now();
 const EMAIL = `e2e+${UNIQUE}@carebora.test`;
 const PASSWORD = "Test1234!";
 
-test.describe("Auth flow", () => {
-  let accessToken: string;
+// register → login → me is a sequential journey sharing one account,
+// so these must run in order (not parallel across workers).
+test.describe.configure({ mode: "serial" });
 
+test.describe("Auth flow", () => {
   test("register → returns user + sets cookies", async ({ request }) => {
     const res = await request.post("/api/v1/auth/register", {
       data: { email: EMAIL, password: PASSWORD, fullName: "E2E Patient", role: "patient" },
@@ -16,7 +18,6 @@ test.describe("Auth flow", () => {
     expect(body.data.user.email).toBe(EMAIL);
     expect(body.data.user.role).toBe("patient");
     expect(typeof body.data.accessToken).toBe("string");
-    accessToken = body.data.accessToken;
   });
 
   test("login with correct credentials → returns token", async ({ request }) => {
@@ -26,7 +27,7 @@ test.describe("Auth flow", () => {
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.data.user.email).toBe(EMAIL);
-    accessToken = body.data.accessToken;
+    expect(typeof body.data.accessToken).toBe("string");
   });
 
   test("login with wrong password → 401", async ({ request }) => {

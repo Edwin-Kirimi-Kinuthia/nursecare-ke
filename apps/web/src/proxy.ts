@@ -1,13 +1,15 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { randomUUID } from "node:crypto";
 
 /**
- * Edge middleware — runs before every request.
+ * Proxy — runs before every request (Next.js 16's renamed `middleware`).
  * Stamps each request with a unique X-Request-ID so traces can be correlated
  * across logs, errors, and client-side reporting.
+ *
+ * Runs in the Edge runtime, so we use the Web Crypto API (globalThis.crypto)
+ * rather than node:crypto, which is unavailable here.
  */
-export function middleware(req: NextRequest) {
-  const requestId = req.headers.get("x-request-id") ?? randomUUID();
+export function proxy(req: NextRequest) {
+  const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
   const res = NextResponse.next({
     request: { headers: new Headers({ ...Object.fromEntries(req.headers), "x-request-id": requestId }) },
   });

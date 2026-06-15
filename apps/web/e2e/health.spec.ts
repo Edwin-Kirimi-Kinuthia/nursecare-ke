@@ -5,9 +5,10 @@ test.describe("Health check", () => {
     const res = await request.get("/api/v1/health");
     expect(res.status()).toBe(200);
     const body = await res.json();
-    expect(body.status).toBe("ok");
-    expect(body.db).toBe("up");
-    expect(typeof body.time).toBe("string");
+    // All API responses use the { data } envelope.
+    expect(body.data.status).toBe("ok");
+    expect(body.data.db).toBe("up");
+    expect(typeof body.data.time).toBe("string");
   });
 
   test("GET /api/v1/openapi returns a valid spec object", async ({ request }) => {

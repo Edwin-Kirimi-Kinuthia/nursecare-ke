@@ -7,7 +7,7 @@ import {
   type PatchOrderInput,
   type UserRole,
 } from "@carebora/shared";
-import { normaliseMpesaPhone, stkPush } from "../payment/daraja";
+import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
 
 const ORDER_INCLUDE = {
   items: {
@@ -65,7 +65,7 @@ export const orderService = {
 
     // 4. Initiate STK push
     const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = await stkPush({
+    const push = await initiateStkPush({
       amount: totalKes,
       phone,
       accountRef: `PHARM`,

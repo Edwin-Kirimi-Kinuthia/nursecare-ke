@@ -1,6 +1,6 @@
 import { db } from "@carebora/db";
 import { ApiError, type MpesaCallback, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
-import { normaliseMpesaPhone, stkPush } from "./daraja";
+import { initiateStkPush, normaliseMpesaPhone } from "./daraja";
 import { PROVIDER_ROLES } from "@carebora/shared";
 
 const PLATFORM_FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT ?? "10");
@@ -52,7 +52,7 @@ export const paymentService = {
     }
 
     const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = await stkPush({
+    const push = await initiateStkPush({
       amount: appointment.feeKes,
       phone,
       accountRef: `APT-${appointment.id.slice(0, 8).toUpperCase()}`,

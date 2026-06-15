@@ -1,4 +1,5 @@
 /** Safaricom M-Pesa Daraja API client. Uses only Node's built-in fetch. */
+import { ApiError } from "@carebora/shared";
 
 function baseUrl() {
   return process.env.MPESA_ENV === "production"
@@ -105,4 +106,26 @@ export async function stkPush(params: {
     checkoutRequestId: json.CheckoutRequestID,
     customerMessage: json.CustomerMessage ?? "Payment request sent",
   };
+}
+
+/**
+ * Service-layer entry point for initiating a payment. Wraps the raw stkPush so
+ * that any gateway failure (misconfiguration, OAuth error, Daraja outage, or
+ * network error) surfaces as a clean 503 to the client instead of a generic 500.
+ * The underlying cause is preserved in `details` for server-side logging.
+ */
+export async function initiateStkPush(params: {
+  amount: number;
+  phone: string;
+  accountRef: string;
+  description: string;
+}): Promise<StkPushResult> {
+  try {
+    return await stkPush(params);
+  } catch (err) {
+    throw ApiError.serviceUnavailable(
+      "Could not reach M-Pesa to start your payment. Please try again shortly.",
+      { cause: err instanceof Error ? err.message : String(err) },
+    );
+  }
 }

@@ -62,4 +62,7 @@ export class ApiError extends Error {
   static badRequest(message = "Invalid request", details?: unknown) {
     return new ApiError(ErrorCode.BAD_REQUEST, message, details);
   }
+  static serviceUnavailable(message = "Service temporarily unavailable", details?: unknown) {
+    return new ApiError(ErrorCode.SERVICE_UNAVAILABLE, message, details);
+  }
 }

@@ -175,14 +175,37 @@ async function main() {
   });
 
   // ── Availability (Mon–Fri 08:00–17:00, 30-min teleconsult) ───────────────
+  // Also generates concrete bookable Slot rows for the next 30 days so the
+  // booking flow is demoable straight from the seed.
+  const SLOT_HORIZON_DAYS = 30;
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+
   for (const providerId of [drAmina.id, drJames.id, drFaith.id]) {
     for (const day of [1, 2, 3, 4, 5]) {
-      const existing = await db.availability.findFirst({ where: { providerId, dayOfWeek: day, appointmentType: "teleconsult" } });
-      if (!existing) {
-        await db.availability.create({
+      let rule = await db.availability.findFirst({ where: { providerId, dayOfWeek: day, appointmentType: "teleconsult" } });
+      if (!rule) {
+        rule = await db.availability.create({
           data: { providerId, appointmentType: "teleconsult", dayOfWeek: day, startMinute: mins(8), endMinute: mins(17), slotDuration: 30 },
         });
       }
+
+      // Generate slots for each matching weekday in the horizon.
+      const slots: { providerId: string; availabilityId: string; appointmentType: "teleconsult"; startsAt: Date; endsAt: Date }[] = [];
+      for (let d = 0; d < SLOT_HORIZON_DAYS; d++) {
+        const dayDate = new Date(startToday.getTime() + d * 86_400_000);
+        if (dayDate.getDay() !== day) continue;
+        for (let m = mins(8); m + 30 <= mins(17); m += 30) {
+          slots.push({
+            providerId,
+            availabilityId: rule.id,
+            appointmentType: "teleconsult",
+            startsAt: new Date(dayDate.getTime() + m * 60_000),
+            endsAt: new Date(dayDate.getTime() + (m + 30) * 60_000),
+          });
+        }
+      }
+      if (slots.length) await db.slot.createMany({ data: slots, skipDuplicates: true });
     }
   }
 
@@ -223,7 +246,8 @@ async function main() {
   console.log("  bob@example.com           patient");
   console.log("  carol@example.com         patient");
   console.log("  ──────────────────────────────────────────────");
-  console.log("  15 pharmacy products (8 OTC + 7 Rx)\n");
+  console.log("  15 pharmacy products (8 OTC + 7 Rx)");
+  console.log("  Teleconsult slots generated for 3 doctors (next 30 days)\n");
 }
 
 main()

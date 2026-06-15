@@ -9,7 +9,7 @@ import {
   type PatchHomeVisitInput,
   type UserRole,
 } from "@carebora/shared";
-import { normaliseMpesaPhone, stkPush } from "../payment/daraja";
+import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
 
 const VISIT_INCLUDE = {
   patient: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
@@ -114,7 +114,7 @@ export const homeVisitService = {
     if (!visit.feeKes) throw ApiError.badRequest("Fee has not been set for this visit");
 
     const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = await stkPush({
+    const push = await initiateStkPush({
       amount: visit.feeKes,
       phone,
       accountRef: `HV-${visit.id.slice(0, 8).toUpperCase()}`,
