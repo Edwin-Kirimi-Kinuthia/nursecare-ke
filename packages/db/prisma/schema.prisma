@@ -61,6 +61,18 @@ enum ConsultationStatus {
   ended
 }
 
+enum PaymentStatus {
+  pending
+  completed
+  failed
+  refunded
+  cancelled
+}
+
+enum PaymentMethod {
+  mpesa
+}
+
 /// Base identity. One row per person/entity, regardless of role.
 model User {
   id              String    @id @default(uuid()) @db.Uuid
@@ -87,6 +99,8 @@ model User {
   sentMessages          Message[]
   patientPrescriptions  Prescription[]         @relation("PatientPrescriptions")
   providerPrescriptions Prescription[]         @relation("ProviderPrescriptions")
+  patientPayments       Payment[]              @relation("PatientPayments")
+  providerPayments      Payment[]              @relation("ProviderPayments")
 
   @@index([role])
   @@map("users")
@@ -275,7 +289,6 @@ model Slot {
 
 /// A patient's confirmed booking of a Slot.
 /// feeKes is snapshotted at booking time — never recomputed from live provider fees.
-/// paymentId is a UUID stub without FK — M4 adds the constraint.
 model Appointment {
   id              String            @id @default(uuid()) @db.Uuid
   patientId       String            @map("patient_id") @db.Uuid
@@ -286,7 +299,6 @@ model Appointment {
   feeKes          Int               @map("fee_kes")
   patientNotes    String?           @map("patient_notes")
   notes           String?
-  paymentId       String?           @map("payment_id") @db.Uuid
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -294,6 +306,7 @@ model Appointment {
   provider     ProviderProfile @relation(fields: [providerId], references: [userId])
   slot         Slot            @relation(fields: [slotId], references: [id])
   consultation Consultation?
+  payment      Payment?
 
   @@index([patientId, status])
   @@index([providerId, status])
@@ -360,4 +373,50 @@ model Prescription {
   @@index([consultationId])
   @@index([patientId])
   @@map("prescriptions")
+}
+
+// ─── M4: Payments ────────────────────────────────────────────────────────────
+
+/// M-Pesa payment record tied to an appointment.
+/// checkoutRequestId is the Daraja STK-push correlation key used to match callbacks.
+model Payment {
+  id                  String        @id @default(uuid()) @db.Uuid
+  appointmentId       String        @unique @map("appointment_id") @db.Uuid
+  patientId           String        @map("patient_id") @db.Uuid
+  providerId          String        @map("provider_id") @db.Uuid
+  method              PaymentMethod @default(mpesa)
+  status              PaymentStatus @default(pending)
+  amountKes           Int           @map("amount_kes")
+  phoneNumber         String        @map("phone_number")
+  checkoutRequestId   String?       @unique @map("checkout_request_id")
+  merchantRequestId   String?       @map("merchant_request_id")
+  mpesaReceiptNumber  String?       @map("mpesa_receipt_number")
+  failureReason       String?       @map("failure_reason")
+  paidAt              DateTime?     @map("paid_at") @db.Timestamptz(6)
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment   Appointment    @relation(fields: [appointmentId], references: [id])
+  patient       User           @relation("PatientPayments",  fields: [patientId],  references: [id])
+  provider      User           @relation("ProviderPayments", fields: [providerId], references: [id])
+  ledgerEntries LedgerEntry[]
+
+  @@index([patientId, status])
+  @@index([providerId, status])
+  @@map("payments")
+}
+
+/// Double-entry ledger for platform commission and provider payouts.
+model LedgerEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  paymentId   String   @map("payment_id") @db.Uuid
+  type        String   // "platform_fee" | "provider_payout" | "refund"
+  amountKes   Int      @map("amount_kes")
+  description String?
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@map("ledger_entries")
 }

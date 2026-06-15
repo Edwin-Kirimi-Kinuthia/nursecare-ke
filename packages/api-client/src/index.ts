@@ -7,10 +7,12 @@ import type {
   CreatePrescriptionInput,
   CreateSlotInput,
   LoginInput,
+  MpesaStkInput,
   PatchAppointmentInput,
   PatchConsultationInput,
   PatchPatientProfileInput,
   PatchProviderProfileInput,
+  PaymentsQuery,
   ProvidersQuery,
   PublicUser,
   RegisterInput,
@@ -177,6 +179,21 @@ export class CareBoraClient {
   /** Returns the PDF URL for direct browser navigation / download. */
   prescriptionPdfUrl(consultationId: string, prescriptionId: string) {
     return `${this.opts.baseUrl}/consultations/${consultationId}/prescriptions/${prescriptionId}/pdf`;
+  }
+
+  // ── Payments / M-Pesa (M4) ──
+  initiateMpesaPayment(input: MpesaStkInput) {
+    return this.post<PaymentRecord>("/payments/mpesa/stk", input);
+  }
+  listPayments(query?: Partial<PaymentsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<PaymentListResult>(`/payments?${params}`);
+  }
+  getPayment(paymentId: string) {
+    return this.request<PaymentRecord>(`/payments/${paymentId}`);
+  }
+  refundPayment(paymentId: string) {
+    return this.post<PaymentRecord>(`/payments/${paymentId}/refund`, {});
   }
 }
 
@@ -348,4 +365,49 @@ export interface RxRecord {
   updatedAt: string;
   provider: { id: string; fullName: string };
   patient: { id: string; fullName: string };
+}
+
+export type PaymentStatus = "pending" | "completed" | "failed" | "refunded" | "cancelled";
+
+export interface LedgerEntry {
+  id: string;
+  paymentId: string;
+  type: "platform_fee" | "provider_payout" | "refund";
+  amountKes: number;
+  description: string | null;
+  createdAt: string;
+}
+
+export interface PaymentRecord {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  providerId: string;
+  method: "mpesa";
+  status: PaymentStatus;
+  amountKes: number;
+  phoneNumber: string;
+  checkoutRequestId: string | null;
+  merchantRequestId: string | null;
+  mpesaReceiptNumber: string | null;
+  failureReason: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  appointment: {
+    id: string;
+    appointmentType: AppointmentType;
+    status: AppointmentStatus;
+    slot: { startsAt: string; endsAt: string };
+  };
+  patient: { id: string; fullName: string; phone: string | null };
+  provider: { id: string; fullName: string };
+  ledgerEntries: LedgerEntry[];
+}
+
+export interface PaymentListResult {
+  payments: PaymentRecord[];
+  total: number;
+  limit: number;
+  offset: number;
 }
