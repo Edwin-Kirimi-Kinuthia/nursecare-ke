@@ -48,3 +48,4 @@ export { prescriptionService } from "./consultation/prescription.service";
 export { paymentService } from "./payment/payment.service";
 export { productService } from "./pharmacy/product.service";
 export { orderService } from "./pharmacy/order.service";
+export { homeVisitService } from "./homevisit/homevisit.service";

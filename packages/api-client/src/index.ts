@@ -1,17 +1,22 @@
 import type {
   ApiResult,
   AppointmentsQuery,
+  AssignHomeVisitInput,
   AuthResult,
   CreateAppointmentInput,
   CreateAvailabilityInput,
+  CreateHomeVisitInput,
   CreateOrderInput,
   CreatePrescriptionInput,
   CreateSlotInput,
+  HomeVisitStkInput,
+  HomeVisitsQuery,
   LoginInput,
   MpesaStkInput,
   OrdersQuery,
   PatchAppointmentInput,
   PatchConsultationInput,
+  PatchHomeVisitInput,
   PatchOrderInput,
   PatchPatientProfileInput,
   PatchProviderProfileInput,
@@ -222,6 +227,27 @@ export class CareBoraClient {
   }
   patchOrder(orderId: string, input: PatchOrderInput) {
     return this.patch<Order>(`/orders/${orderId}`, input);
+  }
+
+  // ── Home-Based Care (M6) ──
+  listHomeVisits(query?: Partial<HomeVisitsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<HomeVisitListResult>(`/home-visits?${params}`);
+  }
+  requestHomeVisit(input: CreateHomeVisitInput) {
+    return this.post<HomeVisit>("/home-visits", input);
+  }
+  getHomeVisit(visitId: string) {
+    return this.request<HomeVisit>(`/home-visits/${visitId}`);
+  }
+  assignHomeVisit(visitId: string, input: AssignHomeVisitInput) {
+    return this.post<HomeVisit>(`/home-visits/${visitId}/assign`, input);
+  }
+  payHomeVisit(visitId: string, input: HomeVisitStkInput) {
+    return this.post<HomeVisit>(`/home-visits/${visitId}/pay`, input);
+  }
+  patchHomeVisit(visitId: string, input: PatchHomeVisitInput) {
+    return this.patch<HomeVisit>(`/home-visits/${visitId}`, input);
   }
 }
 
@@ -506,6 +532,60 @@ export interface Order {
 
 export interface OrderListResult {
   orders: Order[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── M6: Home-Based Care ──────────────────────────────────────────────────────
+
+export type HomeVisitStatus =
+  | "pending"
+  | "assigned"
+  | "paid"
+  | "en_route"
+  | "arrived"
+  | "completed"
+  | "cancelled";
+
+export type VisitUrgency = "routine" | "urgent";
+
+export interface HomeVisit {
+  id: string;
+  patientId: string;
+  providerId: string | null;
+  specialty: string;
+  urgency: VisitUrgency;
+  description: string;
+  address: string;
+  county: string;
+  scheduledAt: string | null;
+  status: HomeVisitStatus;
+  feeKes: number | null;
+  visitNotes: string | null;
+  assignedAt: string | null;
+  enRouteAt: string | null;
+  arrivedAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  phoneNumber: string | null;
+  checkoutRequestId: string | null;
+  mpesaReceiptNumber: string | null;
+  paymentFailReason: string | null;
+  paidAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  patient: { id: string; fullName: string; phone: string | null; avatarUrl: string | null };
+  provider: {
+    userId: string;
+    specialty: string | null;
+    homeVisitFeeKes: number | null;
+    user: { fullName: string; avatarUrl: string | null; phone: string | null };
+  } | null;
+}
+
+export interface HomeVisitListResult {
+  visits: HomeVisit[];
   total: number;
   limit: number;
   offset: number;

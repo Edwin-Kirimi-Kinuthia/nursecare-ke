@@ -4,3 +4,4 @@ export * from "./booking";
 export * from "./consultation";
 export * from "./payment";
 export * from "./pharmacy";
+export * from "./homevisit";
