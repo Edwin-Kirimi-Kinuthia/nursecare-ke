@@ -4,14 +4,17 @@ import type {
   AuthResult,
   CreateAppointmentInput,
   CreateAvailabilityInput,
+  CreatePrescriptionInput,
   CreateSlotInput,
   LoginInput,
   PatchAppointmentInput,
+  PatchConsultationInput,
   PatchPatientProfileInput,
   PatchProviderProfileInput,
   ProvidersQuery,
   PublicUser,
   RegisterInput,
+  SendMessageInput,
   SlotsQuery,
 } from "@carebora/shared";
 import { ApiError, ErrorCode } from "@carebora/shared";
@@ -143,6 +146,38 @@ export class CareBoraClient {
   patchAppointment(appointmentId: string, input: PatchAppointmentInput) {
     return this.patch<Appointment>(`/appointments/${appointmentId}`, input);
   }
+
+  // ── Consultations (M3) ──
+  startConsultation(appointmentId: string) {
+    return this.post<Consultation>(`/appointments/${appointmentId}/consultation`, {});
+  }
+  getConsultation(consultationId: string) {
+    return this.request<Consultation>(`/consultations/${consultationId}`);
+  }
+  patchConsultation(consultationId: string, input: PatchConsultationInput) {
+    return this.patch<Consultation>(`/consultations/${consultationId}`, input);
+  }
+  getLivekitToken(consultationId: string, displayName?: string) {
+    return this.post<LivekitTokenResult>(`/consultations/${consultationId}/token`, { displayName });
+  }
+  listMessages(consultationId: string) {
+    return this.request<Message[]>(`/consultations/${consultationId}/messages`);
+  }
+  sendMessage(consultationId: string, input: SendMessageInput) {
+    return this.post<Message>(`/consultations/${consultationId}/messages`, input);
+  }
+
+  // ── Prescriptions (M3) ──
+  listPrescriptions(consultationId: string) {
+    return this.request<RxRecord[]>(`/consultations/${consultationId}/prescriptions`);
+  }
+  createPrescription(consultationId: string, input: CreatePrescriptionInput) {
+    return this.post<RxRecord>(`/consultations/${consultationId}/prescriptions`, input);
+  }
+  /** Returns the PDF URL for direct browser navigation / download. */
+  prescriptionPdfUrl(consultationId: string, prescriptionId: string) {
+    return `${this.opts.baseUrl}/consultations/${consultationId}/prescriptions/${prescriptionId}/pdf`;
+  }
 }
 
 export function createClient(opts: ClientOptions) {
@@ -240,7 +275,6 @@ export interface Appointment {
   feeKes: number;
   patientNotes: string | null;
   notes: string | null;
-  consultationId: string | null;
   paymentId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -253,6 +287,7 @@ export interface Appointment {
     user: { fullName: string; avatarUrl: string | null };
   };
   patient: { id: string; fullName: string; avatarUrl: string | null };
+  consultation?: Consultation | null;
 }
 
 export interface AppointmentListResult {
@@ -260,4 +295,57 @@ export interface AppointmentListResult {
   total: number;
   limit: number;
   offset: number;
+}
+
+export type ConsultationStatus = "pending" | "active" | "ended";
+
+export interface Consultation {
+  id: string;
+  appointmentId: string;
+  roomName: string;
+  status: ConsultationStatus;
+  clinicalNotes: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LivekitTokenResult {
+  token: string;
+  roomName: string;
+  livekitUrl: string;
+}
+
+export interface Message {
+  id: string;
+  consultationId: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+  sender: { id: string; fullName: string; avatarUrl: string | null };
+}
+
+export interface MedicationRecord {
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  notes?: string;
+}
+
+export interface RxRecord {
+  id: string;
+  consultationId: string;
+  patientId: string;
+  providerId: string;
+  medications: MedicationRecord[];
+  instructions: string | null;
+  fileUrl: string | null;
+  issuedAt: string;
+  expiresAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  provider: { id: string; fullName: string };
+  patient: { id: string; fullName: string };
 }

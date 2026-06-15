@@ -55,6 +55,12 @@ enum AppointmentStatus {
   no_show
 }
 
+enum ConsultationStatus {
+  pending
+  active
+  ended
+}
+
 /// Base identity. One row per person/entity, regardless of role.
 model User {
   id              String    @id @default(uuid()) @db.Uuid
@@ -78,6 +84,9 @@ model User {
   reviewedDocuments     VerificationDocument[] @relation("DocumentReviewer")
   auditLogs             AuditLog[]             @relation("AuditActor")
   appointments          Appointment[]          @relation("PatientAppointments")
+  sentMessages          Message[]
+  patientPrescriptions  Prescription[]         @relation("PatientPrescriptions")
+  providerPrescriptions Prescription[]         @relation("ProviderPrescriptions")
 
   @@index([role])
   @@map("users")
@@ -266,7 +275,7 @@ model Slot {
 
 /// A patient's confirmed booking of a Slot.
 /// feeKes is snapshotted at booking time — never recomputed from live provider fees.
-/// consultationId / paymentId are UUID columns without FK constraints until M3 / M4.
+/// paymentId is a UUID stub without FK — M4 adds the constraint.
 model Appointment {
   id              String            @id @default(uuid()) @db.Uuid
   patientId       String            @map("patient_id") @db.Uuid
@@ -277,17 +286,78 @@ model Appointment {
   feeKes          Int               @map("fee_kes")
   patientNotes    String?           @map("patient_notes")
   notes           String?
-  consultationId  String?           @map("consultation_id") @db.Uuid
   paymentId       String?           @map("payment_id") @db.Uuid
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  patient  User            @relation("PatientAppointments", fields: [patientId], references: [id])
-  provider ProviderProfile @relation(fields: [providerId], references: [userId])
-  slot     Slot            @relation(fields: [slotId], references: [id])
+  patient      User            @relation("PatientAppointments", fields: [patientId], references: [id])
+  provider     ProviderProfile @relation(fields: [providerId], references: [userId])
+  slot         Slot            @relation(fields: [slotId], references: [id])
+  consultation Consultation?
 
   @@index([patientId, status])
   @@index([providerId, status])
   @@index([providerId, createdAt])
   @@map("appointments")
+}
+
+// ─── M3: Teleconsultation ────────────────────────────────────────────────────
+
+/// Live consultation session tied to an appointment.
+/// roomName is the LiveKit room identifier.
+model Consultation {
+  id            String             @id @default(uuid()) @db.Uuid
+  appointmentId String             @unique @map("appointment_id") @db.Uuid
+  roomName      String             @unique @map("room_name")
+  status        ConsultationStatus @default(pending)
+  clinicalNotes String?            @map("clinical_notes")
+  startedAt     DateTime?          @map("started_at") @db.Timestamptz(6)
+  endedAt       DateTime?          @map("ended_at") @db.Timestamptz(6)
+  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment   Appointment    @relation(fields: [appointmentId], references: [id])
+  messages      Message[]
+  prescriptions Prescription[]
+
+  @@map("consultations")
+}
+
+/// Persisted in-call chat message.
+model Message {
+  id             String   @id @default(uuid()) @db.Uuid
+  consultationId String   @map("consultation_id") @db.Uuid
+  senderId       String   @map("sender_id") @db.Uuid
+  content        String
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  sender       User         @relation(fields: [senderId], references: [id])
+
+  @@index([consultationId, createdAt])
+  @@map("messages")
+}
+
+/// Digital prescription issued by a provider during or after a consultation.
+/// medications is a JSON array of { name, dosage, frequency, duration, notes? }.
+model Prescription {
+  id             String    @id @default(uuid()) @db.Uuid
+  consultationId String    @map("consultation_id") @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  providerId     String    @map("provider_id") @db.Uuid
+  medications    Json      @default("[]")
+  instructions   String?
+  fileUrl        String?   @map("file_url")
+  issuedAt       DateTime  @default(now()) @map("issued_at") @db.Timestamptz(6)
+  expiresAt      DateTime? @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  patient      User         @relation("PatientPrescriptions", fields: [patientId], references: [id])
+  provider     User         @relation("ProviderPrescriptions", fields: [providerId], references: [id])
+
+  @@index([consultationId])
+  @@index([patientId])
+  @@map("prescriptions")
 }

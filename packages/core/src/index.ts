@@ -9,6 +9,7 @@
  *   - auth.service (register / login / refresh / logout / getProfile)  (M1)
  *   - profile.service (patient/provider GET + PATCH)                   (M1)
  *   - providerService / availabilityService / appointmentService        (M2)
+ *   - consultationService / prescriptionService                        (M3)
  * Added per later milestone:
  *   - consultation.service               (M3)
  *   - payment.service                    (M4)
@@ -40,3 +41,5 @@ export { profileService } from "./profile/profile.service";
 export { providerService } from "./booking/provider.service";
 export { availabilityService } from "./booking/availability.service";
 export { appointmentService } from "./booking/appointment.service";
+export { consultationService } from "./consultation/consultation.service";
+export { prescriptionService } from "./consultation/prescription.service";
