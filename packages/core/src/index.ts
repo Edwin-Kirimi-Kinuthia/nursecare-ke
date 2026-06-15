@@ -11,6 +11,7 @@
  *   - providerService / availabilityService / appointmentService        (M2)
  *   - consultationService / prescriptionService                        (M3)
  *   - paymentService (M-Pesa STK push, callback, ledger, refund)      (M4)
+ *   - productService / orderService (pharmacy catalogue + orders)     (M5)
  * Added per later milestone:
  *   - consultation.service               (M3)
  *   - payment.service                    (M4)
@@ -45,3 +46,5 @@ export { appointmentService } from "./booking/appointment.service";
 export { consultationService } from "./consultation/consultation.service";
 export { prescriptionService } from "./consultation/prescription.service";
 export { paymentService } from "./payment/payment.service";
+export { productService } from "./pharmacy/product.service";
+export { orderService } from "./pharmacy/order.service";

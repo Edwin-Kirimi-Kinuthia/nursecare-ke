@@ -73,6 +73,16 @@ enum PaymentMethod {
   mpesa
 }
 
+enum OrderStatus {
+  pending
+  paid
+  processing
+  dispatched
+  delivered
+  cancelled
+  refunded
+}
+
 /// Base identity. One row per person/entity, regardless of role.
 model User {
   id              String    @id @default(uuid()) @db.Uuid
@@ -101,6 +111,7 @@ model User {
   providerPrescriptions Prescription[]         @relation("ProviderPrescriptions")
   patientPayments       Payment[]              @relation("PatientPayments")
   providerPayments      Payment[]              @relation("ProviderPayments")
+  patientOrders         Order[]                @relation("PatientOrders")
 
   @@index([role])
   @@map("users")
@@ -369,6 +380,7 @@ model Prescription {
   consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
   patient      User         @relation("PatientPrescriptions", fields: [patientId], references: [id])
   provider     User         @relation("ProviderPrescriptions", fields: [providerId], references: [id])
+  orders       Order[]
 
   @@index([consultationId])
   @@index([patientId])
@@ -419,4 +431,75 @@ model LedgerEntry {
 
   @@index([paymentId])
   @@map("ledger_entries")
+}
+
+// ─── M5: Pharmacy & E-commerce ───────────────────────────────────────────────
+
+/// Medication / health product in the pharmacy catalogue.
+model Product {
+  id                   String   @id @default(uuid()) @db.Uuid
+  name                 String
+  genericName          String?  @map("generic_name")
+  description          String?
+  category             String
+  imageUrl             String?  @map("image_url")
+  priceKes             Int      @map("price_kes")
+  requiresPrescription Boolean  @default(false) @map("requires_prescription")
+  stockQty             Int      @default(0) @map("stock_qty")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  orderItems OrderItem[]
+
+  @@index([category])
+  @@index([isActive, stockQty])
+  @@map("products")
+}
+
+/// A patient's pharmacy order (checkout is client-side cart → one POST).
+/// Payments use M-Pesa STK push via the same /payments/mpesa/callback webhook.
+model Order {
+  id                  String      @id @default(uuid()) @db.Uuid
+  patientId           String      @map("patient_id") @db.Uuid
+  prescriptionId      String?     @map("prescription_id") @db.Uuid
+  status              OrderStatus @default(pending)
+  totalKes            Int         @map("total_kes")
+  phoneNumber         String      @map("phone_number")
+  deliveryAddress     String      @map("delivery_address")
+  deliveryNotes       String?     @map("delivery_notes")
+  checkoutRequestId   String?     @unique @map("checkout_request_id")
+  merchantRequestId   String?     @map("merchant_request_id")
+  mpesaReceiptNumber  String?     @map("mpesa_receipt_number")
+  failureReason       String?     @map("failure_reason")
+  paidAt              DateTime?   @map("paid_at") @db.Timestamptz(6)
+  dispatchedAt        DateTime?   @map("dispatched_at") @db.Timestamptz(6)
+  deliveredAt         DateTime?   @map("delivered_at") @db.Timestamptz(6)
+  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient      User          @relation("PatientOrders",  fields: [patientId],      references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+  items        OrderItem[]
+
+  @@index([patientId, status])
+  @@index([status, createdAt])
+  @@map("orders")
+}
+
+/// Line item inside an Order. Snapshots name and price at checkout time.
+model OrderItem {
+  id           String  @id @default(uuid()) @db.Uuid
+  orderId      String  @map("order_id") @db.Uuid
+  productId    String  @map("product_id") @db.Uuid
+  productName  String  @map("product_name")
+  unitPriceKes Int     @map("unit_price_kes")
+  qty          Int
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  order   Order   @relation(fields: [orderId],   references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@map("order_items")
 }

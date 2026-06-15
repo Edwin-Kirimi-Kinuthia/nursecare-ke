@@ -4,15 +4,19 @@ import type {
   AuthResult,
   CreateAppointmentInput,
   CreateAvailabilityInput,
+  CreateOrderInput,
   CreatePrescriptionInput,
   CreateSlotInput,
   LoginInput,
   MpesaStkInput,
+  OrdersQuery,
   PatchAppointmentInput,
   PatchConsultationInput,
+  PatchOrderInput,
   PatchPatientProfileInput,
   PatchProviderProfileInput,
   PaymentsQuery,
+  ProductsQuery,
   ProvidersQuery,
   PublicUser,
   RegisterInput,
@@ -194,6 +198,30 @@ export class CareBoraClient {
   }
   refundPayment(paymentId: string) {
     return this.post<PaymentRecord>(`/payments/${paymentId}/refund`, {});
+  }
+
+  // ── Products / Pharmacy (M5) ──
+  listProducts(query?: Partial<ProductsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<ProductListResult>(`/products?${params}`);
+  }
+  getProduct(productId: string) {
+    return this.request<Product>(`/products/${productId}`);
+  }
+
+  // ── Orders (M5) ──
+  listOrders(query?: Partial<OrdersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<OrderListResult>(`/orders?${params}`);
+  }
+  createOrder(input: CreateOrderInput) {
+    return this.post<Order>("/orders", input);
+  }
+  getOrder(orderId: string) {
+    return this.request<Order>(`/orders/${orderId}`);
+  }
+  patchOrder(orderId: string, input: PatchOrderInput) {
+    return this.patch<Order>(`/orders/${orderId}`, input);
   }
 }
 
@@ -407,6 +435,77 @@ export interface PaymentRecord {
 
 export interface PaymentListResult {
   payments: PaymentRecord[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── M5: Pharmacy ────────────────────────────────────────────────────────────
+
+export type OrderStatus =
+  | "pending"
+  | "paid"
+  | "processing"
+  | "dispatched"
+  | "delivered"
+  | "cancelled";
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string;
+  imageUrl: string | null;
+  priceKes: number;
+  stockQty: number;
+  requiresPrescription: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductListResult {
+  products: Product[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface OrderItem {
+  id: string;
+  orderId: string;
+  productId: string;
+  productName: string;
+  unitPriceKes: number;
+  qty: number;
+  product: { id: string; name: string; imageUrl: string | null; category: string };
+}
+
+export interface Order {
+  id: string;
+  patientId: string;
+  prescriptionId: string | null;
+  status: OrderStatus;
+  totalKes: number;
+  phoneNumber: string;
+  deliveryAddress: string;
+  deliveryNotes: string | null;
+  checkoutRequestId: string | null;
+  merchantRequestId: string | null;
+  mpesaReceiptNumber: string | null;
+  failureReason: string | null;
+  paidAt: string | null;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  patient: { id: string; fullName: string; phone: string | null };
+  prescription: { id: string; issuedAt: string } | null;
+}
+
+export interface OrderListResult {
+  orders: Order[];
   total: number;
   limit: number;
   offset: number;

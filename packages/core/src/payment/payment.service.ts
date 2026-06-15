@@ -73,13 +73,13 @@ export const paymentService = {
     });
   },
 
-  /** Handle the Daraja callback. Called by the webhook route — no auth. */
-  async handleDarajaCallback(payload: MpesaCallback) {
+  /** Handle the Daraja callback for an appointment payment. Returns true if matched. */
+  async handleDarajaCallback(payload: MpesaCallback): Promise<boolean> {
     const cb = payload.Body.stkCallback;
     const payment = await db.payment.findUnique({
       where: { checkoutRequestId: cb.CheckoutRequestID },
     });
-    if (!payment) return; // unknown request — ignore
+    if (!payment) return false;
 
     if (cb.ResultCode === 0) {
       const meta = extractCallbackMeta(cb.CallbackMetadata?.Item ?? []);
@@ -118,6 +118,7 @@ export const paymentService = {
         data: { status: "failed", failureReason: cb.ResultDesc },
       });
     }
+    return true;
   },
 
   /** List payments for the calling user. */
