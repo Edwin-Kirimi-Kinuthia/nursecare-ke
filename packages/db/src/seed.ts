@@ -162,6 +162,18 @@ async function main() {
     await db.providerProfile.upsert({ where: { userId: p.userId }, update: {}, create: p });
   }
 
+  // ── Ratings (applied every run so existing rows get them too) ─────────────
+  const ratings: Record<string, [number, number]> = {
+    [drAmina.id]: [5, 128],
+    [drJames.id]: [4, 89],
+    [drFaith.id]: [5, 203],
+    [nursePeter.id]: [4, 156],
+    [nurseGrace.id]: [4, 42],
+  };
+  for (const [userId, [ratingAvg, ratingCount]] of Object.entries(ratings)) {
+    await db.providerProfile.update({ where: { userId }, data: { ratingAvg, ratingCount } });
+  }
+
   // ── Patient profiles ──────────────────────────────────────────────────────
   await db.patientProfile.upsert({
     where: { userId: alice.id },
