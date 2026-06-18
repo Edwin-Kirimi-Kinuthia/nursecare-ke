@@ -195,6 +195,11 @@ export class CareBoraClient {
     return `${this.opts.baseUrl}/consultations/${consultationId}/prescriptions/${prescriptionId}/pdf`;
   }
 
+  /** The calling patient's medical history (past consultations + notes + prescriptions). */
+  getMedicalHistory() {
+    return this.request<{ consultations: MedicalHistoryEntry[] }>("/patients/me/consultations");
+  }
+
   // ── Payments / M-Pesa (M4) ──
   initiateMpesaPayment(input: MpesaStkInput) {
     return this.post<PaymentRecord>("/payments/mpesa/stk", input);
@@ -454,6 +459,27 @@ export interface RxRecord {
   updatedAt: string;
   provider: { id: string; fullName: string };
   patient: { id: string; fullName: string };
+}
+
+export interface MedicalHistoryEntry {
+  id: string;
+  status: ConsultationStatus;
+  clinicalNotes: string | null;
+  startedAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  appointment: {
+    id: string;
+    appointmentType: AppointmentType;
+    slot: { startsAt: string } | null;
+    provider: { userId: string; specialty: string | null; user: { fullName: string } };
+  };
+  prescriptions: Array<{
+    id: string;
+    medications: MedicationRecord[];
+    instructions: string | null;
+    issuedAt: string;
+  }>;
 }
 
 export type PaymentStatus = "pending" | "completed" | "failed" | "refunded" | "cancelled";

@@ -53,6 +53,39 @@ export const consultationService = {
     });
   },
 
+  /**
+   * The calling patient's medical history: every consultation tied to their
+   * appointments, with the doctor's clinical notes and any prescriptions.
+   */
+  async listForPatient(patientId: string) {
+    return db.consultation.findMany({
+      where: { appointment: { patientId } },
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        status: true,
+        clinicalNotes: true,
+        startedAt: true,
+        endedAt: true,
+        createdAt: true,
+        appointment: {
+          select: {
+            id: true,
+            appointmentType: true,
+            slot: { select: { startsAt: true } },
+            provider: {
+              select: { userId: true, specialty: true, user: { select: { fullName: true } } },
+            },
+          },
+        },
+        prescriptions: {
+          orderBy: { issuedAt: "desc" },
+          select: { id: true, medications: true, instructions: true, issuedAt: true },
+        },
+      },
+    });
+  },
+
   /** Fetch a consultation, verified that the caller is a participant. */
   async get(consultationId: string, userId: string) {
     const c = await getConsultation(consultationId);

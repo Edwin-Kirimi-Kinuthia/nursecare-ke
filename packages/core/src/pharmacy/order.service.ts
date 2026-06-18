@@ -34,10 +34,13 @@ export const orderService = {
       throw ApiError.badRequest("One or more products are unavailable");
     }
 
-    // 2. Prescription requirement check
+    // 2. Prescription requirement check — for Rx items the patient must EITHER
+    //    attach an existing prescription OR upload a prescription image.
     const needsRx = products.some((p) => p.requiresPrescription);
-    if (needsRx && !input.prescriptionId) {
-      throw ApiError.badRequest("A prescription is required for one or more items in this order");
+    if (needsRx && !input.prescriptionId && !input.prescriptionImage) {
+      throw ApiError.badRequest(
+        "These items need a prescription. Upload one or book a consultation to get a prescription.",
+      );
     }
     if (input.prescriptionId) {
       const rx = await db.prescription.findUnique({ where: { id: input.prescriptionId } });
@@ -78,6 +81,7 @@ export const orderService = {
         data: {
           patientId,
           prescriptionId: input.prescriptionId ?? null,
+          prescriptionImageUrl: input.prescriptionImage ?? null,
           totalKes,
           phoneNumber: phone,
           deliveryAddress: input.deliveryAddress,

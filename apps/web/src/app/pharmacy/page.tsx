@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ShoppingBag, Trash2, CheckCircle2, AlertCircle, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { ShoppingBag, Trash2, CheckCircle2, AlertCircle, ShieldCheck, Upload, Stethoscope, FileCheck2 } from "lucide-react";
 import type { Product } from "@carebora/api-client";
 import { ApiError } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
@@ -22,6 +23,9 @@ export default function PharmacyPage() {
   const [address, setAddress] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [placing, setPlacing] = useState(false);
+  const [rxImage, setRxImage] = useState<string | null>(null);
+  const [rxName, setRxName] = useState<string>("");
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -47,6 +51,17 @@ export default function PharmacyPage() {
 
   const lines = Object.entries(items).filter(([id]) => byId.has(id));
   const total = lines.reduce((sum, [id, q]) => sum + (byId.get(id)?.priceKes ?? 0) * q, 0);
+  const hasRx = lines.some(([id]) => byId.get(id)?.requiresPrescription);
+  const rxSatisfied = !hasRx || !!rxImage;
+
+  function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4_000_000) { setMsg({ kind: "err", text: "Prescription image must be under 4 MB." }); return; }
+    const reader = new FileReader();
+    reader.onload = () => { setRxImage(reader.result as string); setRxName(file.name); setMsg(null); };
+    reader.readAsDataURL(file);
+  }
 
   async function checkout() {
     if (!user) { router.push("/login"); return; }
@@ -57,9 +72,11 @@ export default function PharmacyPage() {
         items: lines.map(([productId, qty]) => ({ productId, qty })),
         phoneNumber: phone,
         deliveryAddress: address,
+        prescriptionImage: rxImage ?? undefined,
       });
       setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
       clear();
+      setRxImage(null); setRxName("");
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Checkout failed" });
     } finally {
@@ -147,6 +164,41 @@ export default function PharmacyPage() {
                     <span className="text-xl font-extrabold text-teal-700">{kes(total)}</span>
                   </div>
 
+                  {/* Prescription gate for Rx items */}
+                  {hasRx && (
+                    <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                      <div className="flex items-center gap-1.5 text-sm font-semibold text-amber-800">
+                        <AlertCircle className="h-4 w-4" /> Prescription required
+                      </div>
+                      <p className="mt-1 text-xs text-amber-700">
+                        Your cart has prescription-only medication. Upload a prescription or book a consultation to continue.
+                      </p>
+
+                      {rxImage ? (
+                        <div className="mt-3 flex items-center gap-2 rounded-lg bg-white px-3 py-2 text-sm text-emerald-700">
+                          <FileCheck2 className="h-4 w-4" /> <span className="truncate">{rxName}</span>
+                          <button onClick={() => { setRxImage(null); setRxName(""); }} className="ml-auto text-xs text-slate-400 hover:text-rose-500">Remove</button>
+                        </div>
+                      ) : (
+                        <div className="mt-3 grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => fileRef.current?.click()}
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-semibold text-amber-800 hover:bg-amber-100"
+                          >
+                            <Upload className="h-4 w-4" /> Upload
+                          </button>
+                          <Link
+                            href="/providers"
+                            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+                          >
+                            <Stethoscope className="h-4 w-4" /> Consult
+                          </Link>
+                        </div>
+                      )}
+                      <input ref={fileRef} type="file" accept="image/*,.pdf" onChange={onUpload} className="hidden" />
+                    </div>
+                  )}
+
                   <div className="mt-4 space-y-2.5">
                     <input
                       value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="M-Pesa phone (07…)"
@@ -158,10 +210,10 @@ export default function PharmacyPage() {
                     />
                     <button
                       onClick={checkout}
-                      disabled={placing || address.length < 5}
+                      disabled={placing || address.length < 5 || !rxSatisfied}
                       className="w-full rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700 disabled:opacity-50"
                     >
-                      {placing ? "Placing order…" : `Pay ${kes(total)} via M-Pesa`}
+                      {placing ? "Placing order…" : !rxSatisfied ? "Add prescription to continue" : `Pay ${kes(total)} via M-Pesa`}
                     </button>
                     <p className="flex items-center justify-center gap-1 text-center text-xs text-slate-400">
                       <ShieldCheck className="h-3.5 w-3.5" /> Secure M-Pesa checkout

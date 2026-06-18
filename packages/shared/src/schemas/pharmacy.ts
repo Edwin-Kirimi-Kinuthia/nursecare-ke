@@ -35,7 +35,11 @@ export const createOrderSchema = z.object({
   phoneNumber: kenyanPhone,
   deliveryAddress: z.string().min(5, "Delivery address is required").max(500),
   deliveryNotes: z.string().max(500).optional(),
+  // For prescription-only items, the patient supplies EITHER an existing
+  // prescription (issued in a consultation) OR an uploaded prescription image
+  // (data URL). Capped for the demo; production swaps this for a Blob upload URL.
   prescriptionId: z.string().uuid().optional(),
+  prescriptionImage: z.string().max(5_000_000).optional(),
 });
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
