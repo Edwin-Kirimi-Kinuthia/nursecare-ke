@@ -32,6 +32,10 @@ import type {
   SendMessageInput,
   SlotsQuery,
   VerificationsQuery,
+  CreateReviewInput,
+  ModerateReviewInput,
+  ReviewsQuery,
+  SymptomCheckInput,
 } from "@carebora/shared";
 import { ApiError, ErrorCode } from "@carebora/shared";
 
@@ -288,6 +292,30 @@ export class CareBoraClient {
   adminListAuditLogs(query?: Partial<AuditLogsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<AuditLogListResult>(`/admin/audit-logs?${params}`);
+  }
+
+  // ── Reviews (M9) ──
+  createReview(appointmentId: string, input: CreateReviewInput) {
+    return this.post<Review>(`/appointments/${appointmentId}/review`, input);
+  }
+  listProviderReviews(providerId: string, query?: Partial<ReviewsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<ReviewListResult>(`/providers/${providerId}/reviews?${params}`);
+  }
+  adminListReviews(query?: Partial<ReviewsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<ReviewListResult>(`/admin/reviews?${params}`);
+  }
+  adminModerateReview(reviewId: string, input: ModerateReviewInput) {
+    return this.patch<Review>(`/admin/reviews/${reviewId}`, input);
+  }
+
+  // ── AI (M9) ──
+  symptomCheck(input: SymptomCheckInput) {
+    return this.post<SymptomCheckResult>(`/ai/symptom-check`, input);
+  }
+  matchProvider(concern: string) {
+    return this.post<ProviderMatchResult>(`/ai/provider-match`, { concern });
   }
 }
 
@@ -749,4 +777,43 @@ export interface AuditLogListResult {
   total: number;
   limit: number;
   offset: number;
+}
+
+// ── M9: Reviews ─────────────────────────────────────────────────────────────
+
+export interface Review {
+  id: string;
+  appointmentId: string;
+  patientId: string;
+  providerId: string;
+  rating: number;
+  comment: string | null;
+  isVisible: boolean;
+  createdAt: string;
+  updatedAt: string;
+  patient: { id: string; fullName: string; avatarUrl: string | null };
+  appointment: { id: string; appointmentType: string; slot: { startsAt: string } | null } | null;
+}
+
+export interface ReviewListResult {
+  reviews: Review[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── M9: AI ──────────────────────────────────────────────────────────────────
+
+export interface SymptomCheckResult {
+  urgency: "routine" | "urgent" | "emergency";
+  recommendedSpecialty: string;
+  advice: string;
+  seekEmergencyCare: boolean;
+  disclaimer: string;
+}
+
+export interface ProviderMatchResult {
+  recommendedSpecialty: string;
+  reason: string;
+  alternatives: string[];
 }

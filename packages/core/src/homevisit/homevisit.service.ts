@@ -10,6 +10,7 @@ import {
   type UserRole,
 } from "@carebora/shared";
 import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
+import { notificationService } from "../notifications/notification.service";
 
 const VISIT_INCLUDE = {
   patient: { select: { id: true, fullName: true, phone: true, avatarUrl: true } },
@@ -90,7 +91,7 @@ export const homeVisitService = {
     const provider = await db.providerProfile.findUnique({ where: { userId: input.providerId } });
     if (!provider) throw ApiError.notFound("Provider not found");
 
-    return db.homeVisit.update({
+    const updated = await db.homeVisit.update({
       where: { id: visitId },
       data: {
         providerId: input.providerId,
@@ -99,8 +100,20 @@ export const homeVisitService = {
         status: "assigned",
         assignedAt: new Date(),
       },
-      include: VISIT_INCLUDE,
+      include: {
+        ...VISIT_INCLUDE,
+        patient: { select: { id: true, fullName: true, phone: true, avatarUrl: true, email: true } },
+      },
     });
+    void notificationService.homeVisitAssigned({
+      patientEmail: updated.patient.email,
+      patientPhone: updated.patient.phone,
+      patientName: updated.patient.fullName,
+      providerName: updated.provider?.user.fullName ?? "Provider",
+      scheduledAt: updated.scheduledAt,
+      feeKes: updated.feeKes ?? 0,
+    });
+    return updated;
   },
 
   /** Patient initiates M-Pesa payment after the visit has been assigned and priced. */

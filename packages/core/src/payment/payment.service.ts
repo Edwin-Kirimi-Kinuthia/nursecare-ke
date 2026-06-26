@@ -2,6 +2,7 @@ import { db } from "@carebora/db";
 import { ApiError, type MpesaCallback, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
 import { initiateStkPush, normaliseMpesaPhone } from "./daraja";
 import { PROVIDER_ROLES } from "@carebora/shared";
+import { notificationService } from "../notifications/notification.service";
 
 const PLATFORM_FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT ?? "10");
 
@@ -112,6 +113,23 @@ export const paymentService = {
           },
         }),
       ]);
+
+      // Fire-and-forget notification
+      const full = await db.payment.findUnique({
+        where: { id: payment.id },
+        include: { patient: { select: { email: true, fullName: true, phone: true } }, provider: { select: { fullName: true } } },
+      });
+      if (full) {
+        void notificationService.paymentReceived({
+          patientEmail: full.patient.email,
+          patientPhone: full.patient.phone,
+          patientName: full.patient.fullName,
+          providerName: full.provider.fullName,
+          amountKes: full.amountKes,
+          receiptNumber: full.mpesaReceiptNumber,
+          context: "appointment",
+        });
+      }
     } else {
       await db.payment.update({
         where: { id: payment.id },

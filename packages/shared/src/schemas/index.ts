@@ -6,3 +6,5 @@ export * from "./payment";
 export * from "./pharmacy";
 export * from "./homevisit";
 export * from "./admin";
+export * from "./review";
+export * from "./ai";

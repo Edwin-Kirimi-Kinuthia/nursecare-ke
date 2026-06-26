@@ -7,6 +7,7 @@ import {
   type PatchAppointmentInput,
   type UserRole,
 } from "@carebora/shared";
+import { notificationService } from "../notifications/notification.service";
 
 const APPOINTMENT_INCLUDE = {
   slot: true,
@@ -19,7 +20,7 @@ const APPOINTMENT_INCLUDE = {
       user: { select: { fullName: true, avatarUrl: true } },
     },
   },
-  patient: { select: { id: true, fullName: true, avatarUrl: true } },
+  patient: { select: { id: true, fullName: true, avatarUrl: true, email: true, phone: true } },
 } satisfies Prisma.AppointmentInclude;
 
 export const appointmentService = {
@@ -55,6 +56,15 @@ export const appointmentService = {
         }),
         db.slot.update({ where: { id: slot.id }, data: { isBooked: true } }),
       ]);
+      void notificationService.appointmentBooked({
+        patientEmail: appointment.patient.email,
+        patientPhone: appointment.patient.phone,
+        patientName: appointment.patient.fullName,
+        providerName: appointment.provider.user.fullName,
+        specialty: appointment.provider.specialty,
+        slotTime: slot.startsAt,
+        feeKes: appointment.feeKes,
+      });
       return appointment;
     } catch (err) {
       if (
@@ -139,7 +149,7 @@ export const appointmentService = {
       await db.slot.update({ where: { id: appointment.slotId }, data: { isBooked: false } });
     }
 
-    return db.appointment.update({
+    const updated = await db.appointment.update({
       where: { id: appointmentId },
       data: {
         ...(input.status ? { status: input.status } : {}),
@@ -147,5 +157,18 @@ export const appointmentService = {
       },
       include: APPOINTMENT_INCLUDE,
     });
+
+    if (input.status === "confirmed") {
+      void notificationService.appointmentConfirmed({
+        patientEmail: updated.patient.email,
+        patientPhone: updated.patient.phone,
+        patientName: updated.patient.fullName,
+        providerName: updated.provider.user.fullName,
+        slotTime: updated.slot.startsAt,
+        feeKes: updated.feeKes,
+      });
+    }
+
+    return updated;
   },
 };

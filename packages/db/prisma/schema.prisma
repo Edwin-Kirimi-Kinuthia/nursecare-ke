@@ -128,6 +128,7 @@ model User {
   providerPayments      Payment[]              @relation("ProviderPayments")
   patientOrders         Order[]                @relation("PatientOrders")
   patientHomeVisits     HomeVisit[]            @relation("PatientHomeVisits")
+  patientReviews        Review[]               @relation("PatientReviews")
 
   @@index([role])
   @@map("users")
@@ -216,7 +217,7 @@ model ProviderProfile {
   town               String?
   verificationStatus VerificationStatus @default(unverified) @map("verification_status")
   isAvailable        Boolean            @default(false) @map("is_available")
-  ratingAvg          Int                @default(0) @map("rating_avg")
+  ratingAvg          Float              @default(0) @map("rating_avg")
   ratingCount        Int                @default(0) @map("rating_count")
   createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -227,6 +228,7 @@ model ProviderProfile {
   slots          Slot[]
   appointments   Appointment[]
   homeVisits     HomeVisit[]
+  reviews        Review[]
 
   @@index([verificationStatus])
   @@index([specialty])
@@ -335,6 +337,7 @@ model Appointment {
   slot         Slot            @relation(fields: [slotId], references: [id])
   consultation Consultation?
   payment      Payment?
+  review       Review?
 
   @@index([patientId, status])
   @@index([providerId, status])
@@ -562,4 +565,28 @@ model HomeVisit {
   @@index([providerId, status])
   @@index([status, createdAt])
   @@map("home_visits")
+}
+
+// ─── M9: Reviews & Ratings ───────────────────────────────────────────────────
+
+/// Post-consultation review left by a patient for a provider.
+/// One review per appointment; admin can hide without deleting.
+model Review {
+  id            String   @id @default(uuid()) @db.Uuid
+  appointmentId String   @unique @map("appointment_id") @db.Uuid
+  patientId     String   @map("patient_id") @db.Uuid
+  providerId    String   @map("provider_id") @db.Uuid
+  rating        Int      // 1–5
+  comment       String?
+  isVisible     Boolean  @default(true) @map("is_visible")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  appointment Appointment     @relation(fields: [appointmentId], references: [id])
+  patient     User            @relation("PatientReviews", fields: [patientId], references: [id])
+  provider    ProviderProfile @relation(fields: [providerId], references: [userId])
+
+  @@index([providerId, isVisible])
+  @@index([patientId])
+  @@map("reviews")
 }

@@ -1,5 +1,6 @@
 import { db } from "@carebora/db";
 import { ApiError, PROVIDER_ROLES, type CreatePrescriptionInput, type UserRole } from "@carebora/shared";
+import { notificationService } from "../notifications/notification.service";
 
 async function getConsultationOrThrow(consultationId: string) {
   const c = await db.consultation.findUnique({
@@ -42,7 +43,7 @@ export const prescriptionService = {
       }
     }
 
-    return db.prescription.create({
+    const rx = await db.prescription.create({
       data: {
         consultationId,
         patientId: c.appointment.patientId,
@@ -53,9 +54,16 @@ export const prescriptionService = {
       },
       include: {
         provider: { select: { id: true, fullName: true } },
-        patient: { select: { id: true, fullName: true } },
+        patient: { select: { id: true, fullName: true, email: true } },
       },
     });
+    void notificationService.prescriptionIssued({
+      patientEmail: rx.patient.email,
+      patientName: rx.patient.fullName,
+      providerName: rx.provider.fullName,
+      medicationCount: (input.medications as unknown[]).length,
+    });
+    return rx;
   },
 
   async getById(prescriptionId: string, userId: string, role: UserRole) {
