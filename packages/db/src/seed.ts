@@ -62,7 +62,7 @@ async function main() {
   const nurseGrace = await upsertUser({ email: "nurse.grace@carebora.ke", fullName: "Grace Achieng RN",    role: "nurse",  phone: "+254722000002" });
   const alice     = await upsertUser({ email: "alice@example.com",  fullName: "Alice Njeri",   role: "patient", phone: "+254733000001" });
   const bob       = await upsertUser({ email: "bob@example.com",    fullName: "Bob Mwangi",    role: "patient", phone: "+254733000002" });
-  await upsertUser({ email: "carol@example.com", fullName: "Carol Wairimu", role: "patient", phone: "+254733000003" });
+  const carol     = await upsertUser({ email: "carol@example.com", fullName: "Carol Wairimu", role: "patient", phone: "+254733000003" });
 
   // ── Provider profiles ─────────────────────────────────────────────────────
   const doctors = [
@@ -162,17 +162,127 @@ async function main() {
     await db.providerProfile.upsert({ where: { userId: p.userId }, update: {}, create: p });
   }
 
-  // ── Ratings (applied every run so existing rows get them too) ─────────────
-  const ratings: Record<string, [number, number]> = {
-    [drAmina.id]: [5, 128],
-    [drJames.id]: [4, 89],
-    [drFaith.id]: [5, 203],
-    [nursePeter.id]: [4, 156],
-    [nurseGrace.id]: [4, 42],
-  };
-  for (const [userId, [ratingAvg, ratingCount]] of Object.entries(ratings)) {
-    await db.providerProfile.update({ where: { userId }, data: { ratingAvg, ratingCount } });
+  // ── Reviews & ratings (real backing rows, idempotent) ─────────────────────
+  // Each review is backed by a real past completed appointment, so the
+  // ratingAvg/ratingCount aggregates stay consistent when new reviews arrive
+  // during a live demo. Seeding a provider is skipped if it already has reviews.
+
+  // A pool of reviewer patients so seeded reviews show varied, realistic names.
+  const reviewerSpecs = [
+    { email: "mary.kioko@example.com",    fullName: "Mary Kioko" },
+    { email: "john.omondi@example.com",   fullName: "John Omondi" },
+    { email: "ruth.chebet@example.com",   fullName: "Ruth Chebet" },
+    { email: "david.mutua@example.com",   fullName: "David Mutua" },
+    { email: "sarah.adhiambo@example.com",fullName: "Sarah Adhiambo" },
+    { email: "peter.njoroge@example.com", fullName: "Peter Njoroge" },
+    { email: "esther.wanjiru@example.com",fullName: "Esther Wanjiru" },
+    { email: "samuel.kiprop@example.com", fullName: "Samuel Kiprop" },
+    { email: "lucy.atieno@example.com",   fullName: "Lucy Atieno" },
+    { email: "brian.maina@example.com",   fullName: "Brian Maina" },
+  ];
+  const reviewers = [alice, bob, carol];
+  for (const spec of reviewerSpecs) {
+    reviewers.push(await upsertUser({ ...spec, role: "patient" }));
   }
+
+  /** Creates a past completed appointment + review per entry, then recomputes the aggregate. */
+  async function seedReviews(
+    providerId: string,
+    feeKes: number,
+    entries: { rating: number; comment: string }[],
+  ) {
+    const existing = await db.review.count({ where: { providerId } });
+    if (existing > 0) return; // already seeded
+
+    const baseDay = new Date();
+    baseDay.setHours(0, 0, 0, 0);
+    // Anchor review slots well before any generated booking slot (which only
+    // span seed-run-date → +30 days) and off the 30-min grid (:05) so they
+    // never collide with the bookable-slot unique constraint (provider, startsAt).
+    const HISTORY_OFFSET_DAYS = 60;
+    for (let i = 0; i < entries.length; i++) {
+      const entry = entries[i]!;
+      const { rating, comment } = entry;
+      const reviewer = reviewers[i % reviewers.length]!;
+      const daysAgo = HISTORY_OFFSET_DAYS + i;
+      const startsAt = new Date(baseDay.getTime() - daysAgo * 86_400_000 + (mins(10) + 5) * 60_000);
+      const endsAt = new Date(startsAt.getTime() + 30 * 60_000);
+      const slot = await db.slot.create({
+        data: { providerId, appointmentType: "teleconsult", startsAt, endsAt, isBooked: true },
+      });
+      const appointment = await db.appointment.create({
+        data: {
+          patientId: reviewer.id,
+          providerId,
+          slotId: slot.id,
+          appointmentType: "teleconsult",
+          status: "completed",
+          feeKes,
+        },
+      });
+      await db.review.create({
+        data: { appointmentId: appointment.id, patientId: reviewer.id, providerId, rating, comment },
+      });
+    }
+
+    const stats = await db.review.aggregate({
+      where: { providerId, isVisible: true },
+      _avg: { rating: true },
+      _count: { rating: true },
+    });
+    await db.providerProfile.update({
+      where: { userId: providerId },
+      data: {
+        ratingAvg: Math.round((stats._avg.rating ?? 0) * 10) / 10,
+        ratingCount: stats._count.rating,
+      },
+    });
+  }
+
+  await seedReviews(drAmina.id, 1500, [
+    { rating: 5, comment: "Dr. Amina was thorough and explained everything clearly. Highly recommend." },
+    { rating: 5, comment: "Very professional and caring. Got my prescription sorted in minutes." },
+    { rating: 4, comment: "Good consultation, slight wait but worth it." },
+    { rating: 5, comment: "She listened patiently and gave practical advice. Asante sana." },
+    { rating: 5, comment: "Excellent doctor. The video call was clear and convenient." },
+    { rating: 4, comment: "Helpful and knowledgeable. Will book again." },
+    { rating: 5, comment: "Best telehealth experience I've had in Kenya." },
+    { rating: 5, comment: "Quick, kind, and very competent. Thank you Dr. Amina." },
+    { rating: 4, comment: "Reassuring and clear. Follow-up was easy to arrange." },
+  ]);
+
+  await seedReviews(drJames.id, 2000, [
+    { rating: 5, comment: "Great with my son. Patient and gentle with kids." },
+    { rating: 4, comment: "Knowledgeable paediatrician, answered all my questions." },
+    { rating: 5, comment: "Dr. James put my daughter at ease immediately. Wonderful." },
+    { rating: 4, comment: "Solid advice on my child's nutrition. Recommended." },
+    { rating: 5, comment: "Very reassuring during a stressful night. Grateful." },
+    { rating: 5, comment: "Clear guidance and a calm manner. Five stars." },
+    { rating: 4, comment: "Good consult, helped us avoid an unnecessary hospital trip." },
+  ]);
+
+  await seedReviews(drFaith.id, 2500, [
+    { rating: 5, comment: "Dr. Faith is compassionate and incredibly knowledgeable." },
+    { rating: 5, comment: "Made me feel comfortable discussing sensitive issues. Thank you." },
+    { rating: 5, comment: "Outstanding care throughout my pregnancy questions." },
+    { rating: 4, comment: "Very professional and thorough. Highly recommend." },
+    { rating: 5, comment: "Warm, attentive, and clear. The best." },
+    { rating: 5, comment: "Answered every concern with patience. Truly excellent." },
+    { rating: 4, comment: "Great experience, easy to talk to." },
+    { rating: 5, comment: "Felt genuinely cared for. Will definitely return." },
+  ]);
+
+  await seedReviews(nursePeter.id, 1800, [
+    { rating: 5, comment: "Peter was punctual and very professional during the home visit." },
+    { rating: 4, comment: "Gentle and skilled. Made my mother comfortable." },
+    { rating: 5, comment: "Excellent home care. Clean, careful, and kind." },
+    { rating: 5, comment: "Highly professional nurse. Wound dressing was painless." },
+    { rating: 4, comment: "Reliable and friendly. Would request again." },
+    { rating: 5, comment: "Took great care of my father. Asante." },
+  ]);
+
+  // nurse.grace is still in_review with no completed visits — no reviews yet.
+  await db.providerProfile.update({ where: { userId: nurseGrace.id }, data: { ratingAvg: 0, ratingCount: 0 } });
 
   // ── Patient profiles ──────────────────────────────────────────────────────
   await db.patientProfile.upsert({
