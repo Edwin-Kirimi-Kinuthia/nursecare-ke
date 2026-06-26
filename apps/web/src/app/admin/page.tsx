@@ -7,12 +7,12 @@ import {
   BadgeCheck, XCircle, ScrollText, LayoutDashboard,
 } from "lucide-react";
 import type {
-  PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry,
+  PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit,
 } from "@carebora/api-client";
-import { api, kes } from "@/lib/api";
+import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
-type Tab = "overview" | "users" | "verifications" | "audit";
+type Tab = "overview" | "users" | "verifications" | "home-visits" | "audit";
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -21,21 +21,24 @@ export default function AdminPage() {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   const [users, setUsers] = useState<AdminUserSummary[]>([]);
   const [verifs, setVerifs] = useState<VerificationProvider[]>([]);
+  const [homeVisits, setHomeVisits] = useState<HomeVisit[]>([]);
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [ready, setReady] = useState(false);
 
   const fetchAll = useCallback(async () => {
-    const [s, u, v, l] = await Promise.all([
+    const [s, u, v, hv, l] = await Promise.all([
       api.adminGetStats(),
       api.adminListUsers({ limit: 100 }),
       api.adminListVerifications({}),
+      api.listHomeVisits({ limit: 100 }),
       api.adminListAuditLogs({ limit: 50 }),
     ]);
-    return { stats: s, users: u.users, verifs: v.providers, logs: l.logs };
+    return { stats: s, users: u.users, verifs: v.providers, homeVisits: hv.visits, logs: l.logs };
   }, []);
 
   const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
-    setStats(d.stats); setUsers(d.users); setVerifs(d.verifs); setLogs(d.logs); setReady(true);
+    setStats(d.stats); setUsers(d.users); setVerifs(d.verifs);
+    setHomeVisits(d.homeVisits); setLogs(d.logs); setReady(true);
   }, []);
 
   useEffect(() => {
@@ -63,6 +66,7 @@ export default function AdminPage() {
     { id: "overview", label: "Overview", Icon: LayoutDashboard },
     { id: "users", label: "Users", Icon: Users },
     { id: "verifications", label: "Verifications", Icon: ShieldCheck },
+    { id: "home-visits", label: "Home visits", Icon: HomeIcon },
     { id: "audit", label: "Audit log", Icon: ScrollText },
   ];
 
@@ -109,6 +113,7 @@ export default function AdminPage() {
             {tab === "overview" && stats && <Overview stats={stats} />}
             {tab === "users" && <UsersTable users={users} />}
             {tab === "verifications" && <Verifications verifs={verifs} onReview={review} />}
+            {tab === "home-visits" && <HomeVisitsAdmin visits={homeVisits} onRefresh={async () => apply(await fetchAll())} />}
             {tab === "audit" && <AuditTable logs={logs} />}
           </div>
         )}
@@ -227,6 +232,129 @@ function Verifications({ verifs, onReview }: { verifs: VerificationProvider[]; o
           )}
         </div>
       ))}
+    </div>
+  );
+}
+
+const VISIT_STATUS_CLS: Record<string, string> = {
+  pending:   "bg-amber-100 text-amber-700",
+  assigned:  "bg-indigo-100 text-indigo-700",
+  paid:      "bg-blue-100 text-blue-700",
+  en_route:  "bg-violet-100 text-violet-700",
+  arrived:   "bg-teal-100 text-teal-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-slate-100 text-slate-500",
+};
+
+function HomeVisitsAdmin({ visits, onRefresh }: { visits: HomeVisit[]; onRefresh: () => Promise<void> }) {
+  const [assigning, setAssigning] = useState<HomeVisit | null>(null);
+  const [providerId, setProviderId] = useState("");
+  const [feeKes, setFeeKes] = useState("");
+  const [scheduledAt, setScheduledAt] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  async function assign(e: React.FormEvent) {
+    e.preventDefault();
+    if (!assigning) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      await api.assignHomeVisit(assigning.id, {
+        providerId,
+        feeKes: parseInt(feeKes, 10),
+        scheduledAt: new Date(scheduledAt).toISOString(),
+      });
+      setAssigning(null);
+      await onRefresh();
+    } catch (e: unknown) {
+      setErr(e instanceof Error ? e.message : "Failed to assign");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (visits.length === 0) {
+    return <p className="py-10 text-center text-slate-400">No home visit requests yet.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {visits.map((v) => (
+        <div key={v.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <div className="font-semibold text-slate-900 capitalize">{v.specialty} · <span className="text-teal-700">{v.urgency}</span></div>
+              <div className="text-xs text-slate-400 mt-0.5">{v.patient.fullName} · {when(v.createdAt)}</div>
+              <p className="mt-1 text-sm text-slate-600">{v.description}</p>
+              <div className="mt-1 text-xs text-slate-400">{v.address}, {v.county}</div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_CLS[v.status] ?? ""}`}>
+                {v.status.replace("_", " ")}
+              </span>
+              {v.status === "pending" && (
+                <button
+                  onClick={() => { setAssigning(v); setProviderId(""); setFeeKes(""); setScheduledAt(""); setErr(null); }}
+                  className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
+                >
+                  Assign
+                </button>
+              )}
+            </div>
+          </div>
+          {v.provider && (
+            <div className="mt-2 text-xs text-slate-500">
+              Provider: <span className="font-medium text-slate-700">{v.provider.user.fullName}</span>
+              {v.feeKes ? ` · ${kes(v.feeKes)}` : ""}
+              {v.scheduledAt ? ` · ${when(v.scheduledAt)}` : ""}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {/* Assign modal */}
+      {assigning && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+            <h2 className="font-bold text-slate-900 text-lg">Assign provider</h2>
+            <p className="text-sm text-slate-500 mt-1">{assigning.specialty} visit for {assigning.patient.fullName}</p>
+            <form onSubmit={assign} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Provider user ID</label>
+                <input required value={providerId} onChange={e => setProviderId(e.target.value)}
+                  placeholder="UUID of the provider"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <p className="text-xs text-slate-400 mt-1">Find the provider&apos;s ID in the Users tab.</p>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Fee (KES)</label>
+                  <input required type="number" min="1" value={feeKes} onChange={e => setFeeKes(e.target.value)}
+                    placeholder="e.g. 2500"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">Scheduled at</label>
+                  <input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </div>
+              </div>
+              {err && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{err}</p>}
+              <div className="flex gap-3">
+                <button type="submit" disabled={busy}
+                  className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                  {busy ? "Assigning…" : "Assign provider"}
+                </button>
+                <button type="button" onClick={() => setAssigning(null)}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
