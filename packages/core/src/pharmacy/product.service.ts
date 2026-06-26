@@ -1,5 +1,5 @@
 import { db, type Prisma } from "@carebora/db";
-import { ApiError, type ProductsQuery } from "@carebora/shared";
+import { ApiError, type CreateProductInput, type ProductsQuery, type UpdateProductInput } from "@carebora/shared";
 
 export const productService = {
   async list(query: ProductsQuery) {
@@ -39,5 +39,21 @@ export const productService = {
     const product = await db.product.findUnique({ where: { id: productId } });
     if (!product || !product.isActive) throw ApiError.notFound("Product not found");
     return product;
+  },
+
+  async create(input: CreateProductInput) {
+    return db.product.create({ data: input });
+  },
+
+  async update(productId: string, input: UpdateProductInput) {
+    const product = await db.product.findUnique({ where: { id: productId } });
+    if (!product) throw ApiError.notFound("Product not found");
+    return db.product.update({ where: { id: productId }, data: input });
+  },
+
+  async remove(productId: string) {
+    const product = await db.product.findUnique({ where: { id: productId } });
+    if (!product) throw ApiError.notFound("Product not found");
+    return db.product.update({ where: { id: productId }, data: { isActive: false } });
   },
 };

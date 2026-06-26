@@ -56,3 +56,22 @@ export const ordersQuerySchema = z.object({
   offset: z.coerce.number().int().min(0).default(0),
 });
 export type OrdersQuery = z.infer<typeof ordersQuerySchema>;
+
+// ── Admin product management ──────────────────────────────────────────────────
+
+export const createProductSchema = z.object({
+  name: z.string().min(2).max(200),
+  genericName: z.string().max(200).optional(),
+  description: z.string().max(2000).optional(),
+  category: z.string().min(2).max(100),
+  imageUrl: z.string().url().optional(),
+  priceKes: z.number().int().min(1),
+  requiresPrescription: z.boolean().default(false),
+  stockQty: z.number().int().min(0).default(0),
+});
+export type CreateProductInput = z.infer<typeof createProductSchema>;
+
+export const updateProductSchema = createProductSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+export type UpdateProductInput = z.infer<typeof updateProductSchema>;
