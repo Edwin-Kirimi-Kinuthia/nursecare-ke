@@ -424,6 +424,59 @@ async function main() {
     if (!existing) await db.product.create({ data: { ...product, isActive: true } });
   }
 
+  // ── Sample pharmacy orders (so the admin Orders tab has content) ──────────
+  const existingOrders = await db.order.count();
+  if (existingOrders === 0) {
+    const byName = async (name: string) => db.product.findFirst({ where: { name: { contains: name } } });
+    const paracetamol = await byName("Paracetamol");
+    const vitaminC = await byName("Vitamin C");
+    const ors = await byName("ORS");
+    const zinc = await byName("Zinc");
+
+    type Line = { product: Awaited<ReturnType<typeof byName>>; qty: number };
+    const demoOrders: {
+      patient: typeof alice; status: "delivered" | "dispatched" | "paid"; address: string; phone: string; daysAgo: number; lines: Line[];
+    }[] = [
+      { patient: alice, status: "delivered", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 6,
+        lines: [{ product: paracetamol, qty: 2 }, { product: vitaminC, qty: 1 }] },
+      { patient: bob, status: "dispatched", address: "Apt 4B, Kileleshwa, Nairobi", phone: "+254733000002", daysAgo: 2,
+        lines: [{ product: ors, qty: 3 }, { product: zinc, qty: 1 }] },
+      { patient: alice, status: "paid", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 0,
+        lines: [{ product: paracetamol, qty: 1 }] },
+    ];
+
+    for (const o of demoOrders) {
+      const items = o.lines.filter((l): l is { product: NonNullable<Line["product"]>; qty: number } => l.product !== null);
+      if (!items.length) continue;
+      const total = items.reduce((sum, l) => sum + l.product.priceKes * l.qty, 0);
+      const createdAt = new Date(Date.now() - o.daysAgo * 86_400_000);
+      await db.order.create({
+        data: {
+          patientId: o.patient.id,
+          status: o.status,
+          totalKes: total,
+          phoneNumber: o.phone,
+          deliveryAddress: o.address,
+          createdAt,
+          paidAt: createdAt,
+          mpesaReceiptNumber: `SDE${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+          ...(o.status === "dispatched" ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000) } : {}),
+          ...(o.status === "delivered"
+            ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000), deliveredAt: new Date(createdAt.getTime() + 2 * 86_400_000) }
+            : {}),
+          items: {
+            create: items.map((l) => ({
+              productId: l.product.id,
+              productName: l.product.name,
+              unitPriceKes: l.product.priceKes,
+              qty: l.qty,
+            })),
+          },
+        },
+      });
+    }
+  }
+
   console.log("\n✅  Seed complete.\n");
   console.log("  Accounts (password: Demo1234!)");
   console.log("  ──────────────────────────────────────────────");
