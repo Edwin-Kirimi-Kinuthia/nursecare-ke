@@ -47,18 +47,18 @@ export interface FactCheckResult {
 // ── LLM layer: Hugging Face (free) → Anthropic → none ────────────────────────
 
 async function hfChat(system: string, user: string, maxTokens: number): Promise<string> {
-  const model = process.env.HF_MODEL || "alpha-ai/LLAMA3-3B-Medical-COT";
-  // Per-model serverless TGI endpoint (OpenAI-compatible). Works for HF-hosted
-  // ("warm") models. Override with HF_ENDPOINT to point at a dedicated endpoint.
-  const endpoint =
-    process.env.HF_ENDPOINT || `https://api-inference.huggingface.co/models/${model}/v1/chat/completions`;
+  // Llama 3.1 8B on the free Hugging Face Inference Providers router — capable,
+  // reliably hosted, and works on a free fine-grained token. Override the model
+  // with HF_MODEL, or point HF_ENDPOINT at a dedicated endpoint (e.g. to run a
+  // specialised medical model). Note: most community fine-tunes are NOT on the
+  // free router; they need a dedicated endpoint.
+  const model = process.env.HF_MODEL || "meta-llama/Llama-3.1-8B-Instruct";
+  const endpoint = process.env.HF_ENDPOINT || "https://router.huggingface.co/v1/chat/completions";
   const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
       "Content-Type": "application/json",
-      // Wait for the model to warm up instead of getting a 503 on cold start.
-      "x-wait-for-model": "true",
     },
     body: JSON.stringify({
       model,
@@ -69,7 +69,7 @@ async function hfChat(system: string, user: string, maxTokens: number): Promise<
         { role: "user", content: user },
       ],
     }),
-    signal: AbortSignal.timeout(55_000),
+    signal: AbortSignal.timeout(45_000),
   });
   if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
