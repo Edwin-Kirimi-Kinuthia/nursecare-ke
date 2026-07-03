@@ -356,6 +356,10 @@ model Consultation {
   roomName      String             @unique @map("room_name")
   status        ConsultationStatus @default(pending)
   clinicalNotes String?            @map("clinical_notes")
+  /// Structured, role-specific clinical documentation (doctor treatment sheet,
+  /// nurse cardex, physio assessment) as a { sectionKey: text } map.
+  /// clinicalNotes holds a readable plain-text rendering derived from this.
+  clinicalRecord Json?             @map("clinical_record")
   startedAt     DateTime?          @map("started_at") @db.Timestamptz(6)
   endedAt       DateTime?          @map("ended_at") @db.Timestamptz(6)
   createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)

@@ -5,6 +5,8 @@ import { z } from "zod";
 export const patchConsultationSchema = z.object({
   status: z.enum(["active", "ended"]).optional(),
   clinicalNotes: z.string().max(10000).optional(),
+  /** Structured role-specific record: section key → text. */
+  clinicalRecord: z.record(z.string().max(8000)).optional(),
 });
 
 export type PatchConsultationInput = z.infer<typeof patchConsultationSchema>;

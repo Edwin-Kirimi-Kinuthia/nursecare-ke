@@ -11,6 +11,7 @@ import {
   FileText, Pill, MessageSquare, Loader2, Plus, X, Download, PhoneOff, Check, Send, AlertCircle,
 } from "lucide-react";
 import type { Consultation, Message, RxRecord, MedicationRecord } from "@carebora/api-client";
+import { clinicalTemplateFor, type ClinicalRecord } from "@carebora/shared";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -47,8 +48,9 @@ export default function ConsultationRoom() {
   const isDoctor = !!(consultation?.appointment && user && consultation.appointment.providerId === user.id);
   const [tab, setTab] = useState<"notes" | "rx" | "chat">("chat");
 
-  // notes (doctor)
-  const [notes, setNotes] = useState("");
+  // structured clinical record (provider) — treatment sheet / cardex / assessment
+  const template = clinicalTemplateFor(user?.role);
+  const [record, setRecord] = useState<ClinicalRecord>({});
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -73,7 +75,7 @@ export default function ConsultationRoom() {
         const c = await api.getConsultation(consultationId);
         if (cancelled) return;
         setConsultation(c);
-        setNotes(c.clinicalNotes ?? "");
+        setRecord((c.clinicalRecord as ClinicalRecord) ?? {});
         const isDoc = c.appointment?.providerId === user.id;
         setTab(isDoc ? "notes" : "chat");
         if (isDoc && c.status === "pending") {
@@ -110,12 +112,13 @@ export default function ConsultationRoom() {
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
 
-  function onNotesChange(v: string) {
-    setNotes(v);
+  function onSectionChange(key: string, value: string) {
+    const next = { ...record, [key]: value };
+    setRecord(next);
     setNoteState("saving");
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
-      try { await api.patchConsultation(consultationId, { clinicalNotes: v }); setNoteState("saved"); }
+      try { await api.patchConsultation(consultationId, { clinicalRecord: next }); setNoteState("saved"); }
       catch { setNoteState("error"); }
     }, 900);
   }
@@ -173,7 +176,7 @@ export default function ConsultationRoom() {
   }
 
   const tabs: { key: "notes" | "rx" | "chat"; label: string; Icon: typeof FileText }[] = [
-    ...(isDoctor ? [{ key: "notes" as const, label: "Notes", Icon: FileText }] : []),
+    ...(isDoctor ? [{ key: "notes" as const, label: template.shortLabel, Icon: FileText }] : []),
     { key: "rx", label: "Prescriptions", Icon: Pill },
     { key: "chat", label: "Chat", Icon: MessageSquare },
   ];
@@ -225,24 +228,34 @@ export default function ConsultationRoom() {
           ))}
         </div>
 
-        {/* Notes (doctor) */}
+        {/* Structured clinical record (doctor treatment sheet / nurse cardex / physio assessment) */}
         {tab === "notes" && isDoctor && (
-          <div className="flex flex-1 flex-col p-4">
-            <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-semibold text-slate-700">Clinical notes</label>
-              <span className="text-xs text-slate-400">
-                {noteState === "saving" && "Saving…"}
+          <div className="flex flex-1 flex-col overflow-y-auto p-4">
+            <div className="mb-3 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold text-slate-900">{template.title}</h3>
+                <p className="text-xs text-slate-400">Saves automatically · appears in the patient&apos;s records</p>
+              </div>
+              <span className="text-xs">
+                {noteState === "saving" && <span className="text-slate-400">Saving…</span>}
                 {noteState === "saved" && <span className="inline-flex items-center gap-1 text-emerald-600"><Check className="h-3 w-3" /> Saved</span>}
                 {noteState === "error" && <span className="text-rose-600">Save failed</span>}
               </span>
             </div>
-            <textarea
-              value={notes}
-              onChange={(e) => onNotesChange(e.target.value)}
-              placeholder="Document the consultation — history, examination, assessment, plan…"
-              className="flex-1 resize-none rounded-xl border border-slate-200 p-3 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-teal-500"
-            />
-            <p className="mt-2 text-xs text-slate-400">Notes save automatically and appear in the patient&apos;s medical history.</p>
+            <div className="space-y-3">
+              {template.sections.map((s) => (
+                <div key={s.key}>
+                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{s.label}</label>
+                  <textarea
+                    value={record[s.key] ?? ""}
+                    onChange={(e) => onSectionChange(s.key, e.target.value)}
+                    placeholder={s.placeholder}
+                    rows={s.key === "diagnosis" || s.key === "treatmentPlan" || s.key === "examination" ? 3 : 2}
+                    className="w-full resize-y rounded-xl border border-slate-200 p-2.5 text-sm leading-relaxed focus:outline-none focus:ring-2 focus:ring-teal-500"
+                  />
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

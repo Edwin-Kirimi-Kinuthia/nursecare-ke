@@ -444,6 +444,7 @@ export interface Consultation {
   roomName: string;
   status: ConsultationStatus;
   clinicalNotes: string | null;
+  clinicalRecord: Record<string, string> | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;

@@ -3,6 +3,7 @@ import { db } from "@carebora/db";
 import {
   ApiError,
   PROVIDER_ROLES,
+  renderClinicalRecord,
   type PatchConsultationInput,
   type SendMessageInput,
   type UserRole,
@@ -99,17 +100,24 @@ export const consultationService = {
     assertParticipant(c, userId);
 
     const isProvider = PROVIDER_ROLES.includes(role);
-    if (input.clinicalNotes !== undefined && !isProvider) {
-      throw ApiError.forbidden("Only providers can update clinical notes");
+    if ((input.clinicalNotes !== undefined || input.clinicalRecord !== undefined) && !isProvider) {
+      throw ApiError.forbidden("Only providers can update clinical documentation");
     }
 
     const data: {
       clinicalNotes?: string;
+      clinicalRecord?: Record<string, string>;
       status?: "active" | "ended";
       startedAt?: Date;
       endedAt?: Date;
     } = {};
 
+    if (input.clinicalRecord !== undefined) {
+      data.clinicalRecord = input.clinicalRecord;
+      // Keep clinicalNotes as a readable, labelled snapshot so medical-history
+      // and any text views render the structured record without extra work.
+      data.clinicalNotes = renderClinicalRecord(role, input.clinicalRecord);
+    }
     if (input.clinicalNotes !== undefined) data.clinicalNotes = input.clinicalNotes;
     if (input.status) {
       data.status = input.status;
