@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { HeartPulse, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
@@ -55,9 +55,8 @@ export default function LoginPage() {
 
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
-          <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30">
-            <HeartPulse className="h-6 w-6" />
-          </span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-full.png" alt="Care Bora Kenya" width={150} height={124} className="h-28 w-auto" />
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-xl shadow-slate-200/50 backdrop-blur">

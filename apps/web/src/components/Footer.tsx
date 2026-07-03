@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { HeartPulse } from "lucide-react";
 
 export default function Footer() {
   return (
@@ -7,10 +6,9 @@ export default function Footer() {
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-10 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="flex items-center gap-2 font-extrabold text-slate-900">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-teal-500 to-emerald-600 text-white">
-              <HeartPulse className="h-4 w-4" />
-            </span>
-            Care<span className="text-teal-600">Bora</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo-mark.png" alt="Care Bora Kenya" width={36} height={32} className="h-8 w-auto" />
+            Care&nbsp;Bora
           </div>
           <p className="mt-2 max-w-sm text-sm text-slate-500">
             Kenya&apos;s telehealth platform — verified care, home visits, pharmacy delivery,

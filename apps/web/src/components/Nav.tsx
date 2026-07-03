@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { HeartPulse, ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain } from "lucide-react";
+import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 
@@ -29,10 +29,9 @@ export default function Nav() {
     <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
       <nav className="mx-auto flex h-16 max-w-6xl items-center gap-1 px-4 sm:gap-6">
         <Link href="/" className="flex items-center gap-2 font-extrabold tracking-tight text-slate-900">
-          <span className="grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30">
-            <HeartPulse className="h-5 w-5" />
-          </span>
-          <span className="hidden sm:inline">Care<span className="text-teal-600">Bora</span></span>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-mark.png" alt="Care Bora Kenya" width={40} height={35} className="h-9 w-auto" />
+          <span className="hidden text-lg sm:inline">Care&nbsp;Bora</span>
         </Link>
 
         <div className="ml-2 flex items-center gap-1 text-sm font-medium">

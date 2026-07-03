@@ -9,13 +9,30 @@ import Footer from "@/components/Footer";
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://nursecare-ke-five.vercel.app"),
   title: {
-    default: "CareBora — Quality care, made accessible",
-    template: "%s · CareBora",
+    default: "Care Bora Kenya — Quality care, made accessible",
+    template: "%s · Care Bora Kenya",
   },
   description:
-    "CareBora is Kenya's telehealth platform: teleconsultations, verified providers, home-based care, a pharmacy marketplace, and M-Pesa payments.",
-  applicationName: "CareBora",
+    "Care Bora Kenya is Kenya's telehealth platform: teleconsultations, verified providers, home-based care, a pharmacy marketplace, and M-Pesa payments.",
+  applicationName: "Care Bora Kenya",
+  openGraph: {
+    title: "Care Bora Kenya — Quality care, made accessible",
+    description:
+      "Consult verified doctors and nurses, book home visits, and order from the pharmacy — all paid for with M-Pesa.",
+    url: "https://nursecare-ke-five.vercel.app",
+    siteName: "Care Bora Kenya",
+    images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Care Bora Kenya" }],
+    locale: "en_KE",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Care Bora Kenya — Quality care, made accessible",
+    description: "Kenya's telehealth platform — verified care, home visits, pharmacy delivery, M-Pesa.",
+    images: ["/og-image.png"],
+  },
 };
 
 export default function RootLayout({
