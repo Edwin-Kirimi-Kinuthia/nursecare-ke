@@ -21,23 +21,47 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const [appts, setAppts] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  const isProvider = !!user && ["doctor", "nurse", "physio", "pharmacy"].includes(user.role);
+
+  async function load() {
+    try {
+      const res = await api.listAppointments();
+      setAppts(res.appointments);
+    } catch {
+      setAppts([]);
+    } finally {
+      setLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
-    let active = true;
-    (async () => {
-      try {
-        const res = await api.listAppointments();
-        if (active) setAppts(res.appointments);
-      } catch {
-        if (active) setAppts([]);
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [user, authLoading, router]);
+    load();
+  }, [user, authLoading, router]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function confirmAppt(id: string) {
+    setBusyId(id);
+    try { await api.patchAppointment(id, { status: "confirmed" }); await load(); }
+    finally { setBusyId(null); }
+  }
+
+  async function startConsult(appt: Appointment) {
+    setBusyId(appt.id);
+    try {
+      const c = await api.startConsultation(appt.id);
+      router.push(`/consultations/${c.id}`);
+    } catch (e) {
+      alert(e instanceof Error ? e.message : "Could not start consultation");
+      setBusyId(null);
+    }
+  }
+
+  function joinConsult(appt: Appointment) {
+    if (appt.consultation?.id) router.push(`/consultations/${appt.consultation.id}`);
+  }
 
   if (authLoading || loading) {
     return <div className="mx-auto max-w-3xl px-4 py-10 space-y-3">{Array.from({ length: 3 }).map((_, i) => <div key={i} className="h-24 rounded-2xl skeleton" />)}</div>;
@@ -82,6 +106,43 @@ export default function AppointmentsPage() {
                   <span className="font-bold text-slate-700">{kes(a.feeKes)}</span>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
                 </div>
+
+                {a.appointmentType === "teleconsult" && (a.status === "requested" || a.status === "confirmed") && (
+                  <div className="flex w-full items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                    {/* Doctor confirms a requested teleconsult */}
+                    {isProvider && a.status === "requested" && (
+                      <button
+                        onClick={() => confirmAppt(a.id)}
+                        disabled={busyId === a.id}
+                        className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+                      >
+                        {busyId === a.id ? "…" : "Confirm"}
+                      </button>
+                    )}
+                    {/* Doctor starts / resumes the consultation */}
+                    {isProvider && a.status === "confirmed" && (
+                      <button
+                        onClick={() => startConsult(a)}
+                        disabled={busyId === a.id}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60"
+                      >
+                        <Video className="h-4 w-4" /> {a.consultation ? "Resume consultation" : "Start consultation"}
+                      </button>
+                    )}
+                    {/* Patient joins once the doctor has started */}
+                    {!isProvider && a.consultation && a.consultation.status !== "ended" && (
+                      <button
+                        onClick={() => joinConsult(a)}
+                        className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+                      >
+                        <Video className="h-4 w-4" /> Join consultation
+                      </button>
+                    )}
+                    {!isProvider && a.status === "confirmed" && !a.consultation && (
+                      <span className="text-xs text-slate-400">Waiting for the doctor to start…</span>
+                    )}
+                  </div>
+                )}
               </div>
             );
           })}

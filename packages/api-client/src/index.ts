@@ -448,6 +448,13 @@ export interface Consultation {
   endedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Populated by GET /consultations/:id (participant-scoped). */
+  appointment?: {
+    patientId: string;
+    providerId: string;
+    appointmentType: AppointmentType;
+    status: AppointmentStatus;
+  };
 }
 
 export interface LivekitTokenResult {

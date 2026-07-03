@@ -6,8 +6,9 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self'",
-  "connect-src 'self' wss: https:",  // wss: for LiveKit
+  "connect-src 'self' wss: https:",  // wss: for LiveKit signaling + TURN
   "media-src 'self' blob:",           // blob: for LiveKit tracks
+  "worker-src 'self' blob:",          // blob: for LiveKit web workers
   "frame-ancestors 'none'",
 ].join("; ");
 
@@ -17,7 +18,9 @@ const SECURITY_HEADERS = [
   { key: "X-Frame-Options", value: "DENY" },
   { key: "X-XSS-Protection", value: "1; mode=block" },
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-  { key: "Permissions-Policy", value: "camera=(), microphone=(), geolocation=()" },
+  // Allow the app's own origin to use camera + microphone (required for LiveKit
+  // video consultations). An empty allowlist "camera=()" would block getUserMedia.
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",
