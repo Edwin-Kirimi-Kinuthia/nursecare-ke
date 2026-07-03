@@ -1,5 +1,11 @@
 import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
-import { clinicalTemplateFor, type ClinicalRecord } from "@carebora/shared";
+import { clinicalTemplateFor, type ClinicalRecord, type Medication } from "@carebora/shared";
+
+interface RxItem {
+  medications: Medication[];
+  instructions: string | null;
+  issuedAt: Date;
+}
 
 interface TreatmentSheetData {
   consultationId: string;
@@ -9,6 +15,7 @@ interface TreatmentSheetData {
   providerName: string;
   providerSpecialty: string | null;
   date: Date;
+  prescriptions: RxItem[];
 }
 
 const TEAL = rgb(0.02, 0.53, 0.49);
@@ -106,6 +113,39 @@ export async function generateTreatmentSheetPdf(data: TreatmentSheetData): Promi
   }
   if (!anyContent) {
     page.drawText("No clinical documentation recorded for this consultation.", { x: MARGIN, y, size: 10, font: regular, color: GRAY });
+  }
+
+  // ── Prescription(s) ────────────────────────────────────────────────────────────
+  if (data.prescriptions.length > 0) {
+    ensure(40);
+    y -= 8;
+    page.drawLine({ start: { x: MARGIN, y }, end: { x: PAGE_W - MARGIN, y }, thickness: 0.5, color: GRAY });
+    y -= 20;
+    page.drawText("PRESCRIPTION", { x: MARGIN, y, size: 12, font: bold, color: TEAL });
+    y -= 17;
+
+    let idx = 1;
+    for (const rx of data.prescriptions) {
+      for (const med of rx.medications) {
+        ensure(28);
+        page.drawText(`${idx}. ${med.name}`, { x: MARGIN, y, size: 10.5, font: bold, color: DARK });
+        y -= 13;
+        page.drawText(`Dosage: ${med.dosage}    Frequency: ${med.frequency}    Duration: ${med.duration}`, {
+          x: MARGIN + 14, y, size: 9.5, font: regular, color: DARK,
+        });
+        y -= 12;
+        if (med.notes) wrap(`Note: ${med.notes}`, { x: MARGIN + 14, size: 9, font: regular, color: GRAY });
+        y -= 5;
+        idx++;
+      }
+      if (rx.instructions) {
+        ensure(24);
+        page.drawText("Instructions:", { x: MARGIN, y, size: 9.5, font: bold, color: DARK });
+        y -= 13;
+        wrap(rx.instructions, { x: MARGIN, size: 9.5, font: regular, color: DARK });
+        y -= 8;
+      }
+    }
   }
 
   // ── Footer on every page ──────────────────────────────────────────────────────

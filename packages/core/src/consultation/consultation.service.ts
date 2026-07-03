@@ -114,6 +114,10 @@ export const consultationService = {
             },
           },
         },
+        prescriptions: {
+          orderBy: { issuedAt: "desc" },
+          select: { medications: true, instructions: true, issuedAt: true },
+        },
       },
     });
     if (!c) throw ApiError.notFound("Consultation not found");

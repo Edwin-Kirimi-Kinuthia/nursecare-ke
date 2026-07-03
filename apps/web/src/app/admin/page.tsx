@@ -4,59 +4,86 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
-  BadgeCheck, XCircle, ScrollText, LayoutDashboard,
+  BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
+  Loader2, AlertCircle, RefreshCw, Eye, EyeOff,
 } from "lucide-react";
 import type {
-  PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit,
+  PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
 } from "@carebora/api-client";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
-type Tab = "overview" | "users" | "verifications" | "home-visits" | "audit";
+type Tab = "overview" | "users" | "verifications" | "home-visits" | "reviews" | "audit";
+
+const TONES: Record<string, string> = {
+  teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
+  emerald: "from-emerald-500 to-green-600", amber: "from-amber-500 to-orange-600",
+  rose: "from-rose-500 to-pink-600",
+};
+
+/** Fetches a section's data on mount; exposes loading / error / data + reload.
+ *  Each section is independent, so one failing endpoint never blanks the others. */
+function useSection<T>(fetcher: () => Promise<T>) {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      setData(await fetcher());
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to load");
+    } finally {
+      setLoading(false);
+    }
+  }, [fetcher]);
+
+  useEffect(() => { reload(); }, [reload]);
+  return { data, loading, error, reload };
+}
+
+/** Uniform loading / error / empty shell so every section behaves the same. */
+function SectionShell({
+  loading, error, onRetry, empty, emptyText, children,
+}: {
+  loading: boolean; error: string | null; onRetry: () => void;
+  empty?: boolean; emptyText?: string; children: React.ReactNode;
+}) {
+  if (loading) return <div className="grid h-52 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-300"><Loader2 className="h-6 w-6 animate-spin" /></div>;
+  if (error) {
+    return (
+      <div className="grid h-52 place-items-center rounded-2xl border border-rose-200 bg-rose-50">
+        <div className="text-center">
+          <AlertCircle className="mx-auto h-6 w-6 text-rose-500" />
+          <p className="mt-2 text-sm font-medium text-rose-700">{error}</p>
+          <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700">
+            <RefreshCw className="h-3.5 w-3.5" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (empty) return <div className="grid h-52 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">{emptyText ?? "Nothing here yet."}</p></div>;
+  return <>{children}</>;
+}
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
-  const [stats, setStats] = useState<PlatformStats | null>(null);
-  const [users, setUsers] = useState<AdminUserSummary[]>([]);
-  const [verifs, setVerifs] = useState<VerificationProvider[]>([]);
-  const [homeVisits, setHomeVisits] = useState<HomeVisit[]>([]);
-  const [logs, setLogs] = useState<AuditLogEntry[]>([]);
-  const [ready, setReady] = useState(false);
-
-  const fetchAll = useCallback(async () => {
-    const [s, u, v, hv, l] = await Promise.all([
-      api.adminGetStats(),
-      api.adminListUsers({ limit: 100 }),
-      api.adminListVerifications({}),
-      api.listHomeVisits({ limit: 100 }),
-      api.adminListAuditLogs({ limit: 50 }),
-    ]);
-    return { stats: s, users: u.users, verifs: v.providers, homeVisits: hv.visits, logs: l.logs };
-  }, []);
-
-  const apply = useCallback((d: Awaited<ReturnType<typeof fetchAll>>) => {
-    setStats(d.stats); setUsers(d.users); setVerifs(d.verifs);
-    setHomeVisits(d.homeVisits); setLogs(d.logs); setReady(true);
-  }, []);
 
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
     if (user.role !== "admin") { router.push("/"); return; }
-    let active = true;
-    (async () => {
-      const d = await fetchAll();
-      if (active) apply(d);
-    })();
-    return () => { active = false; };
-  }, [user, authLoading, router, fetchAll, apply]);
+  }, [user, authLoading, router]);
 
-  async function review(userId: string, status: "verified" | "rejected") {
-    await api.adminReviewVerification(userId, { status });
-    apply(await fetchAll());
-  }
+  // Top stat cards load independently — never block the tabs below.
+  const statsFetcher = useCallback(() => api.adminGetStats(), []);
+  const statsSec = useSection(statsFetcher);
+  const stats = statsSec.data;
 
   if (authLoading || !user || user.role !== "admin") {
     return <div className="mx-auto max-w-6xl px-4 py-16"><div className="h-40 rounded-2xl skeleton" /></div>;
@@ -67,6 +94,7 @@ export default function AdminPage() {
     { id: "users", label: "Users", Icon: Users },
     { id: "verifications", label: "Verifications", Icon: ShieldCheck },
     { id: "home-visits", label: "Home visits", Icon: HomeIcon },
+    { id: "reviews", label: "Reviews", Icon: Star },
     { id: "audit", label: "Audit log", Icon: ScrollText },
   ];
 
@@ -79,19 +107,17 @@ export default function AdminPage() {
           </div>
           <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">Operations dashboard</h1>
 
-          {/* Stat cards */}
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            <Stat Icon={Users} label="Users" value={stats?.users.total} tone="teal" />
-            <Stat Icon={CalendarDays} label="Appointments" value={stats?.appointments.total} tone="indigo" />
-            <Stat Icon={Wallet} label="Revenue" value={stats ? kes(stats.payments.totalRevenueKes) : undefined} tone="emerald" />
-            <Stat Icon={ShoppingBag} label="Orders" value={stats?.orders.total} tone="amber" />
-            <Stat Icon={HomeIcon} label="Home visits" value={stats?.homeVisits.total} tone="rose" />
+            <Stat Icon={Users} label="Users" value={stats?.users.total} tone="teal" loading={statsSec.loading} />
+            <Stat Icon={CalendarDays} label="Appointments" value={stats?.appointments.total} tone="indigo" loading={statsSec.loading} />
+            <Stat Icon={Wallet} label="Revenue" value={stats ? kes(stats.payments.totalRevenueKes) : undefined} tone="emerald" loading={statsSec.loading} />
+            <Stat Icon={ShoppingBag} label="Orders" value={stats?.orders.total} tone="amber" loading={statsSec.loading} />
+            <Stat Icon={HomeIcon} label="Home visits" value={stats?.homeVisits.total} tone="rose" loading={statsSec.loading} />
           </div>
         </div>
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-8">
-        {/* Tabs */}
         <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1">
           {TABS.map(({ id, label, Icon }) => (
             <button
@@ -106,147 +132,161 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {!ready ? (
-          <div className="mt-6 h-64 rounded-2xl skeleton" />
-        ) : (
-          <div className="mt-6">
-            {tab === "overview" && stats && <Overview stats={stats} />}
-            {tab === "users" && <UsersTable users={users} />}
-            {tab === "verifications" && <Verifications verifs={verifs} onReview={review} />}
-            {tab === "home-visits" && <HomeVisitsAdmin visits={homeVisits} onRefresh={async () => apply(await fetchAll())} />}
-            {tab === "audit" && <AuditTable logs={logs} />}
-          </div>
-        )}
+        <div className="mt-6">
+          {tab === "overview" && <OverviewTab stats={stats} loading={statsSec.loading} error={statsSec.error} onRetry={statsSec.reload} />}
+          {tab === "users" && <UsersTab />}
+          {tab === "verifications" && <VerificationsTab />}
+          {tab === "home-visits" && <HomeVisitsTab />}
+          {tab === "reviews" && <ReviewsTab />}
+          {tab === "audit" && <AuditTab />}
+        </div>
       </section>
     </div>
   );
 }
 
-const TONES: Record<string, string> = {
-  teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
-  emerald: "from-emerald-500 to-green-600", amber: "from-amber-500 to-orange-600",
-  rose: "from-rose-500 to-pink-600",
-};
-
-function Stat({ Icon, label, value, tone }: { Icon: typeof Users; label: string; value: string | number | undefined; tone: string }) {
+function Stat({ Icon, label, value, tone, loading }: { Icon: typeof Users; label: string; value: string | number | undefined; tone: string; loading?: boolean }) {
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-4">
       <span className={`grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br ${TONES[tone]} text-white`}>
         <Icon className="h-4.5 w-4.5" />
       </span>
-      <div className="mt-3 text-2xl font-extrabold text-slate-900">{value ?? "—"}</div>
+      <div className="mt-3 text-2xl font-extrabold text-slate-900">{loading ? <span className="text-slate-300">…</span> : value ?? "—"}</div>
       <div className="text-xs text-slate-500">{label}</div>
     </div>
   );
 }
 
-function Overview({ stats }: { stats: PlatformStats }) {
-  const sections = [
-    { title: "Users by role", data: stats.users.byRole },
-    { title: "Appointments by status", data: stats.appointments.byStatus },
-    { title: "Orders by status", data: stats.orders.byStatus },
-    { title: "Home visits by status", data: stats.homeVisits.byStatus },
-  ];
+// ── Overview ──────────────────────────────────────────────────────────────────
+function OverviewTab({ stats, loading, error, onRetry }: { stats: PlatformStats | null; loading: boolean; error: string | null; onRetry: () => void }) {
   return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {sections.map((s) => (
-        <div key={s.title} className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="font-bold text-slate-900">{s.title}</h3>
-          <div className="mt-3 space-y-2">
-            {Object.entries(s.data).length === 0 ? (
-              <p className="text-sm text-slate-400">No data yet.</p>
-            ) : Object.entries(s.data).map(([k, v]) => (
-              <div key={k} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-slate-600">{k.replace(/_/g, " ")}</span>
-                <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-700">{v}</span>
+    <SectionShell loading={loading} error={error} onRetry={onRetry} empty={!stats} emptyText="No statistics yet.">
+      {stats && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            { title: "Users by role", data: stats.users.byRole },
+            { title: "Appointments by status", data: stats.appointments.byStatus },
+            { title: "Orders by status", data: stats.orders.byStatus },
+            { title: "Home visits by status", data: stats.homeVisits.byStatus },
+          ].map((s) => (
+            <div key={s.title} className="rounded-2xl border border-slate-200 bg-white p-5">
+              <h3 className="font-bold text-slate-900">{s.title}</h3>
+              <div className="mt-3 space-y-2">
+                {Object.entries(s.data).length === 0 ? (
+                  <p className="text-sm text-slate-400">No data yet.</p>
+                ) : Object.entries(s.data).map(([k, v]) => (
+                  <div key={k} className="flex items-center justify-between text-sm">
+                    <span className="capitalize text-slate-600">{k.replace(/_/g, " ")}</span>
+                    <span className="rounded-full bg-slate-100 px-2.5 py-0.5 font-semibold text-slate-700">{v}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      ))}
-      <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-teal-600 to-emerald-700 p-5 text-white sm:col-span-2">
-        <h3 className="font-bold">Revenue</h3>
-        <div className="mt-2 flex flex-wrap gap-6">
-          <div><div className="text-2xl font-extrabold">{kes(stats.payments.totalRevenueKes)}</div><div className="text-xs text-teal-100">Total ({stats.payments.completedCount} payments)</div></div>
-          <div><div className="text-2xl font-extrabold">{kes(stats.payments.platformFeeKes)}</div><div className="text-xs text-teal-100">Platform fees</div></div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function UsersTable({ users }: { users: AdminUserSummary[] }) {
-  return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-          <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th></tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {users.map((u) => (
-            <tr key={u.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 font-medium text-slate-800">{u.fullName}</td>
-              <td className="px-4 py-3 text-slate-500">{u.email}</td>
-              <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">{u.role}</span></td>
-              <td className="px-4 py-3">
-                <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
-                  {u.isActive ? "Active" : "Disabled"}
-                </span>
-              </td>
-            </tr>
+            </div>
           ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function Verifications({ verifs, onReview }: { verifs: VerificationProvider[]; onReview: (id: string, s: "verified" | "rejected") => void }) {
-  if (verifs.length === 0) return <p className="py-10 text-center text-slate-400">No providers in the queue.</p>;
-  return (
-    <div className="grid gap-4 sm:grid-cols-2">
-      {verifs.map((v) => (
-        <div key={v.userId} className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex items-start justify-between">
-            <div>
-              <div className="font-bold text-slate-900">{v.user.fullName}</div>
-              <div className="text-sm text-teal-700">{v.specialty ?? "Clinician"}</div>
-              <div className="mt-1 text-xs text-slate-400">{v.user.email} · Licence {v.licenceNumber ?? "—"}</div>
+          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-teal-600 to-emerald-700 p-5 text-white sm:col-span-2">
+            <h3 className="font-bold">Revenue</h3>
+            <div className="mt-2 flex flex-wrap gap-6">
+              <div><div className="text-2xl font-extrabold">{kes(stats.payments.totalRevenueKes)}</div><div className="text-xs text-teal-100">Total ({stats.payments.completedCount} payments)</div></div>
+              <div><div className="text-2xl font-extrabold">{kes(stats.payments.platformFeeKes)}</div><div className="text-xs text-teal-100">Platform fees</div></div>
             </div>
-            <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
-              v.verificationStatus === "verified" ? "bg-emerald-100 text-emerald-700"
-              : v.verificationStatus === "rejected" ? "bg-rose-100 text-rose-700"
-              : "bg-amber-100 text-amber-700"}`}>
-              {v.verificationStatus.replace("_", " ")}
-            </span>
           </div>
-          {v.verificationStatus !== "verified" && (
-            <div className="mt-4 flex gap-2">
-              <button onClick={() => onReview(v.userId, "verified")} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
-                <BadgeCheck className="h-4 w-4" /> Approve
-              </button>
-              <button onClick={() => onReview(v.userId, "rejected")} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">
-                <XCircle className="h-4 w-4" /> Reject
-              </button>
-            </div>
-          )}
         </div>
-      ))}
-    </div>
+      )}
+    </SectionShell>
   );
 }
 
+// ── Users ─────────────────────────────────────────────────────────────────────
+function UsersTab() {
+  const fetcher = useCallback(() => api.adminListUsers({ limit: 100 }).then((r) => r.users), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const users = data ?? [];
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={users.length === 0} emptyText="No users yet.">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {users.map((u: AdminUserSummary) => (
+              <tr key={u.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 font-medium text-slate-800">{u.fullName}</td>
+                <td className="px-4 py-3 text-slate-500">{u.email}</td>
+                <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">{u.role}</span></td>
+                <td className="px-4 py-3">
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                    {u.isActive ? "Active" : "Disabled"}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionShell>
+  );
+}
+
+// ── Verifications ───────────────────────────────────────────────────────────────
+function VerificationsTab() {
+  const fetcher = useCallback(() => api.adminListVerifications({}).then((r) => r.providers), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const verifs = data ?? [];
+
+  async function review(userId: string, status: "verified" | "rejected") {
+    try { await api.adminReviewVerification(userId, { status }); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
+  }
+
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={verifs.length === 0} emptyText="No providers in the queue.">
+      <div className="grid gap-4 sm:grid-cols-2">
+        {verifs.map((v: VerificationProvider) => (
+          <div key={v.userId} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="font-bold text-slate-900">{v.user.fullName}</div>
+                <div className="text-sm text-teal-700">{v.specialty ?? "Clinician"}</div>
+                <div className="mt-1 text-xs text-slate-400">{v.user.email} · Licence {v.licenceNumber ?? "—"}</div>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
+                v.verificationStatus === "verified" ? "bg-emerald-100 text-emerald-700"
+                : v.verificationStatus === "rejected" ? "bg-rose-100 text-rose-700"
+                : "bg-amber-100 text-amber-700"}`}>
+                {v.verificationStatus.replace("_", " ")}
+              </span>
+            </div>
+            {v.verificationStatus !== "verified" && (
+              <div className="mt-4 flex gap-2">
+                <button onClick={() => review(v.userId, "verified")} className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700">
+                  <BadgeCheck className="h-4 w-4" /> Approve
+                </button>
+                <button onClick={() => review(v.userId, "rejected")} className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50">
+                  <XCircle className="h-4 w-4" /> Reject
+                </button>
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+// ── Home visits ─────────────────────────────────────────────────────────────────
 const VISIT_STATUS_CLS: Record<string, string> = {
-  pending:   "bg-amber-100 text-amber-700",
-  assigned:  "bg-indigo-100 text-indigo-700",
-  paid:      "bg-blue-100 text-blue-700",
-  en_route:  "bg-violet-100 text-violet-700",
-  arrived:   "bg-teal-100 text-teal-700",
-  completed: "bg-emerald-100 text-emerald-700",
+  pending: "bg-amber-100 text-amber-700", assigned: "bg-indigo-100 text-indigo-700",
+  paid: "bg-blue-100 text-blue-700", en_route: "bg-violet-100 text-violet-700",
+  arrived: "bg-teal-100 text-teal-700", completed: "bg-emerald-100 text-emerald-700",
   cancelled: "bg-slate-100 text-slate-500",
 };
 
-function HomeVisitsAdmin({ visits, onRefresh }: { visits: HomeVisit[]; onRefresh: () => Promise<void> }) {
+function HomeVisitsTab() {
+  const fetcher = useCallback(() => api.listHomeVisits({ limit: 50 }).then((r) => r.visits), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const visits = data ?? [];
+
   const [assigning, setAssigning] = useState<HomeVisit | null>(null);
   const [providerId, setProviderId] = useState("");
   const [feeKes, setFeeKes] = useState("");
@@ -257,127 +297,155 @@ function HomeVisitsAdmin({ visits, onRefresh }: { visits: HomeVisit[]; onRefresh
   async function assign(e: React.FormEvent) {
     e.preventDefault();
     if (!assigning) return;
-    setErr(null);
-    setBusy(true);
+    setErr(null); setBusy(true);
     try {
-      await api.assignHomeVisit(assigning.id, {
-        providerId,
-        feeKes: parseInt(feeKes, 10),
-        scheduledAt: new Date(scheduledAt).toISOString(),
-      });
-      setAssigning(null);
-      await onRefresh();
+      await api.assignHomeVisit(assigning.id, { providerId, feeKes: parseInt(feeKes, 10), scheduledAt: new Date(scheduledAt).toISOString() });
+      setAssigning(null); await reload();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Failed to assign");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (visits.length === 0) {
-    return <p className="py-10 text-center text-slate-400">No home visit requests yet.</p>;
+    } finally { setBusy(false); }
   }
 
   return (
-    <div className="space-y-3">
-      {visits.map((v) => (
-        <div key={v.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-          <div className="flex items-start justify-between gap-3 flex-wrap">
-            <div>
-              <div className="font-semibold text-slate-900 capitalize">{v.specialty} · <span className="text-teal-700">{v.urgency}</span></div>
-              <div className="text-xs text-slate-400 mt-0.5">{v.patient.fullName} · {when(v.createdAt)}</div>
-              <p className="mt-1 text-sm text-slate-600">{v.description}</p>
-              <div className="mt-1 text-xs text-slate-400">{v.address}, {v.county}</div>
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={visits.length === 0} emptyText="No home visit requests yet.">
+      <div className="space-y-3">
+        {visits.map((v: HomeVisit) => (
+          <div key={v.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold capitalize text-slate-900">{v.specialty} · <span className="text-teal-700">{v.urgency}</span></div>
+                <div className="mt-0.5 text-xs text-slate-400">{v.patient.fullName} · {when(v.createdAt)}</div>
+                <p className="mt-1 text-sm text-slate-600">{v.description}</p>
+                <div className="mt-1 text-xs text-slate-400">{v.address}, {v.county}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_CLS[v.status] ?? ""}`}>{v.status.replace("_", " ")}</span>
+                {v.status === "pending" && (
+                  <button onClick={() => { setAssigning(v); setProviderId(""); setFeeKes(""); setScheduledAt(""); setErr(null); }}
+                    className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700">Assign</button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_CLS[v.status] ?? ""}`}>
-                {v.status.replace("_", " ")}
-              </span>
-              {v.status === "pending" && (
-                <button
-                  onClick={() => { setAssigning(v); setProviderId(""); setFeeKes(""); setScheduledAt(""); setErr(null); }}
-                  className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700"
-                >
-                  Assign
-                </button>
-              )}
-            </div>
+            {v.provider && (
+              <div className="mt-2 text-xs text-slate-500">
+                Provider: <span className="font-medium text-slate-700">{v.provider.user.fullName}</span>
+                {v.feeKes ? ` · ${kes(v.feeKes)}` : ""}{v.scheduledAt ? ` · ${when(v.scheduledAt)}` : ""}
+              </div>
+            )}
           </div>
-          {v.provider && (
-            <div className="mt-2 text-xs text-slate-500">
-              Provider: <span className="font-medium text-slate-700">{v.provider.user.fullName}</span>
-              {v.feeKes ? ` · ${kes(v.feeKes)}` : ""}
-              {v.scheduledAt ? ` · ${when(v.scheduledAt)}` : ""}
-            </div>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
 
-      {/* Assign modal */}
       {assigning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
-            <h2 className="font-bold text-slate-900 text-lg">Assign provider</h2>
-            <p className="text-sm text-slate-500 mt-1">{assigning.specialty} visit for {assigning.patient.fullName}</p>
+            <h2 className="text-lg font-bold text-slate-900">Assign provider</h2>
+            <p className="mt-1 text-sm text-slate-500">{assigning.specialty} visit for {assigning.patient.fullName}</p>
             <form onSubmit={assign} className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Provider user ID</label>
-                <input required value={providerId} onChange={e => setProviderId(e.target.value)}
-                  placeholder="UUID of the provider"
+                <label className="mb-1 block text-sm font-medium text-slate-700">Provider user ID</label>
+                <input required value={providerId} onChange={(e) => setProviderId(e.target.value)} placeholder="UUID of the provider"
                   className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                <p className="text-xs text-slate-400 mt-1">Find the provider&apos;s ID in the Users tab.</p>
+                <p className="mt-1 text-xs text-slate-400">Find the provider&apos;s ID in the Users tab.</p>
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Fee (KES)</label>
-                  <input required type="number" min="1" value={feeKes} onChange={e => setFeeKes(e.target.value)}
-                    placeholder="e.g. 2500"
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Fee (KES)</label>
+                  <input required type="number" min="1" value={feeKes} onChange={(e) => setFeeKes(e.target.value)} placeholder="e.g. 2500"
                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">Scheduled at</label>
-                  <input required type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
+                  <label className="mb-1 block text-sm font-medium text-slate-700">Scheduled at</label>
+                  <input required type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
                 </div>
               </div>
               {err && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{err}</p>}
               <div className="flex gap-3">
-                <button type="submit" disabled={busy}
-                  className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                  {busy ? "Assigning…" : "Assign provider"}
-                </button>
-                <button type="button" onClick={() => setAssigning(null)}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  Cancel
-                </button>
+                <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">{busy ? "Assigning…" : "Assign provider"}</button>
+                <button type="button" onClick={() => setAssigning(null)} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
               </div>
             </form>
           </div>
         </div>
       )}
-    </div>
+    </SectionShell>
   );
 }
 
-function AuditTable({ logs }: { logs: AuditLogEntry[] }) {
-  if (logs.length === 0) return <p className="py-10 text-center text-slate-400">No audit entries yet.</p>;
+// ── Reviews (moderation) ─────────────────────────────────────────────────────────
+function ReviewsTab() {
+  const fetcher = useCallback(() => api.adminListReviews({ limit: 100 }).then((r) => r.reviews), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const reviews = data ?? [];
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function moderate(r: Review) {
+    setBusyId(r.id);
+    try { await api.adminModerateReview(r.id, { isVisible: !r.isVisible }); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
+    finally { setBusyId(null); }
+  }
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-          <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Entity</th></tr>
-        </thead>
-        <tbody className="divide-y divide-slate-100">
-          {logs.map((l) => (
-            <tr key={l.id} className="hover:bg-slate-50">
-              <td className="px-4 py-3 text-slate-500">{new Date(l.createdAt).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
-              <td className="px-4 py-3 text-slate-700">{l.actor?.fullName ?? "System"}</td>
-              <td className="px-4 py-3"><code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{l.action}</code></td>
-              <td className="px-4 py-3 text-slate-500">{l.entityType ?? "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={reviews.length === 0} emptyText="No reviews yet.">
+      <div className="space-y-3">
+        {reviews.map((r: Review) => (
+          <div key={r.id} className={`rounded-2xl border p-5 ${r.isVisible ? "border-slate-200 bg-white" : "border-slate-200 bg-slate-50"}`}>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="inline-flex items-center gap-0.5 text-amber-500">
+                    {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-current" : "text-slate-200"}`} />)}
+                  </span>
+                  <span className="text-sm font-semibold text-slate-800">{r.patient.fullName}</span>
+                  {r.provider && <span className="text-xs text-slate-400">→ {r.provider.user.fullName}</span>}
+                  {!r.isVisible && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500">Hidden</span>}
+                </div>
+                {r.comment && <p className="mt-1.5 text-sm text-slate-600">&ldquo;{r.comment}&rdquo;</p>}
+                <div className="mt-1 flex items-center gap-1 text-xs text-slate-400"><MessageSquare className="h-3 w-3" /> {when(r.createdAt)}</div>
+              </div>
+              <button
+                onClick={() => moderate(r)}
+                disabled={busyId === r.id}
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold disabled:opacity-60 ${
+                  r.isVisible ? "border border-slate-200 text-slate-600 hover:bg-slate-100" : "bg-emerald-600 text-white hover:bg-emerald-700"
+                }`}
+              >
+                {r.isVisible ? <><EyeOff className="h-4 w-4" /> Hide</> : <><Eye className="h-4 w-4" /> Show</>}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────────
+function AuditTab() {
+  const fetcher = useCallback(() => api.adminListAuditLogs({ limit: 50 }).then((r) => r.logs), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const logs = data ?? [];
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={logs.length === 0} emptyText="No audit entries yet.">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Entity</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {logs.map((l: AuditLogEntry) => (
+              <tr key={l.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 text-slate-500">{new Date(l.createdAt).toLocaleString("en-KE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</td>
+                <td className="px-4 py-3 text-slate-700">{l.actor?.fullName ?? "System"}</td>
+                <td className="px-4 py-3"><code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{l.action}</code></td>
+                <td className="px-4 py-3 text-slate-500">{l.entityType ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionShell>
   );
 }

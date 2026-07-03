@@ -806,6 +806,8 @@ export interface Review {
   updatedAt: string;
   patient: { id: string; fullName: string; avatarUrl: string | null };
   appointment: { id: string; appointmentType: string; slot: { startsAt: string } | null } | null;
+  /** Populated by the admin review list. */
+  provider?: { userId: string; specialty: string | null; user: { fullName: string; email: string } };
 }
 
 export interface ReviewListResult {
