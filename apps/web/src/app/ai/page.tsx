@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Brain, AlertTriangle, AlertCircle, CheckCircle2, Loader2, ArrowRight } from "lucide-react";
-import { api } from "@/lib/api";
+import Link from "next/link";
+import { Brain, AlertTriangle, AlertCircle, CheckCircle2, Loader2, ArrowRight, ShoppingBag } from "lucide-react";
+import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import type { SymptomCheckResult } from "@carebora/api-client";
 
@@ -132,6 +133,29 @@ export default function AiPage() {
               <p className="mt-0.5 text-sm text-slate-700">{result.advice}</p>
             </div>
           </div>
+
+          {result.pharmacySuggestions.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+              <div className="flex items-center gap-2 text-sm font-semibold text-teal-700">
+                <ShoppingBag className="h-4 w-4" /> Available at our pharmacy
+              </div>
+              <p className="mt-0.5 text-xs text-slate-400">Over-the-counter options you can order now — not a substitute for professional advice.</p>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                {result.pharmacySuggestions.map((d) => (
+                  <Link key={d.id} href="/pharmacy" className="group flex items-center gap-3 rounded-xl border border-slate-200 p-2.5 transition hover:border-teal-300 hover:bg-teal-50/40">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-slate-50">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      {d.imageUrl && <img src={d.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" />}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="truncate text-sm font-semibold text-slate-800">{d.name}</div>
+                      <div className="text-xs font-bold text-teal-700">{kes(d.priceKes)}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={() => router.push(`/providers`)}

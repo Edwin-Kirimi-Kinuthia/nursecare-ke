@@ -11,3 +11,8 @@ export const providerMatchSchema = z.object({
   concern: z.string().min(5).max(500),
 });
 export type ProviderMatchInput = z.infer<typeof providerMatchSchema>;
+
+export const factCheckSchema = z.object({
+  question: z.string().min(5).max(1000),
+});
+export type FactCheckInput = z.infer<typeof factCheckSchema>;

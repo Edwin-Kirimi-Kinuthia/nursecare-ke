@@ -8,11 +8,11 @@ import {
 import { Track } from "livekit-client";
 import "@livekit/components-styles";
 import {
-  FileText, Pill, MessageSquare, Loader2, Plus, X, Download, PhoneOff, Check, Send, AlertCircle,
+  FileText, Pill, MessageSquare, Loader2, Plus, X, Download, PhoneOff, Check, Send, AlertCircle, Sparkles,
 } from "lucide-react";
-import type { Consultation, Message, RxRecord, MedicationRecord } from "@carebora/api-client";
+import type { Consultation, Message, RxRecord, MedicationRecord, FactCheckResult } from "@carebora/api-client";
 import { clinicalTemplateFor, type ClinicalRecord } from "@carebora/shared";
-import { api, when } from "@/lib/api";
+import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
 /** LiveKit video grid — must render inside <LiveKitRoom>. */
@@ -46,7 +46,21 @@ export default function ConsultationRoom() {
   const [ended, setEnded] = useState(false);
 
   const isDoctor = !!(consultation?.appointment && user && consultation.appointment.providerId === user.id);
-  const [tab, setTab] = useState<"notes" | "rx" | "chat">("chat");
+  const [tab, setTab] = useState<"notes" | "rx" | "chat" | "ai">("chat");
+
+  // AI clinical fact-check (provider only)
+  const [aiQuestion, setAiQuestion] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiResult, setAiResult] = useState<FactCheckResult | null>(null);
+
+  async function askAi(e: FormEvent) {
+    e.preventDefault();
+    if (!aiQuestion.trim()) return;
+    setAiBusy(true);
+    try { setAiResult(await api.factCheck(aiQuestion.trim())); }
+    catch { setAiResult({ answer: "Could not reach the AI service.", disclaimer: "", pharmacySuggestions: [] }); }
+    finally { setAiBusy(false); }
+  }
 
   // structured clinical record (provider) — treatment sheet / cardex / assessment
   const template = clinicalTemplateFor(user?.role);
@@ -175,10 +189,11 @@ export default function ConsultationRoom() {
     );
   }
 
-  const tabs: { key: "notes" | "rx" | "chat"; label: string; Icon: typeof FileText }[] = [
+  const tabs: { key: "notes" | "rx" | "chat" | "ai"; label: string; Icon: typeof FileText }[] = [
     ...(isDoctor ? [{ key: "notes" as const, label: template.shortLabel, Icon: FileText }] : []),
     { key: "rx", label: "Prescriptions", Icon: Pill },
     { key: "chat", label: "Chat", Icon: MessageSquare },
+    ...(isDoctor ? [{ key: "ai" as const, label: "AI assist", Icon: Sparkles }] : []),
   ];
 
   return (
@@ -349,6 +364,47 @@ export default function ConsultationRoom() {
               />
               <button onClick={send} className="grid place-items-center rounded-xl bg-teal-600 px-3 text-white hover:bg-teal-700"><Send className="h-4 w-4" /></button>
             </div>
+          </div>
+        )}
+
+        {/* AI clinical assist (doctor) */}
+        {tab === "ai" && isDoctor && (
+          <div className="flex flex-1 flex-col overflow-y-auto p-4">
+            <form onSubmit={askAi} className="space-y-2">
+              <label className="text-sm font-semibold text-slate-700">Clinical fact-check</label>
+              <textarea
+                value={aiQuestion}
+                onChange={(e) => setAiQuestion(e.target.value)}
+                placeholder="e.g. First-line antibiotic for adult community-acquired pneumonia? Amoxicillin dose in a 30kg child?"
+                rows={3}
+                className="w-full resize-none rounded-xl border border-slate-200 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              />
+              <button type="submit" disabled={aiBusy} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                {aiBusy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Ask AI
+              </button>
+            </form>
+
+            {aiResult && (
+              <div className="mt-4 space-y-3">
+                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                  <p className="whitespace-pre-wrap text-sm text-slate-800">{aiResult.answer}</p>
+                </div>
+                {aiResult.pharmacySuggestions.length > 0 && (
+                  <div className="rounded-xl border border-slate-200 p-4">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-teal-700"><Pill className="h-3.5 w-3.5" /> In the CareBora pharmacy</div>
+                    <div className="mt-2 space-y-1.5">
+                      {aiResult.pharmacySuggestions.map((d) => (
+                        <div key={d.id} className="flex items-center justify-between text-sm">
+                          <span className="text-slate-700">{d.name} {d.requiresPrescription && <span className="ml-1 rounded bg-violet-100 px-1 text-[10px] font-bold text-violet-700">Rx</span>}</span>
+                          <span className="font-semibold text-teal-700">{kes(d.priceKes)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {aiResult.disclaimer && <p className="text-xs text-slate-400">{aiResult.disclaimer}</p>}
+              </div>
+            )}
           </div>
         )}
       </div>

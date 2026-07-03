@@ -53,4 +53,4 @@ export { adminService } from "./admin/admin.service";
 export { notificationService } from "./notifications/notification.service";
 export { reviewService } from "./reviews/review.service";
 export { aiService } from "./ai/ai.service";
-export type { SymptomCheckResult, ProviderMatchResult } from "./ai/ai.service";
+export type { SymptomCheckResult, ProviderMatchResult, FactCheckResult, PharmacySuggestion } from "./ai/ai.service";

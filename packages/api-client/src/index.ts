@@ -345,6 +345,10 @@ export class CareBoraClient {
   matchProvider(concern: string) {
     return this.post<ProviderMatchResult>(`/ai/provider-match`, { concern });
   }
+  /** Clinical fact-check for providers (used in the consultation room). */
+  factCheck(question: string) {
+    return this.post<FactCheckResult>(`/ai/fact-check`, { question });
+  }
 }
 
 export function createClient(opts: ClientOptions) {
@@ -843,16 +847,32 @@ export interface ReviewListResult {
 
 // ── M9: AI ──────────────────────────────────────────────────────────────────
 
+export interface PharmacySuggestion {
+  id: string;
+  name: string;
+  category: string;
+  priceKes: number;
+  imageUrl: string | null;
+  requiresPrescription: boolean;
+}
+
 export interface SymptomCheckResult {
   urgency: "routine" | "urgent" | "emergency";
   recommendedSpecialty: string;
   advice: string;
   seekEmergencyCare: boolean;
   disclaimer: string;
+  pharmacySuggestions: PharmacySuggestion[];
 }
 
 export interface ProviderMatchResult {
   recommendedSpecialty: string;
   reason: string;
   alternatives: string[];
+}
+
+export interface FactCheckResult {
+  answer: string;
+  disclaimer: string;
+  pharmacySuggestions: PharmacySuggestion[];
 }
