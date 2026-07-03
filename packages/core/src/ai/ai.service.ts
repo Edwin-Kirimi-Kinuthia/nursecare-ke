@@ -47,12 +47,18 @@ export interface FactCheckResult {
 // ── LLM layer: Hugging Face (free) → Anthropic → none ────────────────────────
 
 async function hfChat(system: string, user: string, maxTokens: number): Promise<string> {
-  const model = process.env.HF_MODEL || "Qwen/Qwen2.5-7B-Instruct";
-  const res = await fetch("https://router.huggingface.co/v1/chat/completions", {
+  const model = process.env.HF_MODEL || "alpha-ai/LLAMA3-3B-Medical-COT";
+  // Per-model serverless TGI endpoint (OpenAI-compatible). Works for HF-hosted
+  // ("warm") models. Override with HF_ENDPOINT to point at a dedicated endpoint.
+  const endpoint =
+    process.env.HF_ENDPOINT || `https://api-inference.huggingface.co/models/${model}/v1/chat/completions`;
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${process.env.HF_API_TOKEN}`,
       "Content-Type": "application/json",
+      // Wait for the model to warm up instead of getting a 503 on cold start.
+      "x-wait-for-model": "true",
     },
     body: JSON.stringify({
       model,
@@ -63,9 +69,9 @@ async function hfChat(system: string, user: string, maxTokens: number): Promise<
         { role: "user", content: user },
       ],
     }),
-    signal: AbortSignal.timeout(30_000),
+    signal: AbortSignal.timeout(55_000),
   });
-  if (!res.ok) throw new Error(`HF ${res.status}`);
+  if (!res.ok) throw new Error(`HF ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
   return data.choices?.[0]?.message?.content ?? "";
 }
@@ -104,11 +110,25 @@ async function llmComplete(system: string, user: string, maxTokens: number): Pro
   return null;
 }
 
-/** Extracts the first JSON object from possibly-noisy model output. */
+/** Removes chain-of-thought reasoning wrappers (e.g. <think>…</think>). */
+function stripReasoning(text: string): string {
+  return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "")
+    .replace(/<\/?(?:reasoning|thought|scratchpad)>/gi, "")
+    .trim();
+}
+
+/** Extracts a JSON object from possibly-noisy model output (COT-aware). */
 function extractJson<T>(text: string): T | null {
-  const match = text.match(/\{[\s\S]*\}/);
-  if (!match) return null;
-  try { return JSON.parse(match[0]) as T; } catch { return null; }
+  const clean = stripReasoning(text);
+  // Prefer the last {...} block — COT models put the final answer at the end.
+  const matches = clean.match(/\{[\s\S]*?\}/g);
+  const candidate = clean.match(/\{[\s\S]*\}/)?.[0] ?? matches?.[matches.length - 1];
+  if (!candidate) return null;
+  try { return JSON.parse(candidate) as T; } catch { /* try greedy below */ }
+  const greedy = clean.match(/\{[\s\S]*\}/)?.[0];
+  if (greedy) { try { return JSON.parse(greedy) as T; } catch { return null; } }
+  return null;
 }
 
 /** Maps common patient complaints to OTC product keywords (used to suggest
@@ -225,7 +245,7 @@ Respond with JSON only:
     const parsed = raw ? extractJson<{ answer?: string; drugKeywords?: string[] }>(raw) : null;
 
     const answer = parsed?.answer
-      || (raw?.trim() ? raw.trim().slice(0, 800)
+      || (raw?.trim() ? stripReasoning(raw).slice(0, 900)
         : "AI reference is not configured. Set HF_API_TOKEN (free Hugging Face token) to enable clinical fact-checks.");
     const pharmacySuggestions = await matchPharmacy(parsed?.drugKeywords ?? [], { includeRx: true });
 
