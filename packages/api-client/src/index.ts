@@ -349,6 +349,17 @@ export class CareBoraClient {
   factCheck(question: string) {
     return this.post<FactCheckResult>(`/ai/fact-check`, { question });
   }
+
+  // ── Notifications ──
+  listNotifications() {
+    return this.request<{ notifications: AppNotification[]; unreadCount: number }>(`/notifications`);
+  }
+  markNotificationRead(notificationId: string) {
+    return this.post<{ ok: boolean }>(`/notifications/${notificationId}/read`, {});
+  }
+  markAllNotificationsRead() {
+    return this.post<{ ok: boolean; count: number }>(`/notifications/read-all`, {});
+  }
 }
 
 export function createClient(opts: ClientOptions) {
@@ -875,4 +886,14 @@ export interface FactCheckResult {
   answer: string;
   disclaimer: string;
   pharmacySuggestions: PharmacySuggestion[];
+}
+
+export interface AppNotification {
+  id: string;
+  type: string;
+  title: string;
+  body: string | null;
+  link: string | null;
+  readAt: string | null;
+  createdAt: string;
 }

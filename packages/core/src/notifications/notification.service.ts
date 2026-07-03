@@ -79,6 +79,23 @@ export const notificationService = {
     void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. Please pay KES ${opts.feeKes} on the app.`);
   },
 
+  async consultationStarted(opts: {
+    patientEmail: string;
+    patientPhone?: string | null;
+    patientName: string;
+    providerName: string;
+    joinUrl: string;
+  }) {
+    await sendEmail(opts.patientEmail, "Your doctor is ready — join now — CareBora", `
+      <h2>Hi ${opts.patientName},</h2>
+      <p><strong>${opts.providerName}</strong> has started your video consultation and is waiting for you.</p>
+      <p><a href="${opts.joinUrl}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Join the consultation</a></p>
+      <p>Or open the CareBora app and tap “Join consultation” on your appointment.</p>
+      <p>— The CareBora Team</p>
+    `);
+    void sendSms(opts.patientPhone, `CareBora: ${opts.providerName} has started your consultation — join now: ${opts.joinUrl}`);
+  },
+
   async paymentReceived(opts: {
     patientEmail: string;
     patientPhone?: string | null;

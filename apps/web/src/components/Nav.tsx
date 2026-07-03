@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
+import NotificationBell from "@/components/NotificationBell";
 
 const LINKS = [
   { href: "/providers", label: "Providers", Icon: Users },
@@ -90,6 +91,7 @@ export default function Nav() {
         </div>
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <NotificationBell />
           <Link href="/pharmacy" className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" aria-label="Cart">
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (

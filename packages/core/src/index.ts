@@ -51,6 +51,7 @@ export { orderService } from "./pharmacy/order.service";
 export { homeVisitService } from "./homevisit/homevisit.service";
 export { adminService } from "./admin/admin.service";
 export { notificationService } from "./notifications/notification.service";
+export { inAppNotifications } from "./notifications/inapp.service";
 export { reviewService } from "./reviews/review.service";
 export { aiService } from "./ai/ai.service";
 export type { SymptomCheckResult, ProviderMatchResult, FactCheckResult, PharmacySuggestion } from "./ai/ai.service";

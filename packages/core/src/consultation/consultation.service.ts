@@ -1,5 +1,7 @@
 import { AccessToken } from "livekit-server-sdk";
 import { db } from "@carebora/db";
+import { notificationService } from "../notifications/notification.service";
+import { inAppNotifications } from "../notifications/inapp.service";
 import {
   ApiError,
   PROVIDER_ROLES,
@@ -37,7 +39,11 @@ export const consultationService = {
   async start(appointmentId: string, providerId: string) {
     const appointment = await db.appointment.findUnique({
       where: { id: appointmentId },
-      include: { consultation: true },
+      include: {
+        consultation: true,
+        patient: { select: { id: true, fullName: true, email: true, phone: true } },
+        provider: { select: { user: { select: { fullName: true } } } },
+      },
     });
     if (!appointment) throw ApiError.notFound("Appointment not found");
     if (appointment.providerId !== providerId) throw ApiError.forbidden();
@@ -46,12 +52,29 @@ export const consultationService = {
     }
     if (appointment.consultation) return appointment.consultation;
 
-    return db.consultation.create({
-      data: {
-        appointmentId,
-        roomName: `consult-${appointmentId}`,
-      },
+    const consultation = await db.consultation.create({
+      data: { appointmentId, roomName: `consult-${appointmentId}` },
     });
+
+    // Notify the patient to join — in-app bell + email/SMS with a join link.
+    const providerName = appointment.provider.user.fullName;
+    const link = `/consultations/${consultation.id}`;
+    const appUrl = process.env.APP_URL || "https://nursecare-ke-five.vercel.app";
+    void inAppNotifications.create(appointment.patient.id, {
+      type: "consultation_started",
+      title: "Your doctor is ready — join now",
+      body: `${providerName} has started your video consultation.`,
+      link,
+    });
+    void notificationService.consultationStarted({
+      patientEmail: appointment.patient.email,
+      patientPhone: appointment.patient.phone,
+      patientName: appointment.patient.fullName,
+      providerName,
+      joinUrl: `${appUrl}${link}`,
+    });
+
+    return consultation;
   },
 
   /**

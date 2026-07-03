@@ -8,6 +8,7 @@ import {
   type UserRole,
 } from "@carebora/shared";
 import { notificationService } from "../notifications/notification.service";
+import { inAppNotifications } from "../notifications/inapp.service";
 
 const APPOINTMENT_INCLUDE = {
   slot: true,
@@ -65,6 +66,13 @@ export const appointmentService = {
         specialty: appointment.provider.specialty,
         slotTime: slot.startsAt,
         feeKes: appointment.feeKes,
+      });
+      // Notify the provider in-app that a new request needs their action.
+      void inAppNotifications.create(appointment.providerId, {
+        type: "appointment_requested",
+        title: "New appointment request",
+        body: `${appointment.patient.fullName} requested a ${appointment.appointmentType === "teleconsult" ? "teleconsultation" : "home visit"}.`,
+        link: "/appointments",
       });
       return appointment;
     } catch (err) {
@@ -167,6 +175,12 @@ export const appointmentService = {
         providerName: updated.provider.user.fullName,
         slotTime: updated.slot.startsAt,
         feeKes: updated.feeKes,
+      });
+      void inAppNotifications.create(updated.patientId, {
+        type: "appointment_confirmed",
+        title: "Appointment confirmed",
+        body: `${updated.provider.user.fullName} confirmed your appointment.${updated.appointmentType === "teleconsult" ? " You'll be notified when it's time to join." : ""}`,
+        link: "/appointments",
       });
     }
 
