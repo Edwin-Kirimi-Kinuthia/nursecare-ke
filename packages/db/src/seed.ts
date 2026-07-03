@@ -419,9 +419,32 @@ async function main() {
     { name: "Azithromycin 250mg (6 tabs)",  genericName: "Azithromycin", category: "Antibiotics",      priceKes: 550, stockQty: 160, requiresPrescription: true,  description: "Macrolide antibiotic." },
   ];
 
+  const IMAGE_SLUGS: Record<string, string> = {
+    "Paracetamol 500mg (24 tabs)": "paracetamol",
+    "Ibuprofen 400mg (20 tabs)": "ibuprofen",
+    "ORS Sachets (10 pack)": "ors",
+    "Zinc 20mg (10 tabs)": "zinc",
+    "Vitamin C 1000mg (30 tabs)": "vitamin-c",
+    "Clotrimazole Cream 2% 30g": "clotrimazole",
+    "Saline Nasal Spray 30ml": "saline-spray",
+    "Hydrocortisone Cream 1% 15g": "hydrocortisone",
+    "Amoxicillin 500mg (21 caps)": "amoxicillin",
+    "Metformin 500mg (60 tabs)": "metformin",
+    "Amlodipine 5mg (30 tabs)": "amlodipine",
+    "Atorvastatin 40mg (30 tabs)": "atorvastatin",
+    "Salbutamol Inhaler 100mcg": "salbutamol",
+    "Omeprazole 20mg (28 caps)": "omeprazole",
+    "Azithromycin 250mg (6 tabs)": "azithromycin",
+  };
   for (const product of products) {
+    const slug = IMAGE_SLUGS[product.name];
+    const imageUrl = slug ? `/products/${slug}.jpg` : undefined;
     const existing = await db.product.findFirst({ where: { name: product.name } });
-    if (!existing) await db.product.create({ data: { ...product, isActive: true } });
+    if (!existing) {
+      await db.product.create({ data: { ...product, imageUrl, isActive: true } });
+    } else if (imageUrl && existing.imageUrl !== imageUrl) {
+      await db.product.update({ where: { id: existing.id }, data: { imageUrl } });
+    }
   }
 
   // ── Sample pharmacy orders (so the admin Orders tab has content) ──────────

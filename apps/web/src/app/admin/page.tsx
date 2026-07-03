@@ -1,11 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
   Loader2, AlertCircle, RefreshCw, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
+  Upload, ImageIcon,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
@@ -535,6 +536,30 @@ function AppointmentsTab() {
 // ── Pharmacy catalogue management ────────────────────────────────────────────────
 const EMPTY_PRODUCT: CreateProductInput = { name: "", category: "", priceKes: 0, stockQty: 0, requiresPrescription: false };
 
+/** Reads an image file and returns a downscaled JPEG data URL (keeps payloads small). */
+function fileToDataUrl(file: File, max = 480): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.onload = () => {
+      const img = new window.Image();
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("no canvas"));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", 0.82));
+      };
+      img.onerror = () => reject(new Error("bad image"));
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function PharmacyTab() {
   const fetcher = useCallback(() => api.adminListProducts({ limit: 50 }).then((r) => r.products), []);
   const { data, loading, error, reload } = useSection(fetcher);
@@ -566,7 +591,19 @@ function PharmacyTab() {
             <tbody className="divide-y divide-slate-100">
               {products.map((p: Product) => (
                 <tr key={p.id} className={`hover:bg-slate-50 ${!p.isActive ? "opacity-50" : ""}`}>
-                  <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+                        {p.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <ImageIcon className="h-4 w-4 text-slate-300" />
+                        )}
+                      </div>
+                      <span className="font-medium text-slate-800">{p.name}</span>
+                    </div>
+                  </td>
                   <td className="px-4 py-3 text-slate-500">{p.category}</td>
                   <td className="px-4 py-3 text-slate-700">{kes(p.priceKes)}</td>
                   <td className="px-4 py-3"><span className={`font-medium ${p.stockQty === 0 ? "text-rose-600" : p.stockQty < 20 ? "text-amber-600" : "text-slate-700"}`}>{p.stockQty}</span></td>
@@ -592,10 +629,20 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
   const [form, setForm] = useState<CreateProductInput>(product ? {
     name: product.name, genericName: product.genericName ?? undefined, description: product.description ?? undefined,
     category: product.category, priceKes: product.priceKes, stockQty: product.stockQty, requiresPrescription: product.requiresPrescription,
+    imageUrl: product.imageUrl ?? undefined,
   } : { ...EMPTY_PRODUCT });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const set = <K extends keyof CreateProductInput>(k: K, v: CreateProductInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setErr(null);
+    try { set("imageUrl", await fileToDataUrl(file)); }
+    catch { setErr("Could not read that image."); }
+  }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -613,6 +660,31 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">{product ? "Edit product" : "Add product"}</h2>
         <form onSubmit={submit} className="mt-4 space-y-3">
+          {/* Product image */}
+          <div className="flex items-center gap-3">
+            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
+              {form.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.imageUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <ImageIcon className="h-7 w-7 text-slate-300" />
+              )}
+            </div>
+            <div className="flex-1 space-y-2">
+              <input type="file" accept="image/*" ref={fileRef} onChange={onPickFile} className="hidden" />
+              <div className="flex gap-2">
+                <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
+                  <Upload className="h-3.5 w-3.5" /> Upload image
+                </button>
+                {form.imageUrl && (
+                  <button type="button" onClick={() => set("imageUrl", undefined)} className="rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove</button>
+                )}
+              </div>
+              <input value={form.imageUrl?.startsWith("data:") ? "" : form.imageUrl ?? ""} onChange={(e) => set("imageUrl", e.target.value || undefined)}
+                placeholder="…or paste an image URL" className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+          </div>
+
           <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Product name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <div className="grid gap-3 sm:grid-cols-2">
             <input value={form.genericName ?? ""} onChange={(e) => set("genericName", e.target.value || undefined)} placeholder="Generic name (optional)" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />

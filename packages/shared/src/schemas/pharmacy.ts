@@ -64,7 +64,12 @@ export const createProductSchema = z.object({
   genericName: z.string().max(200).optional(),
   description: z.string().max(2000).optional(),
   category: z.string().min(2).max(100),
-  imageUrl: z.string().url().optional(),
+  imageUrl: z
+    .string()
+    .trim()
+    .max(3_000_000)
+    .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload")
+    .optional(),
   priceKes: z.number().int().min(1),
   requiresPrescription: z.boolean().default(false),
   stockQty: z.number().int().min(0).default(0),
