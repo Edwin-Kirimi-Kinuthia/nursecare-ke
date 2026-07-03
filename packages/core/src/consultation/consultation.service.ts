@@ -94,6 +94,35 @@ export const consultationService = {
     return c;
   },
 
+  /**
+   * Fetch a consultation with participant names + provider role — used to render
+   * the treatment-sheet PDF. Participant-scoped (patient or provider).
+   */
+  async getWithParticipants(consultationId: string, userId: string) {
+    const c = await db.consultation.findUnique({
+      where: { id: consultationId },
+      include: {
+        appointment: {
+          select: {
+            patientId: true,
+            providerId: true,
+            createdAt: true,
+            slot: { select: { startsAt: true } },
+            patient: { select: { fullName: true } },
+            provider: {
+              select: { specialty: true, user: { select: { fullName: true, role: true } } },
+            },
+          },
+        },
+      },
+    });
+    if (!c) throw ApiError.notFound("Consultation not found");
+    if (c.appointment.patientId !== userId && c.appointment.providerId !== userId) {
+      throw ApiError.forbidden();
+    }
+    return c;
+  },
+
   /** Update status or clinical notes (notes: provider only). */
   async patch(consultationId: string, userId: string, role: UserRole, input: PatchConsultationInput) {
     const c = await getConsultation(consultationId);

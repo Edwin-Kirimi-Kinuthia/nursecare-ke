@@ -231,16 +231,26 @@ export default function ConsultationRoom() {
         {/* Structured clinical record (doctor treatment sheet / nurse cardex / physio assessment) */}
         {tab === "notes" && isDoctor && (
           <div className="flex flex-1 flex-col overflow-y-auto p-4">
-            <div className="mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{template.title}</h3>
                 <p className="text-xs text-slate-400">Saves automatically · appears in the patient&apos;s records</p>
               </div>
-              <span className="text-xs">
-                {noteState === "saving" && <span className="text-slate-400">Saving…</span>}
-                {noteState === "saved" && <span className="inline-flex items-center gap-1 text-emerald-600"><Check className="h-3 w-3" /> Saved</span>}
-                {noteState === "error" && <span className="text-rose-600">Save failed</span>}
-              </span>
+              <div className="flex flex-col items-end gap-1">
+                <a
+                  href={api.treatmentSheetPdfUrl(consultationId)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-teal-700 hover:bg-slate-50"
+                >
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </a>
+                <span className="text-xs">
+                  {noteState === "saving" && <span className="text-slate-400">Saving…</span>}
+                  {noteState === "saved" && <span className="inline-flex items-center gap-1 text-emerald-600"><Check className="h-3 w-3" /> Saved</span>}
+                  {noteState === "error" && <span className="text-rose-600">Save failed</span>}
+                </span>
+              </div>
             </div>
             <div className="space-y-3">
               {template.sections.map((s) => (

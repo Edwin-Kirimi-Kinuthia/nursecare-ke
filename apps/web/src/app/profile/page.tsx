@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2,
+  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2, Download,
 } from "lucide-react";
 import type {
   PatientProfile, ProviderProfile, MedicalHistoryEntry,
@@ -157,7 +157,17 @@ function PatientSection() {
                   <span className="text-xs text-slate-400">{when(c.appointment.slot?.startsAt ?? c.createdAt)}</span>
                 </div>
                 {c.clinicalNotes ? (
-                  <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{c.clinicalNotes}</p>
+                  <>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{c.clinicalNotes}</p>
+                    <a
+                      href={api.treatmentSheetPdfUrl(c.id)}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
+                    >
+                      <Download className="h-3.5 w-3.5" /> Download treatment sheet (PDF)
+                    </a>
+                  </>
                 ) : (
                   <p className="mt-2 text-sm italic text-slate-400">No clinical notes recorded.</p>
                 )}

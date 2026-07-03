@@ -199,6 +199,11 @@ export class CareBoraClient {
     return `${this.opts.baseUrl}/consultations/${consultationId}/prescriptions/${prescriptionId}/pdf`;
   }
 
+  /** URL for the consultation's treatment sheet / cardex / assessment PDF. */
+  treatmentSheetPdfUrl(consultationId: string) {
+    return `${this.opts.baseUrl}/consultations/${consultationId}/pdf`;
+  }
+
   /** The calling patient's medical history (past consultations + notes + prescriptions). */
   getMedicalHistory() {
     return this.request<{ consultations: MedicalHistoryEntry[] }>("/patients/me/consultations");
