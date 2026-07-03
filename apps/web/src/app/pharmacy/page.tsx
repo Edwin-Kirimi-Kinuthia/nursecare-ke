@@ -10,6 +10,7 @@ import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import ProductCard from "@/components/ProductCard";
+import ProductDetailModal from "@/components/ProductDetailModal";
 
 export default function PharmacyPage() {
   const { user } = useAuth();
@@ -25,6 +26,7 @@ export default function PharmacyPage() {
   const [placing, setPlacing] = useState(false);
   const [rxImage, setRxImage] = useState<string | null>(null);
   const [rxName, setRxName] = useState<string>("");
+  const [selected, setSelected] = useState<Product | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -119,7 +121,7 @@ export default function PharmacyPage() {
               </div>
             ) : (
               <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
-                {shown.map((p) => <ProductCard key={p.id} p={p} />)}
+                {shown.map((p) => <ProductCard key={p.id} p={p} onOpen={() => setSelected(p)} />)}
               </div>
             )}
           </div>
@@ -232,6 +234,8 @@ export default function PharmacyPage() {
           </aside>
         </div>
       </section>
+
+      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

@@ -6,7 +6,7 @@ import { kes } from "@/lib/api";
 import { categoryTheme } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
 
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({ p, onOpen }: { p: Product; onOpen?: () => void }) {
   const { items, add, sub } = useCart();
   const qty = items[p.id] ?? 0;
   const { Icon, from, to } = categoryTheme(p.category);
@@ -15,8 +15,13 @@ export default function ProductCard({ p }: { p: Product }) {
 
   return (
     <div className="group card-lift flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white transition-shadow hover:border-slate-300 hover:shadow-xl hover:shadow-slate-200/60">
-      {/* Image — zooms on hover */}
-      <div className="relative aspect-[5/4] overflow-hidden bg-slate-50">
+      {/* Image — zooms on hover; opens details */}
+      <div
+        onClick={onOpen}
+        role={onOpen ? "button" : undefined}
+        aria-label={onOpen ? `View ${p.name} details` : undefined}
+        className={`relative aspect-[5/4] overflow-hidden bg-slate-50 ${onOpen ? "cursor-pointer" : ""}`}
+      >
         {p.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -62,11 +67,17 @@ export default function ProductCard({ p }: { p: Product }) {
 
       {/* Body */}
       <div className="flex flex-1 flex-col p-4">
-        <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{p.category}</div>
-        <h3 className="mt-0.5 font-bold leading-snug text-slate-900">{p.name}</h3>
-        {p.description && <p className="mt-1 line-clamp-2 flex-1 text-sm text-slate-500">{p.description}</p>}
+        <div
+          onClick={onOpen}
+          role={onOpen ? "button" : undefined}
+          className={onOpen ? "cursor-pointer" : undefined}
+        >
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{p.category}</div>
+          <h3 className="mt-0.5 font-bold leading-snug text-slate-900 group-hover:text-teal-700">{p.name}</h3>
+          {p.description && <p className="mt-1 line-clamp-2 text-sm text-slate-500">{p.description}</p>}
+        </div>
 
-        <div className="mt-4 flex items-center justify-between">
+        <div className="mt-4 flex flex-1 items-end justify-between">
           <span className="text-lg font-extrabold text-teal-700">{kes(p.priceKes)}</span>
           {qty > 0 ? (
             <div className="flex items-center gap-1 rounded-xl border border-slate-200 p-0.5">
