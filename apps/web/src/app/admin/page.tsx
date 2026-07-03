@@ -5,15 +5,17 @@ import { useRouter } from "next/navigation";
 import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
-  Loader2, AlertCircle, RefreshCw, Eye, EyeOff,
+  Loader2, AlertCircle, RefreshCw, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
+  Appointment, Product, Order,
 } from "@carebora/api-client";
+import type { CreateProductInput } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
-type Tab = "overview" | "users" | "verifications" | "home-visits" | "reviews" | "audit";
+type Tab = "overview" | "appointments" | "users" | "verifications" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit";
 
 const TONES: Record<string, string> = {
   teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
@@ -91,8 +93,11 @@ export default function AdminPage() {
 
   const TABS: { id: Tab; label: string; Icon: typeof Users }[] = [
     { id: "overview", label: "Overview", Icon: LayoutDashboard },
+    { id: "appointments", label: "Appointments", Icon: CalendarDays },
     { id: "users", label: "Users", Icon: Users },
-    { id: "verifications", label: "Verifications", Icon: ShieldCheck },
+    { id: "verifications", label: "Applications", Icon: ShieldCheck },
+    { id: "pharmacy", label: "Pharmacy", Icon: Pill },
+    { id: "orders", label: "Orders", Icon: ShoppingBag },
     { id: "home-visits", label: "Home visits", Icon: HomeIcon },
     { id: "reviews", label: "Reviews", Icon: Star },
     { id: "audit", label: "Audit log", Icon: ScrollText },
@@ -134,8 +139,11 @@ export default function AdminPage() {
 
         <div className="mt-6">
           {tab === "overview" && <OverviewTab stats={stats} loading={statsSec.loading} error={statsSec.error} onRetry={statsSec.reload} />}
+          {tab === "appointments" && <AppointmentsTab />}
           {tab === "users" && <UsersTab />}
           {tab === "verifications" && <VerificationsTab />}
+          {tab === "pharmacy" && <PharmacyTab />}
+          {tab === "orders" && <OrdersTab />}
           {tab === "home-visits" && <HomeVisitsTab />}
           {tab === "reviews" && <ReviewsTab />}
           {tab === "audit" && <AuditTab />}
@@ -197,16 +205,36 @@ function OverviewTab({ stats, loading, error, onRetry }: { stats: PlatformStats 
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
+const ROLE_FILTERS = ["all", "patient", "doctor", "nurse", "physio", "pharmacy", "admin"] as const;
+
 function UsersTab() {
   const fetcher = useCallback(() => api.adminListUsers({ limit: 100 }).then((r) => r.users), []);
   const { data, loading, error, reload } = useSection(fetcher);
-  const users = data ?? [];
+  const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number]>("all");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
+
+  async function toggleActive(u: AdminUserSummary) {
+    setBusyId(u.id);
+    try { await api.adminPatchUser(u.id, { isActive: !u.isActive }); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
+    finally { setBusyId(null); }
+  }
+
   return (
-    <SectionShell loading={loading} error={error} onRetry={reload} empty={users.length === 0} emptyText="No users yet.">
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={(data ?? []).length === 0} emptyText="No users yet.">
+      <div className="mb-3 flex flex-wrap gap-1">
+        {ROLE_FILTERS.map((r) => (
+          <button key={r} onClick={() => setRoleFilter(r)}
+            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${roleFilter === r ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            {r}
+          </button>
+        ))}
+      </div>
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
         <table className="w-full text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-            <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th></tr>
+            <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {users.map((u: AdminUserSummary) => (
@@ -218,6 +246,14 @@ function UsersTab() {
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${u.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
                     {u.isActive ? "Active" : "Disabled"}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {u.role !== "admin" && (
+                    <button onClick={() => toggleActive(u)} disabled={busyId === u.id}
+                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${u.isActive ? "border border-rose-200 text-rose-600 hover:bg-rose-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                      <Power className="h-3.5 w-3.5" /> {u.isActive ? "Disable" : "Enable"}
+                    </button>
+                  )}
                 </td>
               </tr>
             ))}
@@ -445,6 +481,217 @@ function AuditTab() {
             ))}
           </tbody>
         </table>
+      </div>
+    </SectionShell>
+  );
+}
+
+// ── Appointments oversight ───────────────────────────────────────────────────────
+const APPT_STATUS = ["all", "requested", "confirmed", "completed", "cancelled", "no_show"] as const;
+const APPT_STATUS_CLS: Record<string, string> = {
+  requested: "bg-amber-100 text-amber-700", confirmed: "bg-emerald-100 text-emerald-700",
+  completed: "bg-slate-200 text-slate-600", cancelled: "bg-rose-100 text-rose-700", no_show: "bg-rose-100 text-rose-700",
+};
+
+function AppointmentsTab() {
+  const fetcher = useCallback(() => api.adminListAppointments({ limit: 50 }).then((r) => r.appointments), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const [filter, setFilter] = useState<(typeof APPT_STATUS)[number]>("all");
+  const appts = (data ?? []).filter((a) => filter === "all" || a.status === filter);
+
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={(data ?? []).length === 0} emptyText="No appointments yet.">
+      <div className="mb-3 flex flex-wrap gap-1">
+        {APPT_STATUS.map((s) => (
+          <button key={s} onClick={() => setFilter(s)}
+            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${filter === s ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            {s.replace("_", " ")}
+          </button>
+        ))}
+      </div>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+            <tr><th className="px-4 py-3">Patient</th><th className="px-4 py-3">Provider</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">When</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Status</th></tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {appts.map((a: Appointment) => (
+              <tr key={a.id} className="hover:bg-slate-50">
+                <td className="px-4 py-3 font-medium text-slate-800">{a.patient?.fullName ?? "—"}</td>
+                <td className="px-4 py-3 text-slate-600">{a.provider?.user?.fullName ?? "—"}</td>
+                <td className="px-4 py-3 capitalize text-slate-500">{a.appointmentType.replace("_", " ")}</td>
+                <td className="px-4 py-3 text-slate-500">{a.slot ? when(a.slot.startsAt) : "—"}</td>
+                <td className="px-4 py-3 text-slate-700">{kes(a.feeKes)}</td>
+                <td className="px-4 py-3"><span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${APPT_STATUS_CLS[a.status] ?? "bg-slate-100 text-slate-600"}`}>{a.status.replace("_", " ")}</span></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </SectionShell>
+  );
+}
+
+// ── Pharmacy catalogue management ────────────────────────────────────────────────
+const EMPTY_PRODUCT: CreateProductInput = { name: "", category: "", priceKes: 0, stockQty: 0, requiresPrescription: false };
+
+function PharmacyTab() {
+  const fetcher = useCallback(() => api.adminListProducts({ limit: 50 }).then((r) => r.products), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const products = data ?? [];
+  const [editing, setEditing] = useState<Product | "new" | null>(null);
+
+  async function remove(p: Product) {
+    if (!confirm(`Remove "${p.name}" from the catalogue?`)) return;
+    try { await api.adminDeleteProduct(p.id); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to remove"); }
+  }
+
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={false}>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-sm text-slate-500">{products.length} products</p>
+        <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+          <Plus className="h-4 w-4" /> Add product
+        </button>
+      </div>
+      {products.length === 0 ? (
+        <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No products yet.</p></div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
+              <tr><th className="px-4 py-3">Product</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Actions</th></tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {products.map((p: Product) => (
+                <tr key={p.id} className={`hover:bg-slate-50 ${!p.isActive ? "opacity-50" : ""}`}>
+                  <td className="px-4 py-3 font-medium text-slate-800">{p.name}</td>
+                  <td className="px-4 py-3 text-slate-500">{p.category}</td>
+                  <td className="px-4 py-3 text-slate-700">{kes(p.priceKes)}</td>
+                  <td className="px-4 py-3"><span className={`font-medium ${p.stockQty === 0 ? "text-rose-600" : p.stockQty < 20 ? "text-amber-600" : "text-slate-700"}`}>{p.stockQty}</span></td>
+                  <td className="px-4 py-3">{p.requiresPrescription ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">Rx</span> : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">OTC</span>}</td>
+                  <td className="px-4 py-3 text-right">
+                    <div className="flex justify-end gap-1">
+                      <button onClick={() => setEditing(p)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
+                      <button onClick={() => remove(p)} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50" title="Remove"><Trash2 className="h-4 w-4" /></button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {editing && <ProductModal product={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(); }} />}
+    </SectionShell>
+  );
+}
+
+function ProductModal({ product, onClose, onSaved }: { product: Product | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<CreateProductInput>(product ? {
+    name: product.name, genericName: product.genericName ?? undefined, description: product.description ?? undefined,
+    category: product.category, priceKes: product.priceKes, stockQty: product.stockQty, requiresPrescription: product.requiresPrescription,
+  } : { ...EMPTY_PRODUCT });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const set = <K extends keyof CreateProductInput>(k: K, v: CreateProductInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null); setBusy(true);
+    try {
+      if (product) await api.adminUpdateProduct(product.id, form);
+      else await api.adminCreateProduct(form);
+      onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Failed to save"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-slate-900">{product ? "Edit product" : "Add product"}</h2>
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Product name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input value={form.genericName ?? ""} onChange={(e) => set("genericName", e.target.value || undefined)} placeholder="Generic name (optional)" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <input required value={form.category} onChange={(e) => set("category", e.target.value)} placeholder="Category e.g. Pain Relief" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Price (KES)</label>
+              <input required type="number" min="1" value={form.priceKes || ""} onChange={(e) => set("priceKes", parseInt(e.target.value, 10) || 0)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Stock quantity</label>
+              <input required type="number" min="0" value={form.stockQty ?? 0} onChange={(e) => set("stockQty", parseInt(e.target.value, 10) || 0)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            </div>
+          </div>
+          <textarea value={form.description ?? ""} onChange={(e) => set("description", e.target.value || undefined)} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <label className="flex items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" checked={form.requiresPrescription ?? false} onChange={(e) => set("requiresPrescription", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-teal-600" />
+            Requires prescription (Rx)
+          </label>
+          {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">{busy ? "Saving…" : product ? "Save changes" : "Add product"}</button>
+            <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── Orders oversight ─────────────────────────────────────────────────────────────
+const ORDER_STATUS_CLS: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700", paid: "bg-blue-100 text-blue-700", processing: "bg-indigo-100 text-indigo-700",
+  dispatched: "bg-violet-100 text-violet-700", delivered: "bg-emerald-100 text-emerald-700", cancelled: "bg-slate-100 text-slate-500",
+};
+const NEXT_STATUS: Record<string, "processing" | "dispatched" | "delivered" | null> = {
+  paid: "processing", processing: "dispatched", dispatched: "delivered",
+};
+
+function OrdersTab() {
+  const fetcher = useCallback(() => api.listOrders({ limit: 50 }).then((r) => r.orders), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const orders = data ?? [];
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function advance(o: Order) {
+    const next = NEXT_STATUS[o.status];
+    if (!next) return;
+    setBusyId(o.id);
+    try { await api.patchOrder(o.id, { status: next }); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
+    finally { setBusyId(null); }
+  }
+
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+      <div className="space-y-3">
+        {orders.map((o: Order) => (
+          <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <div className="font-semibold text-slate-900">Order #{o.id.slice(0, 8).toUpperCase()}</div>
+                <div className="mt-0.5 text-xs text-slate-400">{o.patient.fullName} · {when(o.createdAt)}</div>
+                <div className="mt-1 text-sm text-slate-600">{o.items.length} item(s) · <span className="font-semibold text-slate-800">{kes(o.totalKes)}</span></div>
+                <div className="mt-0.5 text-xs text-slate-400">{o.deliveryAddress}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${ORDER_STATUS_CLS[o.status] ?? "bg-slate-100 text-slate-600"}`}>{o.status}</span>
+                {NEXT_STATUS[o.status] && (
+                  <button onClick={() => advance(o)} disabled={busyId === o.id}
+                    className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                    Mark {NEXT_STATUS[o.status]}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     </SectionShell>
   );

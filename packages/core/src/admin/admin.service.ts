@@ -3,6 +3,7 @@ import {
   ApiError,
   type AdminPatchUserInput,
   type AdminUsersQuery,
+  type AppointmentsQuery,
   type AuditLogsQuery,
   type ReviewVerificationInput,
   type VerificationsQuery,
@@ -230,5 +231,25 @@ export const adminService = {
       db.auditLog.count({ where }),
     ]);
     return { logs, total, limit: query.limit, offset: query.offset };
+  },
+
+  /** Platform-wide appointment oversight (every appointment, any provider/patient). */
+  async listAppointments(query: AppointmentsQuery) {
+    const where = query.status ? { status: query.status } : {};
+    const [appointments, total] = await Promise.all([
+      db.appointment.findMany({
+        where,
+        include: {
+          slot: { select: { startsAt: true } },
+          patient: { select: { id: true, fullName: true } },
+          provider: { select: { userId: true, specialty: true, user: { select: { fullName: true } } } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: query.offset,
+        take: query.limit,
+      }),
+      db.appointment.count({ where }),
+    ]);
+    return { appointments, total, limit: query.limit, offset: query.offset };
   },
 };

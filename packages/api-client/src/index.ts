@@ -36,6 +36,8 @@ import type {
   ModerateReviewInput,
   ReviewsQuery,
   SymptomCheckInput,
+  CreateProductInput,
+  UpdateProductInput,
 } from "@carebora/shared";
 import { ApiError, ErrorCode } from "@carebora/shared";
 
@@ -315,6 +317,27 @@ export class CareBoraClient {
     return this.patch<Review>(`/admin/reviews/${reviewId}`, input);
   }
 
+  // ── Admin — Appointments oversight ──
+  adminListAppointments(query?: Partial<AppointmentsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<AppointmentListResult>(`/admin/appointments?${params}`);
+  }
+
+  // ── Admin — Pharmacy catalogue management ──
+  adminListProducts(query?: Partial<ProductsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<ProductListResult>(`/admin/products?${params}`);
+  }
+  adminCreateProduct(input: CreateProductInput) {
+    return this.post<Product>(`/admin/products`, input);
+  }
+  adminUpdateProduct(productId: string, input: UpdateProductInput) {
+    return this.patch<Product>(`/admin/products/${productId}`, input);
+  }
+  adminDeleteProduct(productId: string) {
+    return this.request<{ id: string; isActive: boolean }>(`/admin/products/${productId}`, { method: "DELETE" });
+  }
+
   // ── AI (M9) ──
   symptomCheck(input: SymptomCheckInput) {
     return this.post<SymptomCheckResult>(`/ai/symptom-check`, input);
@@ -581,6 +604,7 @@ export type OrderStatus =
 export interface Product {
   id: string;
   name: string;
+  genericName: string | null;
   description: string | null;
   category: string;
   imageUrl: string | null;
