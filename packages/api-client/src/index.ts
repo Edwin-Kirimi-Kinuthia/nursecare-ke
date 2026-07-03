@@ -637,7 +637,7 @@ export type HomeVisitStatus =
   | "completed"
   | "cancelled";
 
-export type VisitUrgency = "routine" | "urgent";
+export type VisitUrgency = "routine" | "urgent" | "emergency";
 
 export interface HomeVisit {
   id: string;

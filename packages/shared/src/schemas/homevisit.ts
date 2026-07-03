@@ -7,7 +7,7 @@ const kenyanPhone = z
 
 export const createHomeVisitSchema = z.object({
   specialty: z.enum(["nurse", "physio", "doctor"]),
-  urgency: z.enum(["routine", "urgent"]).default("routine"),
+  urgency: z.enum(["routine", "urgent", "emergency"]).default("routine"),
   description: z.string().min(10, "Please describe your symptoms or needs").max(1000),
   address: z.string().min(5, "Full address is required").max(500),
   county: z.string().min(2).max(100),
@@ -38,7 +38,7 @@ export const homeVisitsQuerySchema = z.object({
     .enum(["pending", "assigned", "paid", "en_route", "arrived", "completed", "cancelled"])
     .optional(),
   specialty: z.enum(["nurse", "physio", "doctor"]).optional(),
-  urgency: z.enum(["routine", "urgent"]).optional(),
+  urgency: z.enum(["routine", "urgent", "emergency"]).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });

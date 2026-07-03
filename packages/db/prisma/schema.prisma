@@ -96,6 +96,7 @@ enum HomeVisitStatus {
 enum VisitUrgency {
   routine
   urgent
+  emergency
 }
 
 /// Base identity. One row per person/entity, regardless of role.

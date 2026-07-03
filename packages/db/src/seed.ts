@@ -35,15 +35,17 @@ async function upsertUser(data: {
   fullName: string;
   role: "patient" | "doctor" | "nurse" | "physio" | "pharmacy" | "admin";
   phone?: string;
+  avatarUrl?: string;
 }) {
   return db.user.upsert({
     where: { email: data.email },
-    update: {},
+    update: { avatarUrl: data.avatarUrl ?? null },
     create: {
       email: data.email,
       fullName: data.fullName,
       role: data.role,
       phone: data.phone ?? null,
+      avatarUrl: data.avatarUrl ?? null,
       emailVerifiedAt: new Date(),
       credentials: { create: { passwordHash: DEMO_HASH } },
     },
@@ -55,11 +57,12 @@ async function main() {
 
   // ── Users ─────────────────────────────────────────────────────────────────
   await upsertUser({ email: "admin@carebora.ke",     fullName: "Admin CareBora",       role: "admin",  phone: "+254700000000" });
-  const drAmina   = await upsertUser({ email: "dr.amina@carebora.ke",    fullName: "Dr. Amina Wanjiku",   role: "doctor", phone: "+254711000001" });
-  const drJames   = await upsertUser({ email: "dr.james@carebora.ke",    fullName: "Dr. James Otieno",    role: "doctor", phone: "+254711000002" });
-  const drFaith   = await upsertUser({ email: "dr.faith@carebora.ke",    fullName: "Dr. Faith Muthoni",   role: "doctor", phone: "+254711000003" });
-  const nursePeter = await upsertUser({ email: "nurse.peter@carebora.ke", fullName: "Peter Kamau RN",      role: "nurse",  phone: "+254722000001" });
-  const nurseGrace = await upsertUser({ email: "nurse.grace@carebora.ke", fullName: "Grace Achieng RN",    role: "nurse",  phone: "+254722000002" });
+  const drAmina   = await upsertUser({ email: "dr.amina@carebora.ke",    fullName: "Dr. Amina Wanjiku",   role: "doctor", phone: "+254711000001", avatarUrl: "/avatars/amina.png" });
+  const drJames   = await upsertUser({ email: "dr.james@carebora.ke",    fullName: "Dr. James Otieno",    role: "doctor", phone: "+254711000002", avatarUrl: "/avatars/james.png" });
+  const drFaith   = await upsertUser({ email: "dr.faith@carebora.ke",    fullName: "Dr. Faith Muthoni",   role: "doctor", phone: "+254711000003", avatarUrl: "/avatars/faith.png" });
+  const nursePeter = await upsertUser({ email: "nurse.peter@carebora.ke", fullName: "Peter Kamau RN",      role: "nurse",  phone: "+254722000001", avatarUrl: "/avatars/peter.png" });
+  const nurseGrace = await upsertUser({ email: "nurse.grace@carebora.ke", fullName: "Grace Achieng RN",    role: "nurse",  phone: "+254722000002", avatarUrl: "/avatars/grace.png" });
+  const physioDaniel = await upsertUser({ email: "physio.daniel@carebora.ke", fullName: "Daniel Kiptoo",  role: "physio", phone: "+254722000003", avatarUrl: "/avatars/daniel.png" });
   const alice     = await upsertUser({ email: "alice@example.com",  fullName: "Alice Njeri",   role: "patient", phone: "+254733000001" });
   const bob       = await upsertUser({ email: "bob@example.com",    fullName: "Bob Mwangi",    role: "patient", phone: "+254733000002" });
   const carol     = await upsertUser({ email: "carol@example.com", fullName: "Carol Wairimu", role: "patient", phone: "+254733000003" });
@@ -159,6 +162,30 @@ async function main() {
   ];
 
   for (const p of nurses) {
+    await db.providerProfile.upsert({ where: { userId: p.userId }, update: {}, create: p });
+  }
+
+  // ── Physiotherapist (home rehabilitation sessions) ────────────────────────
+  const physios = [
+    {
+      userId: physioDaniel.id,
+      specialty: "Physiotherapy",
+      bio: "Physiotherapist specialising in post-surgery rehab, sports injuries, and mobility for the elderly — delivered at home.",
+      licenceNumber: "PT-2017-044",
+      licenceBody: "Physiotherapy Council of Kenya",
+      yearsExperience: 8,
+      languages: ["English", "Swahili", "Kalenjin"],
+      qualifications: ["BSc Physiotherapy – University of Nairobi", "Certified Manual Therapist"],
+      services: ["Home Session", "Post-Surgery Rehab", "Sports Injury", "Mobility Training", "Elderly Care"],
+      consultationFeeKes: 1200,
+      homeVisitFeeKes: 2500,
+      county: "Nairobi",
+      town: "Kilimani",
+      verificationStatus: "verified" as const,
+      isAvailable: true,
+    },
+  ];
+  for (const p of physios) {
     await db.providerProfile.upsert({ where: { userId: p.userId }, update: {}, create: p });
   }
 
@@ -281,6 +308,16 @@ async function main() {
     { rating: 5, comment: "Took great care of my father. Asante." },
   ]);
 
+  await seedReviews(physioDaniel.id, 2500, [
+    { rating: 5, comment: "Daniel got me walking again after my knee surgery. Excellent home sessions." },
+    { rating: 5, comment: "Very professional physiotherapist. My back pain is gone." },
+    { rating: 4, comment: "Great mobility exercises for my elderly mum. Patient and thorough." },
+    { rating: 5, comment: "Helped my son recover from a football injury. Highly recommend." },
+    { rating: 5, comment: "Convenient home rehab and real results. Asante sana Daniel." },
+    { rating: 4, comment: "Knowledgeable and encouraging throughout my recovery." },
+    { rating: 5, comment: "Best physio in Nairobi. Comes to you and truly cares." },
+  ]);
+
   // nurse.grace is still in_review with no completed visits — no reviews yet.
   await db.providerProfile.update({ where: { userId: nurseGrace.id }, data: { ratingAvg: 0, ratingCount: 0 } });
 
@@ -364,6 +401,7 @@ async function main() {
   console.log("  dr.faith@carebora.ke      doctor · OB-GYN · Nairobi · verified");
   console.log("  nurse.peter@carebora.ke   nurse · Nairobi · verified");
   console.log("  nurse.grace@carebora.ke   nurse · Kisumu · in_review");
+  console.log("  physio.daniel@carebora.ke physio · Nairobi · verified · home sessions");
   console.log("  alice@example.com         patient");
   console.log("  bob@example.com           patient");
   console.log("  carol@example.com         patient");

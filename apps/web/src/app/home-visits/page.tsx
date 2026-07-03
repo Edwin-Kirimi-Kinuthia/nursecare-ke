@@ -30,7 +30,7 @@ export default function HomeVisitsPage() {
 
   // request form
   const [specialty, setSpecialty] = useState<"nurse" | "physio" | "doctor">("nurse");
-  const [urgency, setUrgency] = useState<"routine" | "urgent">("routine");
+  const [urgency, setUrgency] = useState<"routine" | "urgent" | "emergency">("routine");
   const [description, setDescription] = useState("");
   const [address, setAddress] = useState("");
   const [county, setCounty] = useState("");
@@ -136,18 +136,29 @@ export default function HomeVisitsPage() {
               <label className="block text-sm font-medium text-slate-700 mb-1">Specialist type</label>
               <select value={specialty} onChange={e => setSpecialty(e.target.value as typeof specialty)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="nurse">Nurse</option>
-                <option value="physio">Physiotherapist</option>
-                <option value="doctor">Doctor</option>
+                <option value="nurse">Nurse — home-based care</option>
+                <option value="physio">Physiotherapist — home session</option>
+                <option value="doctor">Doctor — home consultation</option>
               </select>
+              <p className="mt-1 text-xs text-slate-400">
+                {specialty === "nurse" && "Wound care, injections, elderly & post-op nursing at home."}
+                {specialty === "physio" && "Rehabilitation and mobility sessions in the comfort of your home."}
+                {specialty === "doctor" && "A doctor comes to you for an in-person assessment."}
+              </p>
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1">Urgency</label>
               <select value={urgency} onChange={e => setUrgency(e.target.value as typeof urgency)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
-                <option value="routine">Routine</option>
-                <option value="urgent">Urgent</option>
+                <option value="routine">Routine — within a few days</option>
+                <option value="urgent">Urgent — same day</option>
+                <option value="emergency">Emergency — as soon as possible</option>
               </select>
+              {urgency === "emergency" && (
+                <p className="mt-1 flex items-center gap-1 text-xs font-medium text-rose-600">
+                  <AlertCircle className="h-3.5 w-3.5" /> For life-threatening emergencies, call 999 / 112 first.
+                </p>
+              )}
             </div>
           </div>
 
@@ -270,7 +281,17 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
             <div className="text-xs text-slate-400">{when(visit.createdAt)}</div>
           </div>
         </div>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${meta.cls}`}>{meta.label}</span>
+        <div className="flex shrink-0 items-center gap-1.5">
+          {visit.urgency === "emergency" && (
+            <span className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2.5 py-1 text-xs font-bold text-rose-700">
+              <AlertCircle className="h-3 w-3" /> Emergency
+            </span>
+          )}
+          {visit.urgency === "urgent" && (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-700">Urgent</span>
+          )}
+          <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${meta.cls}`}>{meta.label}</span>
+        </div>
       </div>
 
       <p className="mt-3 text-sm text-slate-600 line-clamp-2">{visit.description}</p>

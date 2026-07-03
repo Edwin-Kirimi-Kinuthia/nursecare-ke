@@ -74,9 +74,20 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
         </div>
         <div className="px-6 pb-6 sm:px-8">
           <div className="flex flex-wrap items-end gap-4">
-            <div className="-mt-12 grid h-24 w-24 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
-              {provider.user.fullName.charAt(0)}
-            </div>
+            {provider.user.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={provider.user.avatarUrl}
+                alt={provider.user.fullName}
+                width={96}
+                height={96}
+                className="-mt-12 h-24 w-24 rounded-3xl border-4 border-white object-cover shadow-lg"
+              />
+            ) : (
+              <div className="-mt-12 grid h-24 w-24 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
+                {provider.user.fullName.charAt(0)}
+              </div>
+            )}
             <div className="flex-1">
               <div className="flex items-center gap-2">
                 <h1 className="text-2xl font-extrabold text-slate-900">{provider.user.fullName}</h1>
@@ -85,7 +96,7 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
               <p className="text-teal-700">{provider.specialty ?? "Clinician"}</p>
               <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-slate-500">
                 <span className="flex items-center gap-1"><Stars value={provider.ratingAvg} />
-                  {provider.ratingCount > 0 && <span className="ml-1">{provider.ratingAvg}.0 ({provider.ratingCount})</span>}
+                  {provider.ratingCount > 0 && <span className="ml-1">{provider.ratingAvg} ({provider.ratingCount})</span>}
                 </span>
                 {location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {location}</span>}
               </div>

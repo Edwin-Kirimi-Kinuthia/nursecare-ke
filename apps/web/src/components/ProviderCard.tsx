@@ -25,9 +25,20 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
 
       {/* Avatar */}
       <div className="px-5">
-        <div className="-mt-9 grid h-16 w-16 place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
-          {p.user.fullName.charAt(0)}
-        </div>
+        {p.user.avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={p.user.avatarUrl}
+            alt={p.user.fullName}
+            width={64}
+            height={64}
+            className="-mt-9 h-16 w-16 rounded-2xl border-4 border-white object-cover shadow-md"
+          />
+        ) : (
+          <div className="-mt-9 grid h-16 w-16 place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
+            {p.user.fullName.charAt(0)}
+          </div>
+        )}
       </div>
 
       {/* Body */}
@@ -38,7 +49,7 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
         <div className="mt-2 flex items-center gap-2">
           <Stars value={p.ratingAvg} />
           <span className="text-xs text-slate-400">
-            {p.ratingCount > 0 ? `${p.ratingAvg}.0 · ${p.ratingCount} reviews` : "New"}
+            {p.ratingCount > 0 ? `${p.ratingAvg} · ${p.ratingCount} reviews` : "New"}
           </span>
         </div>
 
