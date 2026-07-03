@@ -368,6 +368,38 @@ async function main() {
     }
   }
 
+  // ── Demo booked appointment ───────────────────────────────────────────────
+  // A confirmed teleconsult (Alice ↔ Dr. Amina) so a doctor logging into the
+  // demo immediately has a booking they can start a video consultation for.
+  const demoAppt = await db.appointment.findFirst({
+    where: { patientId: alice.id, providerId: drAmina.id, status: { in: ["requested", "confirmed"] } },
+  });
+  if (demoAppt) {
+    // Ensure it's confirmed so the doctor can Start the consultation directly.
+    if (demoAppt.status !== "confirmed") {
+      await db.appointment.update({ where: { id: demoAppt.id }, data: { status: "confirmed" } });
+    }
+  } else {
+    const slot = await db.slot.findFirst({
+      where: { providerId: drAmina.id, appointmentType: "teleconsult", isBooked: false, startsAt: { gt: new Date() } },
+      orderBy: { startsAt: "asc" },
+    });
+    if (slot) {
+      await db.appointment.create({
+        data: {
+          patientId: alice.id,
+          providerId: drAmina.id,
+          slotId: slot.id,
+          appointmentType: "teleconsult",
+          status: "confirmed",
+          feeKes: 1500,
+          patientNotes: "Persistent dry cough for 3 days, mild chest tightness.",
+        },
+      });
+      await db.slot.update({ where: { id: slot.id }, data: { isBooked: true } });
+    }
+  }
+
   // ── Pharmacy products ─────────────────────────────────────────────────────
   const products = [
     { name: "Paracetamol 500mg (24 tabs)", genericName: "Paracetamol",   category: "Pain Relief",      priceKes:  60, stockQty: 500, requiresPrescription: false, description: "For mild to moderate pain and fever." },
