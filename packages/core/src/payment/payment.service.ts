@@ -81,6 +81,9 @@ export const paymentService = {
       where: { checkoutRequestId: cb.CheckoutRequestID },
     });
     if (!payment) return false;
+    // Already settled — ignore late/duplicate callbacks (incl. sandbox noise) so
+    // a success is never downgraded by a subsequent failure.
+    if (payment.status === "completed") return true;
 
     if (cb.ResultCode === 0) {
       const meta = extractCallbackMeta(cb.CallbackMetadata?.Item ?? []);

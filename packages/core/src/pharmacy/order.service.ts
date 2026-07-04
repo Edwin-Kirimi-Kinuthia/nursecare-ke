@@ -113,6 +113,7 @@ export const orderService = {
       include: { items: true },
     });
     if (!order) return false; // not an order payment
+    if (order.status !== "pending") return true; // already settled — ignore late/duplicate callbacks
 
     if (cb.ResultCode === 0) {
       const items = cb.CallbackMetadata?.Item ?? [];

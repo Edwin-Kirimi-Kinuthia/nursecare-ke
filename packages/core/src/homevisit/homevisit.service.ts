@@ -152,6 +152,7 @@ export const homeVisitService = {
       where: { checkoutRequestId: cb.CheckoutRequestID },
     });
     if (!visit) return false;
+    if (visit.paidAt) return true; // already settled — ignore late/duplicate callbacks
 
     if (cb.ResultCode === 0) {
       const items = cb.CallbackMetadata?.Item ?? [];
