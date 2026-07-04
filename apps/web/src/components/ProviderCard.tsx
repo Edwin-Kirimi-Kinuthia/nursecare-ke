@@ -24,18 +24,18 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
       </div>
 
       {/* Avatar */}
-      <div className="px-5">
+      <div className="relative z-10 px-5">
         {p.user.avatarUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={p.user.avatarUrl}
             alt={p.user.fullName}
-            width={64}
-            height={64}
-            className="-mt-9 h-16 w-16 rounded-2xl border-4 border-white object-cover shadow-md"
+            width={72}
+            height={72}
+            className="-mt-10 h-[72px] w-[72px] rounded-2xl border-4 border-white bg-white object-cover object-top shadow-md"
           />
         ) : (
-          <div className="-mt-9 grid h-16 w-16 place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
+          <div className="-mt-10 grid h-[72px] w-[72px] place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
             {p.user.fullName.charAt(0)}
           </div>
         )}

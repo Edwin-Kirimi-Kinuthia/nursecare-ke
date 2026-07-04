@@ -72,7 +72,7 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
         <div className="relative h-32 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600">
           <div className="absolute inset-0 opacity-20 [background:radial-gradient(circle_at_15%_20%,white,transparent_40%)]" />
         </div>
-        <div className="px-6 pb-6 sm:px-8">
+        <div className="relative z-10 px-6 pb-6 sm:px-8">
           <div className="flex flex-wrap items-end gap-4">
             {provider.user.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
@@ -81,7 +81,7 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
                 alt={provider.user.fullName}
                 width={96}
                 height={96}
-                className="-mt-12 h-24 w-24 rounded-3xl border-4 border-white object-cover shadow-lg"
+                className="-mt-12 h-24 w-24 rounded-3xl border-4 border-white bg-white object-cover object-top shadow-lg"
               />
             ) : (
               <div className="-mt-12 grid h-24 w-24 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
