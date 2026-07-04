@@ -11,16 +11,21 @@ interface CartState {
   sub: (id: string) => void;
   remove: (id: string) => void;
   clear: () => void;
+  isOpen: boolean;
+  openCart: () => void;
+  closeCart: () => void;
 }
 
 const CartContext = createContext<CartState>({
   items: {}, count: 0, add: () => {}, sub: () => {}, remove: () => {}, clear: () => {},
+  isOpen: false, openCart: () => {}, closeCart: () => {},
 });
 
 const KEY = "carebora_cart";
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Items>({});
+  const [isOpen, setIsOpen] = useState(false);
 
   // Hydrate from localStorage after mount (avoids SSR mismatch). The update is
   // deferred to a microtask so it runs after — not synchronously within — the
@@ -54,7 +59,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const count = Object.values(items).reduce((a, b) => a + b, 0);
 
   return (
-    <CartContext.Provider value={{ items, count, add, sub, remove, clear }}>
+    <CartContext.Provider value={{
+      items, count, add, sub, remove, clear,
+      isOpen, openCart: () => setIsOpen(true), closeCart: () => setIsOpen(false),
+    }}>
       {children}
     </CartContext.Provider>
   );

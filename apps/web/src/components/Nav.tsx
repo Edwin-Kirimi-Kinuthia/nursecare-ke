@@ -14,7 +14,7 @@ const LINKS = [
 
 export default function Nav() {
   const { user, loading, logout } = useAuth();
-  const { count } = useCart();
+  const { count, openCart } = useCart();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -92,14 +92,14 @@ export default function Nav() {
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <NotificationBell />
-          <Link href="/pharmacy" className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" aria-label="Cart">
+          <button onClick={openCart} className="relative rounded-lg p-2 text-slate-600 hover:bg-slate-100" aria-label="Open cart">
             <ShoppingCart className="h-5 w-5" />
             {count > 0 && (
               <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
                 {count}
               </span>
             )}
-          </Link>
+          </button>
 
           {loading ? (
             <div className="h-9 w-20 rounded-lg skeleton" />

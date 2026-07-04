@@ -5,6 +5,7 @@ import { AuthProvider } from "@/components/AuthProvider";
 import { CartProvider } from "@/components/CartProvider";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import CartDrawer from "@/components/CartDrawer";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
 
@@ -46,6 +47,7 @@ export default function RootLayout({
             <Nav />
             <main className="min-h-[calc(100vh-4rem)]">{children}</main>
             <Footer />
+            <CartDrawer />
           </CartProvider>
         </AuthProvider>
       </body>

@@ -39,21 +39,43 @@ function checkRateLimit(pathname: string, req: NextRequest): Response | null {
   return null;
 }
 
+// CORS for the public API so mobile apps and other clients can consume it.
+// Native apps ignore CORS, but this enables web/hybrid (Expo web, Capacitor) and
+// browser SDK consumers from any origin. Auth uses bearer tokens (not cookies),
+// so a wildcard origin is safe here.
+const CORS_HEADERS: Record<string, string> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET,POST,PATCH,PUT,DELETE,OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Request-Id",
+  "Access-Control-Max-Age": "86400",
+};
+
 /**
  * Proxy — runs before every request (Next.js 16's renamed `middleware`).
- * Stamps each request with X-Request-ID and enforces rate limits on auth endpoints.
+ * Stamps each request with X-Request-ID, enforces auth rate limits, and applies
+ * CORS to the versioned API so it's consumable by mobile / external clients.
  */
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  const isApi = pathname.startsWith("/api/v1");
+
+  // Preflight — answer immediately with the CORS policy.
+  if (isApi && req.method === "OPTIONS") {
+    return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
+  }
 
   const rateLimited = checkRateLimit(pathname, req);
-  if (rateLimited) return rateLimited;
+  if (rateLimited) {
+    if (isApi) for (const [k, v] of Object.entries(CORS_HEADERS)) rateLimited.headers.set(k, v);
+    return rateLimited;
+  }
 
   const requestId = req.headers.get("x-request-id") ?? crypto.randomUUID();
   const res = NextResponse.next({
     request: { headers: new Headers({ ...Object.fromEntries(req.headers), "x-request-id": requestId }) },
   });
   res.headers.set("x-request-id", requestId);
+  if (isApi) for (const [k, v] of Object.entries(CORS_HEADERS)) res.headers.set(k, v);
   return res;
 }
 
