@@ -24,6 +24,8 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const [rxName, setRxName] = useState("");
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Load product details for any cart items we don't yet know about.
@@ -59,21 +61,36 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
 
   async function checkout() {
     if (!user) { closeCart(); router.push("/login"); return; }
-    setPlacing(true); setMsg(null);
+    setPlacing(true); setMsg(null); setPendingCheckoutId(null);
     try {
-      await api.createOrder({
+      const order = await api.createOrder({
         items: lines.map(([productId, qty]) => ({ productId, qty })),
         phoneNumber: phone,
         deliveryAddress: address,
         prescriptionImage: rxImage ?? undefined,
       });
       setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
+      setPendingCheckoutId(order.checkoutRequestId ?? null);
       clear(); setRxImage(null); setRxName("");
       onOrdered?.();
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Checkout failed" });
     } finally {
       setPlacing(false);
+    }
+  }
+
+  async function simulate() {
+    if (!pendingCheckoutId) return;
+    setSimulating(true);
+    try {
+      await api.simulateMpesaPayment(pendingCheckoutId);
+      setMsg({ kind: "ok", text: "Payment received ✓ — your order is paid." });
+      setPendingCheckoutId(null);
+    } catch (err) {
+      setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Simulation failed" });
+    } finally {
+      setSimulating(false);
     }
   }
 
@@ -162,6 +179,16 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
           {msg.kind === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
           {msg.text}
         </div>
+      )}
+
+      {pendingCheckoutId && (
+        <button
+          onClick={simulate}
+          disabled={simulating}
+          className="mt-3 w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+        >
+          {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
+        </button>
       )}
     </div>
   );

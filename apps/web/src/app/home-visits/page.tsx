@@ -40,9 +40,11 @@ export default function HomeVisitsPage() {
 
   // pay modal
   const [payVisit, setPayVisit] = useState<HomeVisit | null>(null);
-  const [phone, setPhone] = useState("0712345678");
+  const [phone, setPhone] = useState("0708374149");
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<string | null>(null);
+  const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -89,15 +91,32 @@ export default function HomeVisitsPage() {
     if (!payVisit) return;
     setPayMsg(null);
     setPaying(true);
+    setSimCheckoutId(null);
     try {
-      await api.payHomeVisit(payVisit.id, { phoneNumber: phone });
+      const updated = await api.payHomeVisit(payVisit.id, { phoneNumber: phone });
       setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
+      setSimCheckoutId(updated.checkoutRequestId ?? null);
       await load();
-      setTimeout(() => setPayVisit(null), 3000);
     } catch (err: unknown) {
       setPayMsg(err instanceof Error ? err.message : "Payment failed.");
     } finally {
       setPaying(false);
+    }
+  }
+
+  async function simulatePay() {
+    if (!simCheckoutId) return;
+    setSimulating(true);
+    try {
+      await api.simulateMpesaPayment(simCheckoutId);
+      setPayMsg("Payment received ✓ — your visit is paid.");
+      setSimCheckoutId(null);
+      await load();
+      setTimeout(() => setPayVisit(null), 1500);
+    } catch (err: unknown) {
+      setPayMsg(err instanceof Error ? err.message : "Simulation failed.");
+    } finally {
+      setSimulating(false);
     }
   }
 
@@ -247,6 +266,12 @@ export default function HomeVisitsPage() {
               </div>
               {payMsg && (
                 <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
+              )}
+              {simCheckoutId && (
+                <button type="button" onClick={simulatePay} disabled={simulating}
+                  className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
+                  {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
+                </button>
               )}
               <div className="flex gap-3">
                 <button type="submit" disabled={paying}

@@ -215,6 +215,10 @@ export class CareBoraClient {
   initiateMpesaPayment(input: MpesaStkInput) {
     return this.post<PaymentRecord>("/payments/mpesa/stk", input);
   }
+  /** Sandbox helper: completes a pending payment by firing the success callback. */
+  simulateMpesaPayment(checkoutRequestId: string) {
+    return this.post<{ completed: boolean; type: string }>("/payments/mpesa/simulate", { checkoutRequestId });
+  }
   listPayments(query?: Partial<PaymentsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<PaymentListResult>(`/payments?${params}`);
