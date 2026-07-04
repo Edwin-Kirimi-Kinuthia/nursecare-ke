@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain } from "lucide-react";
+import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import NotificationBell from "@/components/NotificationBell";
 
 const LINKS = [
   { href: "/providers", label: "Providers", Icon: Users },
-  { href: "/pharmacy", label: "Pharmacy", Icon: ShoppingCart },
+  { href: "/pharmacy", label: "Pharmacy", Icon: Pill },
 ];
 
 export default function Nav() {
