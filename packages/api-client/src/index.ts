@@ -474,6 +474,7 @@ export interface Appointment {
   };
   patient: { id: string; fullName: string; avatarUrl: string | null };
   consultation?: Consultation | null;
+  payment?: { status: PaymentStatus } | null;
 }
 
 export interface AppointmentListResult {

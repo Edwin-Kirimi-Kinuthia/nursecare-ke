@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Video, MapPin, Clock } from "lucide-react";
+import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2 } from "lucide-react";
 import type { Appointment } from "@carebora/api-client";
+import { ApiError } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -22,6 +23,14 @@ export default function AppointmentsPage() {
   const [appts, setAppts] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+
+  // pay modal
+  const [payAppt, setPayAppt] = useState<Appointment | null>(null);
+  const [payPhone, setPayPhone] = useState("0708374149");
+  const [paying, setPaying] = useState(false);
+  const [payMsg, setPayMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
+  const [simulating, setSimulating] = useState(false);
 
   const isProvider = !!user && ["doctor", "nurse", "physio", "pharmacy"].includes(user.role);
 
@@ -57,6 +66,37 @@ export default function AppointmentsPage() {
       alert(e instanceof Error ? e.message : "Could not start consultation");
       setBusyId(null);
     }
+  }
+
+  function openPay(appt: Appointment) {
+    setPayAppt(appt); setPayMsg(null); setSimCheckoutId(null); setPayPhone("0708374149");
+  }
+
+  async function payAppointment() {
+    if (!payAppt) return;
+    setPaying(true); setPayMsg(null); setSimCheckoutId(null);
+    try {
+      const payment = await api.initiateMpesaPayment({ appointmentId: payAppt.id, phoneNumber: payPhone });
+      setPayMsg({ kind: "ok", text: "STK push sent! Check your phone and enter your M-Pesa PIN." });
+      setSimCheckoutId(payment.checkoutRequestId ?? null);
+      await load();
+    } catch (err) {
+      setPayMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Payment failed." });
+    } finally { setPaying(false); }
+  }
+
+  async function simulatePay() {
+    if (!simCheckoutId) return;
+    setSimulating(true);
+    try {
+      await api.simulateMpesaPayment(simCheckoutId);
+      setPayMsg({ kind: "ok", text: "Payment received ✓ — your appointment is paid." });
+      setSimCheckoutId(null);
+      await load();
+      setTimeout(() => setPayAppt(null), 1500);
+    } catch (err) {
+      setPayMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Simulation failed." });
+    } finally { setSimulating(false); }
   }
 
   function joinConsult(appt: Appointment) {
@@ -129,6 +169,21 @@ export default function AppointmentsPage() {
                         <Video className="h-4 w-4" /> {a.consultation ? "Resume consultation" : "Start consultation"}
                       </button>
                     )}
+                    {/* Patient pays for a confirmed teleconsult */}
+                    {!isProvider && a.status === "confirmed" && (
+                      a.payment?.status === "completed" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Paid
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => openPay(a)}
+                          className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+                        >
+                          Pay {kes(a.feeKes)}
+                        </button>
+                      )
+                    )}
                     {/* Patient joins once the doctor has started */}
                     {!isProvider && a.consultation && a.consultation.status !== "ended" && (
                       <button
@@ -138,7 +193,7 @@ export default function AppointmentsPage() {
                         <Video className="h-4 w-4" /> Join consultation
                       </button>
                     )}
-                    {!isProvider && a.status === "confirmed" && !a.consultation && (
+                    {!isProvider && a.status === "confirmed" && !a.consultation && !a.payment && (
                       <span className="text-xs text-slate-400">Waiting for the doctor to start…</span>
                     )}
                   </div>
@@ -146,6 +201,44 @@ export default function AppointmentsPage() {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Pay modal */}
+      {payAppt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPayAppt(null)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-lg font-bold text-slate-900">Pay for your consultation</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {payAppt.provider?.user?.fullName} · <span className="font-semibold text-slate-700">{kes(payAppt.feeKes)}</span>
+            </p>
+            <div className="mt-4 space-y-3">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-slate-700">M-Pesa phone</label>
+                <input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} placeholder="07…"
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+              </div>
+              {payMsg && (
+                <p className={`rounded-xl px-4 py-3 text-sm ${payMsg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{payMsg.text}</p>
+              )}
+              {simCheckoutId && (
+                <button onClick={simulatePay} disabled={simulating}
+                  className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
+                  {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
+                </button>
+              )}
+              <div className="flex gap-3">
+                <button onClick={payAppointment} disabled={paying}
+                  className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                  {paying && <Loader2 className="h-4 w-4 animate-spin" />} Pay {kes(payAppt.feeKes)}
+                </button>
+                <button onClick={() => setPayAppt(null)}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

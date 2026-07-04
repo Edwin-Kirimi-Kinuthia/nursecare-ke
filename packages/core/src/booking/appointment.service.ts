@@ -23,6 +23,7 @@ const APPOINTMENT_INCLUDE = {
   },
   patient: { select: { id: true, fullName: true, avatarUrl: true, email: true, phone: true } },
   consultation: { select: { id: true, status: true } },
+  payment: { select: { status: true } },
 } satisfies Prisma.AppointmentInclude;
 
 export const appointmentService = {

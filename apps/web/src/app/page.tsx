@@ -1,14 +1,16 @@
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
-  ArrowRight, Star,
+  ArrowRight, Star, FileText, Baby,
 } from "lucide-react";
 
 const FEATURES = [
   { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/providers" },
-  { Icon: Users, title: "Verified providers", desc: "Browse clinicians vetted against Kenyan licensing bodies.", href: "/providers" },
+  { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", href: "/providers" },
+  { Icon: Baby, title: "Pregnancy crisis management", desc: "Urgent OB-GYN support and pregnancy crisis management, any time — from bleeding to severe symptoms.", href: "/providers" },
   { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication and supplies, delivered to your door.", href: "/pharmacy" },
-  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/providers" },
+  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/home-visits" },
+  { Icon: Users, title: "Verified providers", desc: "Browse clinicians vetted against Kenyan licensing bodies.", href: "/providers" },
   { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", href: "/pharmacy" },
   { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", href: "/providers" },
 ];
