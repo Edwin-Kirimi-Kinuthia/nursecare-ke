@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
-  Appointment, Product, Order,
+  Appointment, Product, Order, ProviderPublicProfile,
 } from "@carebora/api-client";
 import type { CreateProductInput } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
@@ -331,6 +331,27 @@ function HomeVisitsTab() {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [providers, setProviders] = useState<ProviderPublicProfile[]>([]);
+  useEffect(() => {
+    api.listProviders({ limit: 50 }).then((r) => setProviders(r.providers)).catch(() => { /* ignore */ });
+  }, []);
+
+  // Providers relevant to the requested specialty (nurse/physio/doctor), else all.
+  const eligible = assigning
+    ? providers.filter((p) => p.user.role === assigning.specialty)
+    : providers;
+  const providerOptions = eligible.length ? eligible : providers;
+
+  function openAssign(v: HomeVisit) {
+    setAssigning(v); setProviderId(""); setFeeKes(""); setScheduledAt(""); setErr(null);
+  }
+
+  function selectProvider(id: string) {
+    setProviderId(id);
+    const p = providers.find((x) => x.userId === id);
+    if (p?.homeVisitFeeKes) setFeeKes(String(p.homeVisitFeeKes)); // prefill their home-visit fee
+  }
+
   async function assign(e: React.FormEvent) {
     e.preventDefault();
     if (!assigning) return;
@@ -358,7 +379,7 @@ function HomeVisitsTab() {
               <div className="flex items-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${VISIT_STATUS_CLS[v.status] ?? ""}`}>{v.status.replace("_", " ")}</span>
                 {v.status === "pending" && (
-                  <button onClick={() => { setAssigning(v); setProviderId(""); setFeeKes(""); setScheduledAt(""); setErr(null); }}
+                  <button onClick={() => openAssign(v)}
                     className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700">Assign</button>
                 )}
               </div>
@@ -380,10 +401,19 @@ function HomeVisitsTab() {
             <p className="mt-1 text-sm text-slate-500">{assigning.specialty} visit for {assigning.patient.fullName}</p>
             <form onSubmit={assign} className="mt-4 space-y-4">
               <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">Provider user ID</label>
-                <input required value={providerId} onChange={(e) => setProviderId(e.target.value)} placeholder="UUID of the provider"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                <p className="mt-1 text-xs text-slate-400">Find the provider&apos;s ID in the Users tab.</p>
+                <label className="mb-1 block text-sm font-medium text-slate-700">Provider</label>
+                <select required value={providerId} onChange={(e) => selectProvider(e.target.value)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+                  <option value="" disabled>Select a provider…</option>
+                  {providerOptions.map((p) => (
+                    <option key={p.userId} value={p.userId}>
+                      {p.user.fullName}{p.specialty ? ` — ${p.specialty}` : ""}{p.town ? ` · ${p.town}` : ""}
+                    </option>
+                  ))}
+                </select>
+                {providerOptions.length === 0 && (
+                  <p className="mt-1 text-xs text-amber-600">No verified providers loaded yet.</p>
+                )}
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <div>
