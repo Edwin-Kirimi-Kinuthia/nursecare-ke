@@ -242,7 +242,7 @@ export default function HomeVisitsPage() {
               {user.role === "patient" && <p className="text-sm mt-1">Request your first visit above.</p>}
             </div>
           ) : visits.map((v) => (
-            <VisitCard key={v.id} visit={v} onPay={() => { setPayVisit(v); setPayMsg(null); }} />
+            <VisitCard key={v.id} visit={v} onPay={() => { setPayVisit(v); setPayMsg(null); setSimCheckoutId(null); }} />
           ))}
         </div>
       )}

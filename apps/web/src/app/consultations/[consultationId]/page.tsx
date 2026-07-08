@@ -168,9 +168,14 @@ export default function ConsultationRoom() {
 
   async function endConsult() {
     try {
-      await api.patchConsultation(consultationId, { status: "ended" });
-      if (isDoctor && consultation) {
-        try { await api.patchAppointment(consultation.appointmentId, { status: "completed" }); } catch { /* non-fatal */ }
+      // Only the doctor ends the consultation (and completes the appointment).
+      // A patient tapping "Leave" simply exits — it must not end the room or
+      // complete the appointment for everyone.
+      if (isDoctor) {
+        await api.patchConsultation(consultationId, { status: "ended" });
+        if (consultation) {
+          try { await api.patchAppointment(consultation.appointmentId, { status: "completed" }); } catch { /* non-fatal */ }
+        }
       }
     } finally { setEnded(true); router.push("/appointments"); }
   }
