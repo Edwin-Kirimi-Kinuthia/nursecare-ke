@@ -124,7 +124,12 @@ export default function ConsultationRoom() {
     return () => clearInterval(iv);
   }, [consultation, consultationId, ended]);
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  // Keep the chat pinned to the latest message by scrolling the chat container
+  // itself — never scrollIntoView, which would scroll the whole page/window.
+  useEffect(() => {
+    const el = chatEndRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [messages]);
 
   function onSectionChange(key: string, value: string) {
     const next = { ...record, [key]: value };
@@ -197,9 +202,9 @@ export default function ConsultationRoom() {
   ];
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col lg:flex-row">
+    <div className="flex h-[calc(100dvh-4rem)] flex-col overflow-hidden lg:flex-row">
       {/* Video */}
-      <div className="relative min-h-[280px] flex-1 bg-slate-950">
+      <div className="relative h-[42dvh] shrink-0 bg-slate-950 lg:h-auto lg:min-h-0 lg:flex-1">
         {token && serverUrl ? (
           <LiveKitRoom
             token={token}
@@ -228,7 +233,7 @@ export default function ConsultationRoom() {
       </div>
 
       {/* Side panel */}
-      <div className="flex w-full flex-col border-t border-slate-200 bg-white lg:w-[380px] lg:border-l lg:border-t-0">
+      <div className="flex min-h-0 w-full flex-1 flex-col border-t border-slate-200 bg-white lg:w-[380px] lg:flex-none lg:border-l lg:border-t-0">
         <div className="flex border-b border-slate-200">
           {tabs.map(({ key, label, Icon }) => (
             <button
@@ -245,7 +250,7 @@ export default function ConsultationRoom() {
 
         {/* Structured clinical record (doctor treatment sheet / nurse cardex / physio assessment) */}
         {tab === "notes" && isDoctor && (
-          <div className="flex flex-1 flex-col overflow-y-auto p-4">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between">
               <div>
                 <h3 className="text-sm font-bold text-slate-900">{template.title}</h3>
@@ -286,7 +291,7 @@ export default function ConsultationRoom() {
 
         {/* Prescriptions */}
         {tab === "rx" && (
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {isDoctor && (
               <form onSubmit={issueRx} className="mb-4 rounded-xl border border-slate-200 p-3">
                 <div className="mb-2 text-sm font-semibold text-slate-700">New prescription</div>
@@ -338,8 +343,8 @@ export default function ConsultationRoom() {
 
         {/* Chat */}
         {tab === "chat" && (
-          <div className="flex flex-1 flex-col">
-            <div className="flex-1 space-y-2 overflow-y-auto p-4">
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div ref={chatEndRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
               {messages.length === 0 && <p className="text-sm text-slate-400">No messages yet. Say hello 👋</p>}
               {messages.map((m) => {
                 const mine = m.senderId === user?.id;
@@ -352,7 +357,6 @@ export default function ConsultationRoom() {
                   </div>
                 );
               })}
-              <div ref={chatEndRef} />
             </div>
             <div className="flex gap-2 border-t border-slate-200 p-3">
               <input
@@ -369,7 +373,7 @@ export default function ConsultationRoom() {
 
         {/* AI clinical assist (doctor) */}
         {tab === "ai" && isDoctor && (
-          <div className="flex flex-1 flex-col overflow-y-auto p-4">
+          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             <form onSubmit={askAi} className="space-y-2">
               <label className="text-sm font-semibold text-slate-700">Clinical fact-check</label>
               <textarea

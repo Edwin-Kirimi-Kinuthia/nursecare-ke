@@ -1,7 +1,14 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
 
 export default function Footer() {
+  const pathname = usePathname();
+  // Hide on the full-screen video consultation page.
+  if (pathname?.startsWith("/consultations/")) return null;
+
   return (
     <footer className="mt-20 border-t border-slate-200 bg-white">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
