@@ -167,6 +167,8 @@ export const adminService = {
       platformFees,
       orderGroups,
       homeVisitGroups,
+      orderRevenue,
+      homeVisitRevenue,
     ] = await Promise.all([
       db.user.groupBy({ by: ["role"], _count: { _all: true } }),
       db.appointment.groupBy({ by: ["status"], _count: { _all: true } }),
@@ -174,7 +176,15 @@ export const adminService = {
       db.ledgerEntry.aggregate({ where: { type: "platform_fee" }, _sum: { amountKes: true } }),
       db.order.groupBy({ by: ["status"], _count: { _all: true } }),
       db.homeVisit.groupBy({ by: ["status"], _count: { _all: true } }),
+      // Pharmacy revenue: any order that has been paid (paid → delivered).
+      db.order.aggregate({ where: { paidAt: { not: null } }, _sum: { totalKes: true } }),
+      // Home-visit revenue: any visit that has been paid.
+      db.homeVisit.aggregate({ where: { paidAt: { not: null } }, _sum: { feeKes: true } }),
     ]);
+
+    const consultationsKes = paymentCompleted._sum.amountKes ?? 0;
+    const pharmacyKes = orderRevenue._sum.totalKes ?? 0;
+    const homeVisitsKes = homeVisitRevenue._sum.feeKes ?? 0;
 
     const toMap = (groups: { _count: { _all: number }; [k: string]: unknown }[], key: string) =>
       Object.fromEntries(groups.map((g) => [g[key] as string, g._count._all]));
@@ -190,8 +200,14 @@ export const adminService = {
       },
       payments: {
         completedCount: paymentCompleted._count._all,
-        totalRevenueKes: paymentCompleted._sum.amountKes ?? 0,
+        // Platform-wide revenue across consultations, pharmacy, and home visits.
+        totalRevenueKes: consultationsKes + pharmacyKes + homeVisitsKes,
         platformFeeKes: platformFees._sum.amountKes ?? 0,
+        breakdown: {
+          consultationsKes,
+          pharmacyKes,
+          homeVisitsKes,
+        },
       },
       orders: {
         total: orderGroups.reduce((s, g) => s + g._count._all, 0),

@@ -439,11 +439,12 @@ async function main() {
   for (const product of products) {
     const slug = IMAGE_SLUGS[product.name];
     const imageUrl = slug ? `/products/${slug}.jpg` : undefined;
+    const images = imageUrl ? [imageUrl] : [];
     const existing = await db.product.findFirst({ where: { name: product.name } });
     if (!existing) {
-      await db.product.create({ data: { ...product, imageUrl, isActive: true } });
-    } else if (imageUrl && existing.imageUrl !== imageUrl) {
-      await db.product.update({ where: { id: existing.id }, data: { imageUrl } });
+      await db.product.create({ data: { ...product, imageUrl, images, isActive: true } });
+    } else if (imageUrl && (existing.imageUrl !== imageUrl || existing.images.length === 0)) {
+      await db.product.update({ where: { id: existing.id }, data: { imageUrl, images } });
     }
   }
 

@@ -6,7 +6,7 @@ import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
   Loader2, AlertCircle, RefreshCw, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
-  Upload, ImageIcon,
+  Upload, ImageIcon, X,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
@@ -124,12 +124,12 @@ export default function AdminPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex flex-wrap gap-1 rounded-xl border border-slate-200 bg-white p-1">
+        <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS.map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition ${
+              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${
                 tab === id ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-100"
               }`}
             >
@@ -193,10 +193,13 @@ function OverviewTab({ stats, loading, error, onRetry }: { stats: PlatformStats 
             </div>
           ))}
           <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-teal-600 to-emerald-700 p-5 text-white sm:col-span-2">
-            <h3 className="font-bold">Revenue</h3>
-            <div className="mt-2 flex flex-wrap gap-6">
-              <div><div className="text-2xl font-extrabold">{kes(stats.payments.totalRevenueKes)}</div><div className="text-xs text-teal-100">Total ({stats.payments.completedCount} payments)</div></div>
-              <div><div className="text-2xl font-extrabold">{kes(stats.payments.platformFeeKes)}</div><div className="text-xs text-teal-100">Platform fees</div></div>
+            <h3 className="font-bold">Total revenue</h3>
+            <div className="mt-1 text-3xl font-extrabold">{kes(stats.payments.totalRevenueKes)}</div>
+            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.consultationsKes ?? 0)}</div><div className="text-xs text-teal-100">Consultations</div></div>
+              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.pharmacyKes ?? 0)}</div><div className="text-xs text-teal-100">Pharmacy</div></div>
+              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.homeVisitsKes ?? 0)}</div><div className="text-xs text-teal-100">Home visits</div></div>
+              <div><div className="text-lg font-extrabold">{kes(stats.payments.platformFeeKes)}</div><div className="text-xs text-teal-100">Platform fees</div></div>
             </div>
           </div>
         </div>
@@ -232,8 +235,8 @@ function UsersTab() {
           </button>
         ))}
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr><th className="px-4 py-3">Name</th><th className="px-4 py-3">Email</th><th className="px-4 py-3">Role</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
           </thead>
@@ -496,8 +499,8 @@ function AuditTab() {
   const logs = data ?? [];
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={logs.length === 0} emptyText="No audit entries yet.">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr><th className="px-4 py-3">When</th><th className="px-4 py-3">Actor</th><th className="px-4 py-3">Action</th><th className="px-4 py-3">Entity</th></tr>
           </thead>
@@ -540,8 +543,8 @@ function AppointmentsTab() {
           </button>
         ))}
       </div>
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
             <tr><th className="px-4 py-3">Patient</th><th className="px-4 py-3">Provider</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">When</th><th className="px-4 py-3">Fee</th><th className="px-4 py-3">Status</th></tr>
           </thead>
@@ -613,8 +616,8 @@ function PharmacyTab() {
       {products.length === 0 ? (
         <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No products yet.</p></div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full text-sm">
+        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+          <table className="w-full min-w-[560px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
               <tr><th className="px-4 py-3">Product</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Actions</th></tr>
             </thead>
@@ -659,20 +662,26 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
   const [form, setForm] = useState<CreateProductInput>(product ? {
     name: product.name, genericName: product.genericName ?? undefined, description: product.description ?? undefined,
     category: product.category, priceKes: product.priceKes, stockQty: product.stockQty, requiresPrescription: product.requiresPrescription,
-    imageUrl: product.imageUrl ?? undefined,
+    images: product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [],
   } : { ...EMPTY_PRODUCT });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const set = <K extends keyof CreateProductInput>(k: K, v: CreateProductInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const images = form.images ?? [];
 
-  async function onPickFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
     setErr(null);
-    try { set("imageUrl", await fileToDataUrl(file)); }
-    catch { setErr("Could not read that image."); }
+    try {
+      const urls = await Promise.all(files.map((f) => fileToDataUrl(f)));
+      set("images", [...images, ...urls].slice(0, 6));
+    } catch { setErr("Could not read one of those images."); }
+    e.target.value = "";
   }
+  function removeImage(i: number) { set("images", images.filter((_, idx) => idx !== i)); }
+  function addUrl(url: string) { if (url.trim()) set("images", [...images, url.trim()].slice(0, 6)); }
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -690,29 +699,32 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">{product ? "Edit product" : "Add product"}</h2>
         <form onSubmit={submit} className="mt-4 space-y-3">
-          {/* Product image */}
-          <div className="flex items-center gap-3">
-            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl border border-slate-200 bg-slate-50">
-              {form.imageUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.imageUrl} alt="" className="h-full w-full object-cover" />
-              ) : (
-                <ImageIcon className="h-7 w-7 text-slate-300" />
+          {/* Product images (up to 6) */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-slate-500">Images (up to 6)</label>
+            <div className="flex flex-wrap gap-2">
+              {images.map((src, i) => (
+                <div key={i} className="relative h-16 w-16 overflow-hidden rounded-lg border border-slate-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt="" className="h-full w-full object-cover" />
+                  <button type="button" onClick={() => removeImage(i)} className="absolute right-0.5 top-0.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-white hover:bg-black/80">
+                    <X className="h-3 w-3" />
+                  </button>
+                  {i === 0 && <span className="absolute inset-x-0 bottom-0 bg-black/50 text-center text-[9px] font-medium text-white">Main</span>}
+                </div>
+              ))}
+              {images.length < 6 && (
+                <button type="button" onClick={() => fileRef.current?.click()} className="grid h-16 w-16 shrink-0 place-items-center rounded-lg border-2 border-dashed border-slate-300 text-slate-400 hover:border-teal-400 hover:text-teal-600">
+                  {images.length === 0 ? <ImageIcon className="h-6 w-6" /> : <Upload className="h-5 w-5" />}
+                </button>
               )}
             </div>
-            <div className="flex-1 space-y-2">
-              <input type="file" accept="image/*" ref={fileRef} onChange={onPickFile} className="hidden" />
-              <div className="flex gap-2">
-                <button type="button" onClick={() => fileRef.current?.click()} className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">
-                  <Upload className="h-3.5 w-3.5" /> Upload image
-                </button>
-                {form.imageUrl && (
-                  <button type="button" onClick={() => set("imageUrl", undefined)} className="rounded-lg px-2 py-1.5 text-xs font-medium text-rose-600 hover:bg-rose-50">Remove</button>
-                )}
-              </div>
-              <input value={form.imageUrl?.startsWith("data:") ? "" : form.imageUrl ?? ""} onChange={(e) => set("imageUrl", e.target.value || undefined)}
-                placeholder="…or paste an image URL" className="w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
+            <input type="file" accept="image/*" multiple ref={fileRef} onChange={onPickFiles} className="hidden" />
+            <input
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addUrl((e.target as HTMLInputElement).value); (e.target as HTMLInputElement).value = ""; } }}
+              placeholder="…or paste an image URL and press Enter"
+              className="mt-2 w-full rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500"
+            />
           </div>
 
           <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Product name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />

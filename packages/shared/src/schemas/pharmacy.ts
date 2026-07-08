@@ -70,6 +70,16 @@ export const createProductSchema = z.object({
     .max(3_000_000)
     .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload")
     .optional(),
+  images: z
+    .array(
+      z
+        .string()
+        .trim()
+        .max(3_000_000)
+        .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload"),
+    )
+    .max(6, "Up to 6 images")
+    .optional(),
   priceKes: z.number().int().min(1),
   requiresPrescription: z.boolean().default(false),
   stockQty: z.number().int().min(0).default(0),

@@ -27,6 +27,21 @@ export const registerSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+/** Application to join as a healthcare provider — creates a pending profile for admin review. */
+export const providerApplicationSchema = z.object({
+  fullName: z.string().trim().min(2, "Name is too short").max(120),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  phone: phoneSchema.optional(),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  role: z.enum(["doctor", "nurse", "physio", "pharmacy"]),
+  specialty: z.string().trim().min(2, "Specialty is required").max(100),
+  licenceNumber: z.string().trim().min(2, "Licence number is required").max(60),
+  licenceBody: z.string().trim().max(120).optional(),
+  yearsExperience: z.coerce.number().int().min(0).max(60).optional(),
+  qualifications: z.string().max(1000).optional(),
+});
+export type ProviderApplicationInput = z.infer<typeof providerApplicationSchema>;
+
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   password: z.string().min(1, "Password is required"),

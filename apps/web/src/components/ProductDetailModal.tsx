@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect } from "react";
-import { X, Plus, Minus, ShieldAlert, Check, PackageCheck, PackageX } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, Plus, Minus, ShieldAlert, Check, PackageCheck, PackageX, ZoomIn } from "lucide-react";
 import type { Product } from "@carebora/api-client";
 import { kes } from "@/lib/api";
 import { categoryTheme } from "@/lib/catalog";
@@ -13,6 +13,19 @@ export default function ProductDetailModal({ product, onClose }: { product: Prod
   const { Icon, from, to } = categoryTheme(product.category);
   const outOfStock = product.stockQty === 0;
   const lowStock = product.stockQty > 0 && product.stockQty < 20;
+
+  // Gallery + Amazon-style hover zoom (magnifies where the cursor points).
+  const gallery = product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [];
+  const [active, setActive] = useState(0);
+  const [zoom, setZoom] = useState(false);
+  const [origin, setOrigin] = useState("50% 50%");
+
+  function onMove(e: React.MouseEvent<HTMLDivElement>) {
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    const y = ((e.clientY - r.top) / r.height) * 100;
+    setOrigin(`${x}% ${y}%`);
+  }
 
   // Close on Escape
   useEffect(() => {
@@ -36,21 +49,55 @@ export default function ProductDetailModal({ product, onClose }: { product: Prod
         </button>
 
         <div className="grid sm:grid-cols-2">
-          {/* Image */}
-          <div className="relative aspect-square overflow-hidden bg-slate-50 sm:aspect-auto">
-            {product.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={product.imageUrl} alt={product.name} className="h-full w-full object-cover" />
-            ) : (
-              <div className={`grid h-full min-h-[240px] place-items-center bg-gradient-to-br ${from} ${to}`}>
-                <Icon className="h-24 w-24 text-white/90 drop-shadow" strokeWidth={1.25} />
+          {/* Image gallery with hover-zoom */}
+          <div className="p-4 sm:p-5">
+            <div
+              className="group relative aspect-square overflow-hidden rounded-xl bg-slate-50"
+              onMouseEnter={() => gallery.length && setZoom(true)}
+              onMouseLeave={() => setZoom(false)}
+              onMouseMove={onMove}
+            >
+              {gallery.length ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={gallery[active]}
+                  alt={product.name}
+                  className="h-full w-full cursor-zoom-in object-cover transition-transform duration-150 ease-out"
+                  style={{ transformOrigin: origin, transform: zoom ? "scale(2.4)" : "scale(1)" }}
+                />
+              ) : (
+                <div className={`grid h-full place-items-center bg-gradient-to-br ${from} ${to}`}>
+                  <Icon className="h-24 w-24 text-white/90 drop-shadow" strokeWidth={1.25} />
+                </div>
+              )}
+              <span className={`absolute left-3 top-3 rounded-full px-3 py-1 text-xs font-bold shadow-sm backdrop-blur ${
+                product.requiresPrescription ? "bg-white/95 text-violet-700" : "bg-white/90 text-emerald-700"
+              }`}>
+                {product.requiresPrescription ? "Prescription (Rx)" : "Over the counter"}
+              </span>
+              {gallery.length > 0 && (
+                <span className="pointer-events-none absolute bottom-3 right-3 inline-flex items-center gap-1 rounded-full bg-black/50 px-2 py-0.5 text-[11px] font-medium text-white opacity-0 transition group-hover:opacity-100">
+                  <ZoomIn className="h-3 w-3" /> Hover to zoom
+                </span>
+              )}
+            </div>
+
+            {/* Thumbnails */}
+            {gallery.length > 1 && (
+              <div className="mt-3 flex gap-2 overflow-x-auto">
+                {gallery.map((src, i) => (
+                  <button
+                    key={i}
+                    onMouseEnter={() => setActive(i)}
+                    onClick={() => setActive(i)}
+                    className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === active ? "border-teal-500" : "border-transparent hover:border-slate-300"}`}
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={src} alt="" className="h-full w-full object-cover" />
+                  </button>
+                ))}
               </div>
             )}
-            <span className={`absolute left-4 top-4 rounded-full px-3 py-1 text-xs font-bold shadow-sm backdrop-blur ${
-              product.requiresPrescription ? "bg-white/95 text-violet-700" : "bg-white/90 text-emerald-700"
-            }`}>
-              {product.requiresPrescription ? "Prescription (Rx)" : "Over the counter"}
-            </span>
           </div>
 
           {/* Details */}

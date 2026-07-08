@@ -28,6 +28,7 @@ import type {
   ProvidersQuery,
   PublicUser,
   RegisterInput,
+  ProviderApplicationInput,
   ReviewVerificationInput,
   SendMessageInput,
   SlotsQuery,
@@ -98,6 +99,10 @@ export class CareBoraClient {
   // ── Auth (M1) ──
   register(input: RegisterInput) {
     return this.post<AuthResult>("/auth/register", input);
+  }
+  /** Apply as a healthcare provider (creates a pending profile for admin review). */
+  applyAsProvider(input: ProviderApplicationInput) {
+    return this.post<AuthResult>("/providers/apply", input);
   }
   login(input: LoginInput) {
     return this.post<AuthResult>("/auth/login", input);
@@ -628,6 +633,7 @@ export interface Product {
   description: string | null;
   category: string;
   imageUrl: string | null;
+  images: string[];
   priceKes: number;
   stockQty: number;
   requiresPrescription: boolean;
@@ -813,7 +819,12 @@ export interface VerificationReviewResult {
 export interface PlatformStats {
   users: { total: number; byRole: Record<string, number> };
   appointments: { total: number; byStatus: Record<string, number> };
-  payments: { completedCount: number; totalRevenueKes: number; platformFeeKes: number };
+  payments: {
+    completedCount: number;
+    totalRevenueKes: number;
+    platformFeeKes: number;
+    breakdown?: { consultationsKes: number; pharmacyKes: number; homeVisitsKes: number };
+  };
   orders: { total: number; byStatus: Record<string, number> };
   homeVisits: { total: number; byStatus: Record<string, number> };
 }

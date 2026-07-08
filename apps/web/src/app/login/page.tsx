@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { ApiError } from "@carebora/shared";
@@ -100,6 +101,11 @@ export default function LoginPage() {
             </button>
           </p>
         </div>
+
+        <p className="mt-4 text-center text-sm text-slate-500">
+          Are you a healthcare provider?{" "}
+          <Link href="/providers/apply" className="font-semibold text-teal-700 hover:underline">Apply to join</Link>
+        </p>
       </div>
     </div>
   );

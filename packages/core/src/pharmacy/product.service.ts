@@ -42,13 +42,16 @@ export const productService = {
   },
 
   async create(input: CreateProductInput) {
-    return db.product.create({ data: input });
+    // Keep imageUrl (used in cards/lists) as the first gallery image.
+    const imageUrl = input.images?.[0] ?? input.imageUrl;
+    return db.product.create({ data: { ...input, imageUrl } });
   },
 
   async update(productId: string, input: UpdateProductInput) {
     const product = await db.product.findUnique({ where: { id: productId } });
     if (!product) throw ApiError.notFound("Product not found");
-    return db.product.update({ where: { id: productId }, data: input });
+    const imageUrl = input.images !== undefined ? (input.images[0] ?? null) : input.imageUrl;
+    return db.product.update({ where: { id: productId }, data: { ...input, imageUrl } });
   },
 
   async remove(productId: string) {

@@ -5,6 +5,7 @@ import {
   type LoginInput,
   type PublicUser,
   type RegisterInput,
+  type ProviderApplicationInput,
   type UserRole,
 } from "@carebora/shared";
 import { hashPassword, verifyPassword } from "./password";
@@ -76,6 +77,48 @@ export const authService = {
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === "P2002"
       ) {
+        throw ApiError.conflict("An account with this email or phone already exists");
+      }
+      throw err;
+    }
+
+    const tokens = await issueSession(user.id, role, meta);
+    return { user: toPublicUser(user), ...tokens };
+  },
+
+  /**
+   * Apply as a healthcare provider — creates the account with a provider profile
+   * in `pending` verification status so it lands in the admin review queue.
+   */
+  async applyAsProvider(input: ProviderApplicationInput, meta?: RequestMeta) {
+    const role = input.role as UserRole;
+    const qualifications = input.qualifications
+      ? input.qualifications.split(/[\n,]/).map((s) => s.trim()).filter(Boolean)
+      : [];
+
+    let user: User;
+    try {
+      user = await db.user.create({
+        data: {
+          email: input.email,
+          fullName: input.fullName,
+          phone: input.phone ?? null,
+          role,
+          credentials: { create: { passwordHash: hashPassword(input.password) } },
+          providerProfile: {
+            create: {
+              specialty: input.specialty,
+              licenceNumber: input.licenceNumber,
+              licenceBody: input.licenceBody ?? null,
+              yearsExperience: input.yearsExperience ?? 0,
+              qualifications,
+              verificationStatus: "pending",
+            },
+          },
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
         throw ApiError.conflict("An account with this email or phone already exists");
       }
       throw err;
