@@ -24,6 +24,10 @@ import type {
   PatchPatientProfileInput,
   PatchProviderProfileInput,
   PaymentsQuery,
+  SubmitTillInput,
+  TillContext,
+  TillVerificationList,
+  VerifyTillInput,
   ProductsQuery,
   ProvidersQuery,
   PublicUser,
@@ -224,6 +228,10 @@ export class CareBoraClient {
   simulateMpesaPayment(checkoutRequestId: string) {
     return this.post<{ completed: boolean; type: string }>("/payments/mpesa/simulate", { checkoutRequestId });
   }
+  /** Till mode: report the M-Pesa confirmation code for a pending Till payment. */
+  submitTillPayment(input: SubmitTillInput) {
+    return this.post<{ submitted: boolean; context: TillContext }>("/payments/till/submit", input);
+  }
   listPayments(query?: Partial<PaymentsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<PaymentListResult>(`/payments?${params}`);
@@ -304,6 +312,14 @@ export class CareBoraClient {
   // ── Admin — Stats & Audit (M7) ──
   adminGetStats() {
     return this.request<PlatformStats>("/admin/stats");
+  }
+
+  // ── Admin: Till payment verification (interim manual M-Pesa mode) ──
+  adminListTillVerifications() {
+    return this.request<TillVerificationList>("/admin/payments/verifications");
+  }
+  adminVerifyTillPayment(input: VerifyTillInput) {
+    return this.post<{ context: TillContext; id: string; approved: boolean }>("/admin/payments/verifications", input);
   }
   adminListAuditLogs(query?: Partial<AuditLogsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
@@ -571,7 +587,7 @@ export interface MedicalHistoryEntry {
   }>;
 }
 
-export type PaymentStatus = "pending" | "completed" | "failed" | "refunded" | "cancelled";
+export type PaymentStatus = "pending" | "awaiting_verification" | "completed" | "failed" | "refunded" | "cancelled";
 
 export interface LedgerEntry {
   id: string;
@@ -620,6 +636,7 @@ export interface PaymentListResult {
 
 export type OrderStatus =
   | "pending"
+  | "awaiting_verification"
   | "paid"
   | "processing"
   | "dispatched"
@@ -693,6 +710,7 @@ export interface OrderListResult {
 
 export type HomeVisitStatus =
   | "pending"
+  | "awaiting_verification"
   | "assigned"
   | "paid"
   | "en_route"

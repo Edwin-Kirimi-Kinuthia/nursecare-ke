@@ -63,6 +63,7 @@ enum ConsultationStatus {
 
 enum PaymentStatus {
   pending
+  awaiting_verification
   completed
   failed
   refunded
@@ -71,10 +72,12 @@ enum PaymentStatus {
 
 enum PaymentMethod {
   mpesa
+  till
 }
 
 enum OrderStatus {
   pending
+  awaiting_verification
   paid
   processing
   dispatched
@@ -85,6 +88,7 @@ enum OrderStatus {
 
 enum HomeVisitStatus {
   pending
+  awaiting_verification
   assigned
   paid
   en_route

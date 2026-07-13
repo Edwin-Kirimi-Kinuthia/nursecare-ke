@@ -8,6 +8,8 @@ import type { Appointment } from "@carebora/api-client";
 import { ApiError } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { IS_TILL_MODE } from "@/lib/payments";
+import { TillPayBox } from "@/components/TillPayBox";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
@@ -77,7 +79,7 @@ export default function AppointmentsPage() {
     setPaying(true); setPayMsg(null); setSimCheckoutId(null);
     try {
       const payment = await api.initiateMpesaPayment({ appointmentId: payAppt.id, phoneNumber: payPhone });
-      setPayMsg({ kind: "ok", text: "STK push sent! Check your phone and enter your M-Pesa PIN." });
+      if (!IS_TILL_MODE) setPayMsg({ kind: "ok", text: "STK push sent! Check your phone and enter your M-Pesa PIN." });
       setSimCheckoutId(payment.checkoutRequestId ?? null);
       await load();
     } catch (err) {
@@ -175,6 +177,10 @@ export default function AppointmentsPage() {
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                         </span>
+                      ) : a.payment?.status === "awaiting_verification" ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
+                          <Clock className="h-3.5 w-3.5" /> Verifying payment
+                        </span>
                       ) : (
                         <button
                           onClick={() => openPay(a)}
@@ -213,30 +219,48 @@ export default function AppointmentsPage() {
               {payAppt.provider?.user?.fullName} · <span className="font-semibold text-slate-700">{kes(payAppt.feeKes)}</span>
             </p>
             <div className="mt-4 space-y-3">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-slate-700">M-Pesa phone</label>
-                <input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} placeholder="07…"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-              </div>
-              {payMsg && (
-                <p className={`rounded-xl px-4 py-3 text-sm ${payMsg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{payMsg.text}</p>
+              {/* Till mode, step 2: show the manual pay + code-entry box */}
+              {IS_TILL_MODE && simCheckoutId ? (
+                <>
+                  <TillPayBox
+                    checkoutRequestId={simCheckoutId}
+                    amountKes={payAppt.feeKes}
+                    noun="consultation"
+                    onSubmitted={load}
+                  />
+                  <button onClick={() => setPayAppt(null)}
+                    className="w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    Close
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="mb-1 block text-sm font-medium text-slate-700">M-Pesa phone</label>
+                    <input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} placeholder="07…"
+                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </div>
+                  {payMsg && (
+                    <p className={`rounded-xl px-4 py-3 text-sm ${payMsg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{payMsg.text}</p>
+                  )}
+                  {simCheckoutId && !IS_TILL_MODE && (
+                    <button onClick={simulatePay} disabled={simulating}
+                      className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
+                      {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
+                    </button>
+                  )}
+                  <div className="flex gap-3">
+                    <button onClick={payAppointment} disabled={paying}
+                      className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                      {paying && <Loader2 className="h-4 w-4 animate-spin" />} {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payAppt.feeKes)}`}
+                    </button>
+                    <button onClick={() => setPayAppt(null)}
+                      className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                      Cancel
+                    </button>
+                  </div>
+                </>
               )}
-              {simCheckoutId && (
-                <button onClick={simulatePay} disabled={simulating}
-                  className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
-                  {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
-                </button>
-              )}
-              <div className="flex gap-3">
-                <button onClick={payAppointment} disabled={paying}
-                  className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                  {paying && <Loader2 className="h-4 w-4 animate-spin" />} Pay {kes(payAppt.feeKes)}
-                </button>
-                <button onClick={() => setPayAppt(null)}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  Cancel
-                </button>
-              </div>
             </div>
           </div>
         </div>

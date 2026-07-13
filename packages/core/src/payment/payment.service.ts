@@ -1,6 +1,7 @@
 import { db } from "@carebora/db";
 import { ApiError, type MpesaCallback, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
 import { initiateStkPush, normaliseMpesaPhone } from "./daraja";
+import { isTillMode, tillReference } from "./mode";
 import { PROVIDER_ROLES } from "@carebora/shared";
 import { notificationService } from "../notifications/notification.service";
 
@@ -13,6 +14,58 @@ function extractCallbackMeta(items: { Name: string; Value?: string | number }[])
     amount: get("Amount") as number | undefined,
     phone: get("PhoneNumber") as string | undefined,
   };
+}
+
+/**
+ * Settle a completed appointment payment: mark it paid, write the platform-fee /
+ * provider-payout ledger entries, and fire the receipt notification. Shared by the
+ * Daraja callback and the admin Till-verification flow.
+ */
+async function settleAppointmentPayment(paymentId: string, receiptNumber: string | null) {
+  const payment = await db.payment.findUnique({ where: { id: paymentId } });
+  if (!payment || payment.status === "completed") return;
+
+  const platformFee = Math.round(payment.amountKes * PLATFORM_FEE_PERCENT / 100);
+  const providerNet = payment.amountKes - platformFee;
+
+  await db.$transaction([
+    db.payment.update({
+      where: { id: payment.id },
+      data: { status: "completed", mpesaReceiptNumber: receiptNumber, paidAt: new Date() },
+    }),
+    db.ledgerEntry.create({
+      data: {
+        paymentId: payment.id,
+        type: "platform_fee",
+        amountKes: platformFee,
+        description: `${PLATFORM_FEE_PERCENT}% platform commission`,
+      },
+    }),
+    db.ledgerEntry.create({
+      data: {
+        paymentId: payment.id,
+        type: "provider_payout",
+        amountKes: providerNet,
+        description: "Provider net payout",
+      },
+    }),
+  ]);
+
+  const full = await db.payment.findUnique({
+    where: { id: payment.id },
+    include: { patient: { select: { email: true, fullName: true, phone: true } }, provider: { select: { fullName: true } } },
+  });
+  if (full) {
+    void notificationService.paymentReceived({
+      patientEmail: full.patient.email,
+      patientPhone: full.patient.phone,
+      patientName: full.patient.fullName,
+      providerName: full.provider.fullName,
+      amountKes: full.amountKes,
+      receiptNumber: full.mpesaReceiptNumber,
+      context: "appointment",
+    });
+  }
 }
 
 const PAYMENT_INCLUDE = {
@@ -53,6 +106,24 @@ export const paymentService = {
     }
 
     const phone = normaliseMpesaPhone(input.phoneNumber);
+
+    // Interim Till mode: no STK push — create a pending record the patient will
+    // attach an M-Pesa code to, then an admin verifies it.
+    if (isTillMode()) {
+      return db.payment.create({
+        data: {
+          appointmentId: appointment.id,
+          patientId,
+          providerId: appointment.providerId,
+          amountKes: appointment.feeKes,
+          phoneNumber: phone,
+          method: "till",
+          checkoutRequestId: tillReference(),
+        },
+        include: PAYMENT_INCLUDE,
+      });
+    }
+
     const push = await initiateStkPush({
       amount: appointment.feeKes,
       phone,
@@ -87,52 +158,7 @@ export const paymentService = {
 
     if (cb.ResultCode === 0) {
       const meta = extractCallbackMeta(cb.CallbackMetadata?.Item ?? []);
-      const platformFee = Math.round(payment.amountKes * PLATFORM_FEE_PERCENT / 100);
-      const providerNet = payment.amountKes - platformFee;
-
-      await db.$transaction([
-        db.payment.update({
-          where: { id: payment.id },
-          data: {
-            status: "completed",
-            mpesaReceiptNumber: meta.receiptNumber ?? null,
-            paidAt: new Date(),
-          },
-        }),
-        db.ledgerEntry.create({
-          data: {
-            paymentId: payment.id,
-            type: "platform_fee",
-            amountKes: platformFee,
-            description: `${PLATFORM_FEE_PERCENT}% platform commission`,
-          },
-        }),
-        db.ledgerEntry.create({
-          data: {
-            paymentId: payment.id,
-            type: "provider_payout",
-            amountKes: providerNet,
-            description: "Provider net payout",
-          },
-        }),
-      ]);
-
-      // Fire-and-forget notification
-      const full = await db.payment.findUnique({
-        where: { id: payment.id },
-        include: { patient: { select: { email: true, fullName: true, phone: true } }, provider: { select: { fullName: true } } },
-      });
-      if (full) {
-        void notificationService.paymentReceived({
-          patientEmail: full.patient.email,
-          patientPhone: full.patient.phone,
-          patientName: full.patient.fullName,
-          providerName: full.provider.fullName,
-          amountKes: full.amountKes,
-          receiptNumber: full.mpesaReceiptNumber,
-          context: "appointment",
-        });
-      }
+      await settleAppointmentPayment(payment.id, meta.receiptNumber ?? null);
     } else {
       await db.payment.update({
         where: { id: payment.id },
@@ -140,6 +166,44 @@ export const paymentService = {
       });
     }
     return true;
+  },
+
+  /**
+   * Till mode: the patient reports the M-Pesa confirmation code for a Till payment.
+   * Moves the payment to `awaiting_verification` for admin review. Matched by the
+   * synthetic checkout reference. Returns true if a matching payment was found.
+   */
+  async submitTill(checkoutRequestId: string, code: string): Promise<boolean> {
+    const payment = await db.payment.findUnique({ where: { checkoutRequestId } });
+    if (!payment) return false;
+    if (payment.status === "completed") return true;
+    await db.payment.update({
+      where: { id: payment.id },
+      data: { status: "awaiting_verification", method: "till", mpesaReceiptNumber: code, failureReason: null },
+    });
+    return true;
+  },
+
+  /**
+   * Admin decision on a Till payment awaiting verification.
+   * Approve → settle (paid + ledger + receipt). Reject → back to `pending` so the
+   * patient can re-submit a corrected code.
+   */
+  async verifyTill(paymentId: string, approve: boolean) {
+    const payment = await db.payment.findUnique({ where: { id: paymentId } });
+    if (!payment) throw ApiError.notFound("Payment not found");
+    if (payment.status !== "awaiting_verification") {
+      throw ApiError.badRequest("This payment is not awaiting verification");
+    }
+    if (approve) {
+      await settleAppointmentPayment(payment.id, payment.mpesaReceiptNumber);
+    } else {
+      await db.payment.update({
+        where: { id: payment.id },
+        data: { status: "pending", failureReason: "Payment could not be verified", mpesaReceiptNumber: null },
+      });
+    }
+    return db.payment.findUnique({ where: { id: paymentId }, include: PAYMENT_INCLUDE });
   },
 
   /** List payments for the calling user. */

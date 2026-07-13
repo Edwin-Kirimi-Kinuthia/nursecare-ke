@@ -10,6 +10,7 @@ import {
   type UserRole,
 } from "@carebora/shared";
 import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
+import { isTillMode, tillReference } from "../payment/mode";
 import { notificationService } from "../notifications/notification.service";
 
 const VISIT_INCLUDE = {
@@ -127,6 +128,16 @@ export const homeVisitService = {
     if (!visit.feeKes) throw ApiError.badRequest("Fee has not been set for this visit");
 
     const phone = normaliseMpesaPhone(input.phoneNumber);
+
+    // Till mode: no STK — reserve a synthetic reference for admin verification.
+    if (isTillMode()) {
+      return db.homeVisit.update({
+        where: { id: visitId },
+        data: { phoneNumber: phone, checkoutRequestId: tillReference(), merchantRequestId: null },
+        include: VISIT_INCLUDE,
+      });
+    }
+
     const push = await initiateStkPush({
       amount: visit.feeKes,
       phone,
@@ -172,6 +183,34 @@ export const homeVisitService = {
       });
     }
     return true;
+  },
+
+  /** Till mode: patient reports the M-Pesa code → visit awaits admin verification. */
+  async submitTill(checkoutRequestId: string, code: string): Promise<boolean> {
+    const visit = await db.homeVisit.findUnique({ where: { checkoutRequestId } });
+    if (!visit) return false;
+    if (visit.paidAt) return true;
+    await db.homeVisit.update({
+      where: { id: visit.id },
+      data: { status: "awaiting_verification", mpesaReceiptNumber: code, paymentFailReason: null },
+    });
+    return true;
+  },
+
+  /** Admin decision on a Till home visit. Approve → paid. Reject → back to assigned. */
+  async verifyTill(visitId: string, approve: boolean) {
+    const visit = await db.homeVisit.findUnique({ where: { id: visitId } });
+    if (!visit) throw ApiError.notFound("Home visit not found");
+    if (visit.status !== "awaiting_verification") {
+      throw ApiError.badRequest("This visit is not awaiting verification");
+    }
+    return db.homeVisit.update({
+      where: { id: visitId },
+      data: approve
+        ? { status: "paid", paidAt: new Date() }
+        : { status: "assigned", paymentFailReason: "Payment could not be verified", mpesaReceiptNumber: null },
+      include: VISIT_INCLUDE,
+    });
   },
 
   /**

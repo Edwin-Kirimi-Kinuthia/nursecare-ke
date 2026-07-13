@@ -9,6 +9,8 @@ import { ApiError } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
+import { IS_TILL_MODE } from "@/lib/payments";
+import { TillPayBox } from "@/components/TillPayBox";
 
 /** The cart + M-Pesa checkout. Self-contained — fetches product details for the
  *  items in the cart, so it works from anywhere (used inside the cart drawer). */
@@ -25,6 +27,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
+  const [pendingAmount, setPendingAmount] = useState(0);
   const [simulating, setSimulating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -62,6 +65,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   async function checkout() {
     if (!user) { closeCart(); router.push("/login"); return; }
     setPlacing(true); setMsg(null); setPendingCheckoutId(null);
+    const orderTotal = total;
     try {
       const order = await api.createOrder({
         items: lines.map(([productId, qty]) => ({ productId, qty })),
@@ -69,8 +73,9 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         deliveryAddress: address,
         prescriptionImage: rxImage ?? undefined,
       });
-      setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
+      if (!IS_TILL_MODE) setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
       setPendingCheckoutId(order.checkoutRequestId ?? null);
+      setPendingAmount(orderTotal);
       clear(); setRxImage(null); setRxName("");
       onOrdered?.();
     } catch (err) {
@@ -181,7 +186,18 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         </div>
       )}
 
-      {pendingCheckoutId && (
+      {pendingCheckoutId && IS_TILL_MODE && (
+        <div className="mt-4">
+          <TillPayBox
+            checkoutRequestId={pendingCheckoutId}
+            amountKes={pendingAmount}
+            noun="order"
+            onSubmitted={() => onOrdered?.()}
+          />
+        </div>
+      )}
+
+      {pendingCheckoutId && !IS_TILL_MODE && (
         <button
           onClick={simulate}
           disabled={simulating}

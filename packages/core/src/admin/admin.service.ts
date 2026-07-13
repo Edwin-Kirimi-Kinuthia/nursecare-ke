@@ -7,7 +7,11 @@ import {
   type AuditLogsQuery,
   type ReviewVerificationInput,
   type VerificationsQuery,
+  type TillContext,
 } from "@carebora/shared";
+import { paymentService } from "../payment/payment.service";
+import { orderService } from "../pharmacy/order.service";
+import { homeVisitService } from "../homevisit/homevisit.service";
 
 async function writeAuditLog(
   actorId: string,
@@ -267,5 +271,78 @@ export const adminService = {
       db.appointment.count({ where }),
     ]);
     return { appointments, total, limit: query.limit, offset: query.offset };
+  },
+
+  // ── Till payment verification (interim manual M-Pesa mode) ──────────────────
+
+  /** All Till payments awaiting admin verification, across every payment surface. */
+  async listTillVerifications() {
+    const [payments, orders, visits] = await Promise.all([
+      db.payment.findMany({
+        where: { status: "awaiting_verification" },
+        include: {
+          patient: { select: { fullName: true, phone: true } },
+          provider: { select: { fullName: true } },
+          appointment: { select: { appointmentType: true } },
+        },
+        orderBy: { updatedAt: "asc" },
+      }),
+      db.order.findMany({
+        where: { status: "awaiting_verification" },
+        include: { patient: { select: { fullName: true, phone: true } }, items: { select: { qty: true } } },
+        orderBy: { updatedAt: "asc" },
+      }),
+      db.homeVisit.findMany({
+        where: { status: "awaiting_verification" },
+        include: { patient: { select: { fullName: true, phone: true } } },
+        orderBy: { updatedAt: "asc" },
+      }),
+    ]);
+
+    const items = [
+      ...payments.map((p) => ({
+        context: "appointment" as TillContext,
+        id: p.id,
+        code: p.mpesaReceiptNumber ?? "",
+        amountKes: p.amountKes,
+        phone: p.phoneNumber,
+        patientName: p.patient.fullName,
+        description: `${p.appointment?.appointmentType ?? "Consultation"} with ${p.provider.fullName}`,
+        submittedAt: p.updatedAt,
+      })),
+      ...orders.map((o) => ({
+        context: "order" as TillContext,
+        id: o.id,
+        code: o.mpesaReceiptNumber ?? "",
+        amountKes: o.totalKes,
+        phone: o.phoneNumber,
+        patientName: o.patient.fullName,
+        description: `Pharmacy order · ${o.items.reduce((n, i) => n + i.qty, 0)} item(s)`,
+        submittedAt: o.updatedAt,
+      })),
+      ...visits.map((v) => ({
+        context: "home_visit" as TillContext,
+        id: v.id,
+        code: v.mpesaReceiptNumber ?? "",
+        amountKes: v.feeKes ?? 0,
+        phone: v.phoneNumber ?? "",
+        patientName: v.patient.fullName,
+        description: `Home visit · ${v.specialty}`,
+        submittedAt: v.updatedAt,
+      })),
+    ].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime());
+
+    return { items, total: items.length };
+  },
+
+  /** Approve or reject a Till payment, dispatching to the owning service, with an audit trail. */
+  async verifyTillPayment(context: TillContext, id: string, approve: boolean, actorId: string) {
+    if (context === "appointment") await paymentService.verifyTill(id, approve);
+    else if (context === "order") await orderService.verifyTill(id, approve);
+    else if (context === "home_visit") await homeVisitService.verifyTill(id, approve);
+    else throw ApiError.badRequest("Unknown payment context");
+
+    await writeAuditLog(actorId, approve ? "till_payment_approved" : "till_payment_rejected", context, id);
+    return { context, id, approved: approve };
   },
 };

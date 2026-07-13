@@ -8,6 +8,7 @@ import {
   type UserRole,
 } from "@carebora/shared";
 import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
+import { isTillMode, tillReference } from "../payment/mode";
 
 const ORDER_INCLUDE = {
   items: {
@@ -66,14 +67,17 @@ export const orderService = {
       totalKes += product.priceKes * item.qty;
     }
 
-    // 4. Initiate STK push
+    // 4. Initiate payment. Till mode: no STK — reserve a synthetic reference the
+    //    patient will attach an M-Pesa code to for admin verification.
     const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = await initiateStkPush({
-      amount: totalKes,
-      phone,
-      accountRef: `PHARM`,
-      description: "CareBora pharmacy order",
-    });
+    const push = isTillMode()
+      ? { checkoutRequestId: tillReference(), merchantRequestId: null as string | null }
+      : await initiateStkPush({
+          amount: totalKes,
+          phone,
+          accountRef: `PHARM`,
+          description: "CareBora pharmacy order",
+        });
 
     // 5. Create order + decrement stock in one transaction
     return db.$transaction(async (tx) => {
@@ -138,6 +142,34 @@ export const orderService = {
       });
     }
     return true;
+  },
+
+  /** Till mode: patient reports the M-Pesa code → order awaits admin verification. */
+  async submitTill(checkoutRequestId: string, code: string): Promise<boolean> {
+    const order = await db.order.findUnique({ where: { checkoutRequestId } });
+    if (!order) return false;
+    if (order.status === "paid") return true;
+    await db.order.update({
+      where: { id: order.id },
+      data: { status: "awaiting_verification", mpesaReceiptNumber: code, failureReason: null },
+    });
+    return true;
+  },
+
+  /** Admin decision on a Till order. Approve → paid. Reject → back to pending (stock stays reserved). */
+  async verifyTill(orderId: string, approve: boolean) {
+    const order = await db.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
+    if (!order) throw ApiError.notFound("Order not found");
+    if (order.status !== "awaiting_verification") {
+      throw ApiError.badRequest("This order is not awaiting verification");
+    }
+    return db.order.update({
+      where: { id: orderId },
+      data: approve
+        ? { status: "paid", paidAt: new Date() }
+        : { status: "pending", failureReason: "Payment could not be verified", mpesaReceiptNumber: null },
+      include: ORDER_INCLUDE,
+    });
   },
 
   async list(userId: string, role: UserRole, query: OrdersQuery) {
