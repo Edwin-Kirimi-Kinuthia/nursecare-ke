@@ -1,0 +1,7 @@
+# Local build artifacts / caches — Vercel builds fresh, never upload these.
+node_modules
+.git
+.next
+**/.next
+.turbo
+**/.turbo
