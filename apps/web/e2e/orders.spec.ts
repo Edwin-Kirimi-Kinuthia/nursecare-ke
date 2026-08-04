@@ -14,7 +14,9 @@ const PASSWORD = "Test1234!";
 test.describe.configure({ mode: "serial" });
 
 let accessToken = "";
+let strangerToken = "";
 let otcListingId = "";
+let gatewayRef = "";
 
 test.describe("Pharmacy marketplace checkout", () => {
   test("register patient", async ({ request }) => {
@@ -23,6 +25,14 @@ test.describe("Pharmacy marketplace checkout", () => {
     });
     expect(res.status()).toBe(201);
     accessToken = (await res.json()).data.accessToken;
+  });
+
+  test("register a second, unrelated patient (for the payment-ownership check below)", async ({ request }) => {
+    const res = await request.post("/api/v1/auth/register", {
+      data: { email: `orders-stranger+${UNIQUE}@carebora.test`, password: PASSWORD, fullName: "E2E Stranger", role: "patient" },
+    });
+    expect(res.status()).toBe(201);
+    strangerToken = (await res.json()).data.accessToken;
   });
 
   test("GET /storefront/drugs — OTC drugs are in the catalogue", async ({ request }) => {
@@ -93,6 +103,15 @@ test.describe("Pharmacy marketplace checkout", () => {
     expect(data.vendorOrders.length).toBeGreaterThan(0);
     expect(data.payment).toHaveProperty("gatewayRef");
     expect(data.payment.status).toBe("pending");
+    gatewayRef = data.payment.gatewayRef;
+  });
+
+  test("a stranger cannot submit a Till code for someone else's payment", async ({ request }) => {
+    const res = await request.post("/api/v1/payments/till/submit", {
+      headers: { Authorization: `Bearer ${strangerToken}` },
+      data: { gatewayRef, code: "STRANGER1" },
+    });
+    expect(res.status()).toBe(403);
   });
 
   test("GET /orders lists patient orders", async ({ request }) => {

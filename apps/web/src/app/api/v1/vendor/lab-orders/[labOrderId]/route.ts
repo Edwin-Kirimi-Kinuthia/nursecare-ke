@@ -5,7 +5,7 @@ import { labService } from "@carebora/core";
 
 /** PATCH /api/v1/vendor/lab-orders/:labOrderId — accept, mark sample collected/processing, or cancel. */
 export const PATCH = route(async (req, { params }: { params: Promise<{ labOrderId: string }> }) => {
-  const auth = await requireOrgMember(req, { roles: ["owner", "manager", "staff"] });
+  const auth = await requireOrgMember(req, { roles: ["owner", "manager", "staff"], orgType: "lab" });
   const { labOrderId } = await params;
   const input = patchLabOrderSchema.parse(await req.json());
   const order = await labService.patchOrder(auth.orgId, labOrderId, input);

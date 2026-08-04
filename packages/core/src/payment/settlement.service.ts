@@ -161,8 +161,8 @@ export const settlementService = {
   },
 
   /** Till submit → awaiting_verification (no side effects until an admin approves). */
-  async submitTill(gatewayRef: string, code: string): Promise<boolean> {
-    const payment = await paymentService.submitTill(gatewayRef, code);
+  async submitTill(gatewayRef: string, code: string, patientId: string): Promise<boolean> {
+    const payment = await paymentService.submitTill(gatewayRef, code, patientId);
     return payment !== null;
   },
 

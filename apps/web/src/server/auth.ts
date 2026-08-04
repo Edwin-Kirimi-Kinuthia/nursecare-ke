@@ -83,22 +83,45 @@ export async function requireAuth(
   return auth;
 }
 
+type OrgType = "pharmacy" | "ambulance" | "lab" | "clinic";
+
 /**
  * Require the caller to be an active member of an Organization. Resolves the org
  * from `opts.orgId` when given, else the caller's first active membership (the
  * common case for single-org vendor users). Every `/api/v1/vendor/*` route starts
  * with this, matching the `requireAuth(req, roles?)` convention used elsewhere.
+ *
+ * Pass `orgType` on every route that only makes sense for one kind of business
+ * (ambulance dispatch, lab orders, pharmacy listings) — membership alone does
+ * NOT imply the org does that kind of business. Without this, e.g. a pharmacy
+ * vendor could accept and dispatch ambulance requests meant for ambulance
+ * operators, since org membership and role are otherwise identical in shape
+ * across every org type.
+ *
+ * Also blocks every route once the org is `suspended` or `rejected` — an
+ * admin suspension must actually freeze the vendor's ability to operate, not
+ * just hide them from the storefront. `pending` and `in_review` stay allowed
+ * (an unapproved applicant still manages its own draft catalogue/branches).
  */
 export async function requireOrgMember(
   req: Request,
-  opts?: { orgId?: string; roles?: Array<"owner" | "manager" | "staff"> },
-): Promise<AccessClaims & { orgId: string; orgRole: "owner" | "manager" | "staff" }> {
+  opts?: { orgId?: string; roles?: Array<"owner" | "manager" | "staff">; orgType?: OrgType | OrgType[] },
+): Promise<AccessClaims & { orgId: string; orgRole: "owner" | "manager" | "staff"; orgType: OrgType }> {
   const auth = await requireAuth(req);
-  const { orgId, role } = await resolveMembership(auth.sub, opts?.orgId);
+  const { orgId, role, orgType, orgStatus } = await resolveMembership(auth.sub, opts?.orgId);
+  if (orgStatus === "suspended" || orgStatus === "rejected") {
+    throw ApiError.forbidden("Your organization's access has been suspended. Contact support.");
+  }
   if (opts?.roles && !opts.roles.includes(role)) {
     throw ApiError.forbidden("Your role in this organization does not permit this action");
   }
-  return { ...auth, orgId, orgRole: role };
+  if (opts?.orgType) {
+    const allowed = Array.isArray(opts.orgType) ? opts.orgType : [opts.orgType];
+    if (!allowed.includes(orgType)) {
+      throw ApiError.forbidden("This action is not available for your business type");
+    }
+  }
+  return { ...auth, orgId, orgRole: role, orgType };
 }
 
 /** Best-effort request metadata for audit/session records. */

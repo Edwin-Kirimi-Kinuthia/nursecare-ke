@@ -14,6 +14,7 @@ test.describe.configure({ mode: "serial" });
 
 let patientToken = "";
 let operatorToken = "";
+let pharmacyVendorToken = "";
 let requestId = "";
 
 test.describe("Ambulance request and dispatch", () => {
@@ -31,6 +32,14 @@ test.describe("Ambulance request and dispatch", () => {
     });
     expect(res.status()).toBe(200);
     operatorToken = (await res.json()).data.accessToken;
+  });
+
+  test("login a pharmacy vendor (wrong business type, for the isolation check below)", async ({ request }) => {
+    const res = await request.post("/api/v1/auth/login", {
+      data: { email: "owner.wellcare@example.com", password: "Demo1234!" },
+    });
+    expect(res.status()).toBe(200);
+    pharmacyVendorToken = (await res.json()).data.accessToken;
   });
 
   test("POST /ambulance-requests requests an ambulance near Nairobi CBD", async ({ request }) => {
@@ -59,6 +68,25 @@ test.describe("Ambulance request and dispatch", () => {
       data: { pickupCounty: "Nairobi", pickupLatitude: -1.2864, pickupLongitude: 36.8172, contactPhone: "0712345678" },
     });
     expect(res.status()).toBe(422);
+  });
+
+  test("a vendor of the wrong business type cannot accept, dispatch, or even see the ambulance queue", async ({ request }) => {
+    const acceptRes = await request.post(`/api/v1/vendor/ambulance-requests/${requestId}/accept`, {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+      data: {},
+    });
+    expect(acceptRes.status()).toBe(403);
+
+    const queueRes = await request.get("/api/v1/vendor/ambulance-requests", {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+    });
+    expect(queueRes.status()).toBe(403);
+
+    const patchRes = await request.patch(`/api/v1/vendor/ambulance-requests/${requestId}`, {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+      data: { status: "dispatched" },
+    });
+    expect(patchRes.status()).toBe(403);
   });
 
   test("operator accepts the request", async ({ request }) => {

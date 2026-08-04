@@ -63,19 +63,24 @@ async function assertMember(orgId: string, userId: string, roles?: Array<"owner"
  * Resolves which org an authenticated user is acting for. If `orgId` is given,
  * validates membership in exactly that org; otherwise falls back to the user's
  * first active membership (the common case: most vendor users belong to one org).
+ * Always returns the org's `type` too — callers that are type-specific (e.g. the
+ * ambulance dispatch queue) must check it themselves; nothing here assumes a
+ * membership implies the org does the kind of business the route expects.
  * Used by the web layer's `requireOrgMember` guard.
  */
 export async function resolveMembership(userId: string, orgId?: string) {
   if (orgId) {
     const member = await assertMember(orgId, userId);
-    return { orgId, role: member.role };
+    const org = await db.organization.findUniqueOrThrow({ where: { id: orgId }, select: { type: true, status: true } });
+    return { orgId, role: member.role, orgType: org.type, orgStatus: org.status };
   }
   const member = await db.orgMember.findFirst({
     where: { userId, isActive: true },
     orderBy: { createdAt: "asc" },
+    include: { organization: { select: { type: true, status: true } } },
   });
   if (!member) throw ApiError.forbidden("You do not belong to any organization");
-  return { orgId: member.orgId, role: member.role };
+  return { orgId: member.orgId, role: member.role, orgType: member.organization.type, orgStatus: member.organization.status };
 }
 
 export const orgService = {

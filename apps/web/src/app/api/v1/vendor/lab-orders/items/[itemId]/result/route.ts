@@ -5,7 +5,7 @@ import { labService } from "@carebora/core";
 
 /** POST /api/v1/vendor/lab-orders/items/:itemId/result — enter a result for one test item. */
 export const POST = route(async (req, { params }: { params: Promise<{ itemId: string }> }) => {
-  const auth = await requireOrgMember(req, { roles: ["owner", "manager", "staff"] });
+  const auth = await requireOrgMember(req, { roles: ["owner", "manager", "staff"], orgType: "lab" });
   const { itemId } = await params;
   const input = enterLabResultSchema.parse(await req.json());
   const result = await labService.enterResult(auth.orgId, itemId, auth.sub, input);

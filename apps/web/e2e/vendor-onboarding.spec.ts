@@ -16,8 +16,10 @@ test.describe.configure({ mode: "serial" });
 
 let ownerToken = "";
 let adminToken = "";
+let patientToken = "";
 let orgId = "";
 let drugId = "";
+let listingId = "";
 
 test.describe("Vendor onboarding", () => {
   test("login admin", async ({ request }) => {
@@ -74,6 +76,7 @@ test.describe("Vendor onboarding", () => {
     expect(res.status()).toBe(201);
     const { data } = await res.json();
     drugId = data.drugId;
+    listingId = data.id;
   });
 
   test("the listing does not appear on the public storefront while the org is pending", async ({ request }) => {
@@ -117,6 +120,45 @@ test.describe("Vendor onboarding", () => {
     expect(data.drugs.length).toBe(1);
     expect(data.drugs[0].drugId).toBe(drugId);
     expect(data.drugs[0].nearestVendor.orgName).toBe(ORG_NAME);
+  });
+
+  test("suspension actually freezes the vendor — dashboard access and checkout both blocked", async ({ request }) => {
+    const patientRes = await request.post("/api/v1/auth/register", {
+      data: { email: `vendor-susp-patient+${UNIQUE}@carebora.test`, password: PASSWORD, fullName: "E2E Susp Patient", role: "patient" },
+    });
+    expect(patientRes.status()).toBe(201);
+    patientToken = (await patientRes.json()).data.accessToken;
+
+    const suspendRes = await request.post(`/api/v1/admin/organizations/${orgId}/review`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { status: "suspended" },
+    });
+    expect(suspendRes.status()).toBe(200);
+
+    // The vendor's own dashboard must be frozen, not just hidden from patients.
+    const dashRes = await request.get("/api/v1/vendor/org", {
+      headers: { Authorization: `Bearer ${ownerToken}` },
+    });
+    expect(dashRes.status()).toBe(403);
+
+    // A patient with a cached listingId (from before suspension) must not be
+    // able to check out against a suspended vendor.
+    const checkoutRes = await request.post("/api/v1/orders", {
+      headers: { Authorization: `Bearer ${patientToken}` },
+      data: { items: [{ listingId, qty: 1 }], phoneNumber: "0712345678", deliveryAddress: "Test Address, Nairobi" },
+    });
+    expect(checkoutRes.status()).toBe(400);
+
+    // Restore for the tests that follow.
+    const reapproveRes = await request.post(`/api/v1/admin/organizations/${orgId}/review`, {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { status: "approved" },
+    });
+    expect(reapproveRes.status()).toBe(200);
+    const dashRestoredRes = await request.get("/api/v1/vendor/org", {
+      headers: { Authorization: `Bearer ${ownerToken}` },
+    });
+    expect(dashRestoredRes.status()).toBe(200);
   });
 
   test("POST /vendors/apply with a duplicate email → 409", async ({ request }) => {

@@ -11,10 +11,10 @@ import { settlementService } from "@carebora/core";
  * `awaiting_verification` for an admin to confirm against the Till statement.
  */
 export const POST = route(async (req) => {
-  await requireAuth(req);
+  const claims = await requireAuth(req);
   const { gatewayRef, code } = submitTillSchema.parse(await req.json());
 
-  const submitted = await settlementService.submitTill(gatewayRef, code);
+  const submitted = await settlementService.submitTill(gatewayRef, code, claims.sub);
   if (!submitted) throw ApiError.notFound("No pending payment matched that reference.");
   return jsonOk({ submitted: true });
 });

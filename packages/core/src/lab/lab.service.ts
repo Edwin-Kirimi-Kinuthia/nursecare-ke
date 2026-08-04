@@ -76,7 +76,12 @@ export const labService = {
   // ── Orders (patient self-checkout, may reference a consultation) ───────────
 
   async create(patientId: string, input: CreateLabOrderInput) {
-    const tests = await db.labTest.findMany({ where: { id: { in: input.testIds }, orgId: input.orgId, isActive: true } });
+    // A test is only orderable while its lab's org is approved — mirrors the
+    // same check in order.service.ts's checkout, and for the same reason: a
+    // suspended lab must not be orderable via a cached orgId/testId.
+    const tests = await db.labTest.findMany({
+      where: { id: { in: input.testIds }, orgId: input.orgId, isActive: true, organization: { status: "approved" } },
+    });
     if (tests.length !== input.testIds.length) throw ApiError.badRequest("One or more tests are unavailable");
     const totalKes = tests.reduce((sum, t) => sum + t.priceKes, 0);
 

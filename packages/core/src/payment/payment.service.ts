@@ -197,9 +197,10 @@ export const paymentService = {
   },
 
   /** Till mode: patient reports the M-Pesa code → payment awaits admin verification. */
-  async submitTill(gatewayRef: string, code: string): Promise<Payment | null> {
+  async submitTill(gatewayRef: string, code: string, patientId: string): Promise<Payment | null> {
     const payment = await db.payment.findUnique({ where: { gatewayRef } });
     if (!payment) return null;
+    if (payment.patientId !== patientId) throw ApiError.forbidden();
     if (payment.status === "completed") return payment;
     return db.payment.update({
       where: { id: payment.id },

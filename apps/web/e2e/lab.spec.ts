@@ -17,6 +17,7 @@ test.describe.configure({ mode: "serial" });
 let patientToken = "";
 let labToken = "";
 let adminToken = "";
+let pharmacyVendorToken = "";
 let orgId = "";
 let testId = "";
 let orderId = "";
@@ -45,6 +46,12 @@ test.describe("Lab orders — payment-gated fulfilment", () => {
     });
     expect(adminRes.status()).toBe(200);
     adminToken = (await adminRes.json()).data.accessToken;
+
+    const pharmacyRes = await request.post("/api/v1/auth/login", {
+      data: { email: "owner.wellcare@example.com", password: "Demo1234!" },
+    });
+    expect(pharmacyRes.status()).toBe(200);
+    pharmacyVendorToken = (await pharmacyRes.json()).data.accessToken;
   });
 
   test("GET /storefront/labs finds the seeded lab", async ({ request }) => {
@@ -77,6 +84,25 @@ test.describe("Lab orders — payment-gated fulfilment", () => {
     expect(data.payment.status).toBe("pending");
     gatewayRef = data.payment.gatewayRef;
     paymentId = data.payment.id;
+  });
+
+  test("a vendor of the wrong business type cannot touch the lab order or forge a result", async ({ request }) => {
+    const patchRes = await request.patch(`/api/v1/vendor/lab-orders/${orderId}`, {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+      data: { status: "accepted" },
+    });
+    expect(patchRes.status()).toBe(403);
+
+    const queueRes = await request.get("/api/v1/vendor/lab-orders", {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+    });
+    expect(queueRes.status()).toBe(403);
+
+    const resultRes = await request.post(`/api/v1/vendor/lab-orders/items/${itemId}/result`, {
+      headers: { Authorization: `Bearer ${pharmacyVendorToken}` },
+      data: { value: "Forged", flag: "normal" },
+    });
+    expect(resultRes.status()).toBe(403);
   });
 
   test("lab cannot accept the order before it is paid", async ({ request }) => {

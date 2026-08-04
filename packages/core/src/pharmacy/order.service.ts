@@ -35,10 +35,13 @@ async function attachPayments<T extends { id: string }>(orders: T[]) {
 export const orderService = {
   /** Checkout — a cart may span multiple vendor pharmacies; fans out into one VendorOrder per org. */
   async create(patientId: string, input: CreateOrderInput) {
-    // 1. Fetch and validate listings
+    // 1. Fetch and validate listings. A listing is only purchasable while its
+    //    org is approved — a suspended/rejected vendor must not be checkout-
+    //    able just because a patient still has one of its listingIds cached
+    //    (from a cart built before suspension, or a stale page).
     const listingIds = [...new Set(input.items.map((i) => i.listingId))];
     const listings = await db.listing.findMany({
-      where: { id: { in: listingIds }, isActive: true },
+      where: { id: { in: listingIds }, isActive: true, organization: { status: "approved" } },
       include: { drug: true },
     });
     if (listings.length !== listingIds.length) {
