@@ -154,28 +154,31 @@ async function matchPharmacy(keywords: string[], opts: { includeRx: boolean }): 
   const kw = keywords.map((k) => k.toLowerCase().trim()).filter((k) => k.length > 2);
   if (kw.length === 0) return [];
 
-  const products = await db.product.findMany({
+  const drugs = await db.drug.findMany({
     where: {
       isActive: true,
-      stockQty: { gt: 0 },
+      listings: { some: { isActive: true, stockQty: { gt: 0 } } },
       ...(opts.includeRx ? {} : { requiresPrescription: false }),
     },
-    select: { id: true, name: true, genericName: true, category: true, priceKes: true, imageUrl: true, requiresPrescription: true },
+    select: {
+      id: true, name: true, genericName: true, category: true, imageUrl: true, requiresPrescription: true,
+      listings: { where: { isActive: true, stockQty: { gt: 0 } }, select: { priceKes: true }, orderBy: { priceKes: "asc" }, take: 1 },
+    },
   });
 
-  const scored = products
-    .map((p) => {
-      const hay = `${p.name} ${p.genericName ?? ""} ${p.category}`.toLowerCase();
+  const scored = drugs
+    .map((d) => {
+      const hay = `${d.name} ${d.genericName ?? ""} ${d.category}`.toLowerCase();
       const score = kw.reduce((s, k) => s + (hay.includes(k) ? 1 : 0), 0);
-      return { p, score };
+      return { d, score };
     })
-    .filter((x) => x.score > 0)
+    .filter((x) => x.score > 0 && x.d.listings.length > 0)
     .sort((a, b) => b.score - a.score)
     .slice(0, 4);
 
-  return scored.map(({ p }) => ({
-    id: p.id, name: p.name, category: p.category, priceKes: p.priceKes,
-    imageUrl: p.imageUrl, requiresPrescription: p.requiresPrescription,
+  return scored.map(({ d }) => ({
+    id: d.id, name: d.name, category: d.category, priceKes: d.listings[0]!.priceKes,
+    imageUrl: d.imageUrl, requiresPrescription: d.requiresPrescription,
   }));
 }
 

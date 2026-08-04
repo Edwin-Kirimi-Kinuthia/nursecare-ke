@@ -20,7 +20,7 @@ const SECURITY_HEADERS = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   // Allow the app's own origin to use camera + microphone (required for LiveKit
   // video consultations). An empty allowlist "camera=()" would block getUserMedia.
-  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=()" },
+  { key: "Permissions-Policy", value: "camera=(self), microphone=(self), geolocation=(self)" },
   {
     key: "Strict-Transport-Security",
     value: "max-age=63072000; includeSubDomains; preload",

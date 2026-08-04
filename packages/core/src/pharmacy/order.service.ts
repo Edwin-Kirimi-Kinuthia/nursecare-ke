@@ -1,43 +1,53 @@
+import { randomUUID } from "node:crypto";
 import { db } from "@carebora/db";
 import {
   ApiError,
   type CreateOrderInput,
-  type MpesaCallback,
   type OrdersQuery,
-  type PatchOrderInput,
+  type VendorOrdersQuery,
+  type PatchVendorOrderInput,
   type UserRole,
 } from "@carebora/shared";
-import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
-import { isTillMode, tillReference } from "../payment/mode";
+import { paymentService, toPaymentSummary } from "../payment/payment.service";
+import { getEnv } from "../config/env";
 
-const ORDER_INCLUDE = {
-  items: {
-    include: {
-      product: { select: { id: true, name: true, imageUrl: true, category: true } },
-    },
-  },
-  patient: { select: { id: true, fullName: true, phone: true } },
-  prescription: { select: { id: true, issuedAt: true } },
+const VENDOR_ORDER_INCLUDE = {
+  organization: { select: { id: true, name: true, type: true } },
+  items: { include: { listing: { include: { drug: true } } } },
 } as const;
 
-function isPharmacyOrAdmin(role: UserRole) {
-  return role === "pharmacy" || role === "admin";
+const ORDER_INCLUDE = {
+  patient: { select: { id: true, fullName: true, phone: true } },
+  prescription: { select: { id: true, issuedAt: true } },
+  vendorOrders: { include: VENDOR_ORDER_INCLUDE },
+} as const;
+
+async function attachPayment<T extends { id: string }>(order: T) {
+  const payment = await paymentService.getForSubject("order", order.id);
+  return { ...order, payment };
+}
+
+async function attachPayments<T extends { id: string }>(orders: T[]) {
+  const payments = await paymentService.getForSubjects("order", orders.map((o) => o.id));
+  return orders.map((o) => ({ ...o, payment: payments.get(o.id) ?? null }));
 }
 
 export const orderService = {
+  /** Checkout — a cart may span multiple vendor pharmacies; fans out into one VendorOrder per org. */
   async create(patientId: string, input: CreateOrderInput) {
-    // 1. Fetch and validate products
-    const productIds = [...new Set(input.items.map((i) => i.productId))];
-    const products = await db.product.findMany({
-      where: { id: { in: productIds }, isActive: true },
+    // 1. Fetch and validate listings
+    const listingIds = [...new Set(input.items.map((i) => i.listingId))];
+    const listings = await db.listing.findMany({
+      where: { id: { in: listingIds }, isActive: true },
+      include: { drug: true },
     });
-    if (products.length !== productIds.length) {
-      throw ApiError.badRequest("One or more products are unavailable");
+    if (listings.length !== listingIds.length) {
+      throw ApiError.badRequest("One or more items are unavailable");
     }
 
-    // 2. Prescription requirement check — for Rx items the patient must EITHER
-    //    attach an existing prescription OR upload a prescription image.
-    const needsRx = products.some((p) => p.requiresPrescription);
+    // 2. Prescription requirement — for Rx items the patient must EITHER attach an
+    //    existing prescription OR upload a prescription image.
+    const needsRx = listings.some((l) => l.drug.requiresPrescription);
     if (needsRx && !input.prescriptionId && !input.prescriptionImage) {
       throw ApiError.badRequest(
         "These items need a prescription. Upload one or book a consultation to get a prescription.",
@@ -48,135 +58,136 @@ export const orderService = {
       if (!rx || rx.patientId !== patientId) throw ApiError.badRequest("Invalid prescription");
     }
 
-    // 3. Build line items + check stock
-    const productMap = new Map(products.map((p) => [p.id, p]));
-    let totalKes = 0;
-    const lineItems: { productId: string; productName: string; unitPriceKes: number; qty: number }[] = [];
+    // 3. Build line items grouped by vendor org, checking stock per listing.
+    const listingMap = new Map(listings.map((l) => [l.id, l]));
+    const byOrg = new Map<string, { orgId: string; items: { listingId: string; drugName: string; unitPriceKes: number; qty: number }[]; subtotalKes: number }>();
 
     for (const item of input.items) {
-      const product = productMap.get(item.productId)!;
-      if (product.stockQty < item.qty) {
-        throw ApiError.conflict(`Insufficient stock for "${product.name}"`);
+      const listing = listingMap.get(item.listingId)!;
+      if (listing.stockQty < item.qty) {
+        throw ApiError.conflict(`Insufficient stock for "${listing.drug.name}"`);
       }
-      lineItems.push({
-        productId: product.id,
-        productName: product.name,
-        unitPriceKes: product.priceKes,
+      const group = byOrg.get(listing.orgId) ?? { orgId: listing.orgId, items: [], subtotalKes: 0 };
+      group.items.push({
+        listingId: listing.id,
+        drugName: listing.drug.name,
+        unitPriceKes: listing.priceKes,
         qty: item.qty,
       });
-      totalKes += product.priceKes * item.qty;
+      group.subtotalKes += listing.priceKes * item.qty;
+      byOrg.set(listing.orgId, group);
     }
+    const totalKes = [...byOrg.values()].reduce((sum, g) => sum + g.subtotalKes, 0);
 
-    // 4. Initiate payment. Till mode: no STK — reserve a synthetic reference the
-    //    patient will attach an M-Pesa code to for admin verification.
-    const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = isTillMode()
-      ? { checkoutRequestId: tillReference(), merchantRequestId: null as string | null }
-      : await initiateStkPush({
-          amount: totalKes,
-          phone,
-          accountRef: `PHARM`,
-          description: "CareBora pharmacy order",
-        });
+    const patient = await db.user.findUniqueOrThrow({ where: { id: patientId } });
 
-    // 5. Create order + decrement stock in one transaction
-    return db.$transaction(async (tx) => {
-      const order = await tx.order.create({
+    // 4. Initiate payment BEFORE creating any rows (mirrors the single-vendor
+    //    behaviour: a gateway failure means nothing gets created). The order id
+    //    is generated up front so the Payment's subjectId can reference it.
+    const orderId = randomUUID();
+    const { payment, redirect } = await paymentService.initiate({
+      subjectType: "order",
+      subjectId: orderId,
+      patientId,
+      patientName: patient.fullName,
+      patientEmail: patient.email,
+      amountKes: totalKes,
+      phoneNumber: input.phoneNumber,
+      description: "CareBora pharmacy order",
+      refPrefix: "ORD",
+    });
+
+    // 5. Create order + one VendorOrder per org + decrement stock, in one transaction.
+    const order = await db.$transaction(async (tx) => {
+      const created = await tx.order.create({
         data: {
+          id: orderId,
           patientId,
           prescriptionId: input.prescriptionId ?? null,
           prescriptionImageUrl: input.prescriptionImage ?? null,
           totalKes,
-          phoneNumber: phone,
+          phoneNumber: input.phoneNumber,
           deliveryAddress: input.deliveryAddress,
           deliveryNotes: input.deliveryNotes ?? null,
-          checkoutRequestId: push.checkoutRequestId,
-          merchantRequestId: push.merchantRequestId,
-          items: { create: lineItems },
+          vendorOrders: {
+            create: [...byOrg.values()].map((g) => ({
+              orgId: g.orgId,
+              subtotalKes: g.subtotalKes,
+              items: { create: g.items },
+            })),
+          },
         },
         include: ORDER_INCLUDE,
       });
       for (const item of input.items) {
-        await tx.product.update({
-          where: { id: item.productId },
-          data: { stockQty: { decrement: item.qty } },
-        });
+        await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { decrement: item.qty } } });
       }
-      return order;
+      return created;
     });
+
+    return { ...order, payment: toPaymentSummary(payment), redirect };
   },
 
   /**
-   * Handle a Daraja callback that belongs to an Order (not an Appointment payment).
-   * Called from the unified /payments/mpesa/callback webhook after Payment lookup misses.
+   * Called by the settlement dispatcher once the order's Payment is `completed`.
+   * Marks every still-pending VendorOrder as paid and writes its own
+   * platform-fee/vendor-payout ledger split — a cart can span several vendors,
+   * so each one is split independently against its own subtotal and commission rate.
    */
-  async handleCallback(payload: MpesaCallback) {
-    const cb = payload.Body.stkCallback;
-    const order = await db.order.findUnique({
-      where: { checkoutRequestId: cb.CheckoutRequestID },
+  async onPaymentSettled(orderId: string, paymentId: string) {
+    const vendorOrders = await db.vendorOrder.findMany({ where: { orderId, status: "pending" } });
+    if (!vendorOrders.length) return;
+
+    const defaultCommission = Number(getEnv().PLATFORM_FEE_PERCENT);
+    for (const vo of vendorOrders) {
+      const org = await db.organization.findUnique({ where: { id: vo.orgId }, select: { commissionPercent: true } });
+      const commissionPercent = org?.commissionPercent ?? defaultCommission;
+      const platformFee = Math.round((vo.subtotalKes * commissionPercent) / 100);
+      const vendorNet = vo.subtotalKes - platformFee;
+
+      await db.$transaction([
+        db.vendorOrder.update({ where: { id: vo.id }, data: { status: "paid" } }),
+        db.ledgerEntry.create({
+          data: {
+            paymentId,
+            type: "platform_fee",
+            orgId: vo.orgId,
+            amountKes: platformFee,
+            description: `${commissionPercent}% platform commission (vendor order ${vo.id.slice(0, 8)})`,
+          },
+        }),
+        db.ledgerEntry.create({
+          data: {
+            paymentId,
+            type: "vendor_payout",
+            orgId: vo.orgId,
+            amountKes: vendorNet,
+            description: `Vendor net payout (vendor order ${vo.id.slice(0, 8)})`,
+          },
+        }),
+      ]);
+    }
+  },
+
+  /** Called by the settlement dispatcher when the order's Payment fails — restores stock for every vendor order. */
+  async onPaymentFailed(orderId: string) {
+    const vendorOrders = await db.vendorOrder.findMany({
+      where: { orderId, status: "pending" },
       include: { items: true },
     });
-    if (!order) return false; // not an order payment
-    if (order.status !== "pending") return true; // already settled — ignore late/duplicate callbacks
-
-    if (cb.ResultCode === 0) {
-      const items = cb.CallbackMetadata?.Item ?? [];
-      const receipt = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value as string | undefined;
-      await db.order.update({
-        where: { id: order.id },
-        data: { status: "paid", mpesaReceiptNumber: receipt ?? null, paidAt: new Date() },
-      });
-    } else {
-      // Restore stock on payment failure
-      await db.$transaction(async (tx) => {
-        await tx.order.update({
-          where: { id: order.id },
-          data: { status: "cancelled", failureReason: cb.ResultDesc },
-        });
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stockQty: { increment: item.qty } },
-          });
+    if (!vendorOrders.length) return;
+    await db.$transaction(async (tx) => {
+      for (const vo of vendorOrders) {
+        await tx.vendorOrder.update({ where: { id: vo.id }, data: { status: "cancelled" } });
+        for (const item of vo.items) {
+          await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
         }
-      });
-    }
-    return true;
-  },
-
-  /** Till mode: patient reports the M-Pesa code → order awaits admin verification. */
-  async submitTill(checkoutRequestId: string, code: string): Promise<boolean> {
-    const order = await db.order.findUnique({ where: { checkoutRequestId } });
-    if (!order) return false;
-    if (order.status === "paid") return true;
-    await db.order.update({
-      where: { id: order.id },
-      data: { status: "awaiting_verification", mpesaReceiptNumber: code, failureReason: null },
-    });
-    return true;
-  },
-
-  /** Admin decision on a Till order. Approve → paid. Reject → back to pending (stock stays reserved). */
-  async verifyTill(orderId: string, approve: boolean) {
-    const order = await db.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
-    if (!order) throw ApiError.notFound("Order not found");
-    if (order.status !== "awaiting_verification") {
-      throw ApiError.badRequest("This order is not awaiting verification");
-    }
-    return db.order.update({
-      where: { id: orderId },
-      data: approve
-        ? { status: "paid", paidAt: new Date() }
-        : { status: "pending", failureReason: "Payment could not be verified", mpesaReceiptNumber: null },
-      include: ORDER_INCLUDE,
+      }
     });
   },
 
-  async list(userId: string, role: UserRole, query: OrdersQuery) {
-    const where = {
-      ...(isPharmacyOrAdmin(role) ? {} : { patientId: userId }),
-      ...(query.status ? { status: query.status } : {}),
-    };
+  async list(userId: string, query: OrdersQuery) {
+    const where = { patientId: userId };
     const [orders, total] = await Promise.all([
       db.order.findMany({
         where,
@@ -187,52 +198,78 @@ export const orderService = {
       }),
       db.order.count({ where }),
     ]);
-    return { orders, total, limit: query.limit, offset: query.offset };
+    return { orders: await attachPayments(orders), total, limit: query.limit, offset: query.offset };
+  },
+
+  /** Platform-wide order oversight (every patient's checkouts, any vendor). */
+  async adminList(query: OrdersQuery) {
+    const [orders, total] = await Promise.all([
+      db.order.findMany({
+        include: ORDER_INCLUDE,
+        orderBy: { createdAt: "desc" },
+        skip: query.offset,
+        take: query.limit,
+      }),
+      db.order.count(),
+    ]);
+    return { orders: await attachPayments(orders), total, limit: query.limit, offset: query.offset };
   },
 
   async getById(orderId: string, userId: string, role: UserRole) {
     const order = await db.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
     if (!order) throw ApiError.notFound("Order not found");
-    if (!isPharmacyOrAdmin(role) && order.patientId !== userId) throw ApiError.forbidden();
-    return order;
+    if (role !== "admin" && order.patientId !== userId) throw ApiError.forbidden();
+    return attachPayment(order);
   },
 
-  async patch(orderId: string, userId: string, role: UserRole, input: PatchOrderInput) {
-    const order = await db.order.findUnique({ where: { id: orderId }, include: { items: true } });
-    if (!order) throw ApiError.notFound("Order not found");
+  // ── Vendor-side fulfilment (one org's slice of an order) ──────────────────
 
-    const canManage = isPharmacyOrAdmin(role);
-    const isOwner = order.patientId === userId;
-    if (!canManage && !isOwner) throw ApiError.forbidden();
+  async listForOrg(orgId: string, query: VendorOrdersQuery) {
+    const where = { orgId, ...(query.status ? { status: query.status } : {}) };
+    const [vendorOrders, total] = await Promise.all([
+      db.vendorOrder.findMany({
+        where,
+        include: {
+          ...VENDOR_ORDER_INCLUDE,
+          order: { select: { id: true, deliveryAddress: true, phoneNumber: true, patient: { select: { fullName: true } } } },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: query.offset,
+        take: query.limit,
+      }),
+      db.vendorOrder.count({ where }),
+    ]);
+    return { vendorOrders, total, limit: query.limit, offset: query.offset };
+  },
 
-    if (input.status) {
-      const pharmacyStatuses = ["processing", "dispatched", "delivered"] as const;
-      if (!canManage && input.status !== "cancelled") {
-        throw ApiError.forbidden("Patients can only cancel orders");
-      }
-      if (canManage && !(pharmacyStatuses as readonly string[]).includes(input.status)) {
-        throw ApiError.forbidden("Pharmacy can only set processing, dispatched, or delivered");
-      }
-      if (!canManage && order.status !== "pending") {
-        throw ApiError.badRequest("Only pending orders can be cancelled");
-      }
-    }
+  async patchVendorOrder(orgId: string, vendorOrderId: string, input: PatchVendorOrderInput) {
+    const vo = await db.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { items: true } });
+    if (!vo) throw ApiError.notFound("Order not found");
 
     if (input.status === "cancelled") {
+      if (vo.status !== "paid" && vo.status !== "processing") {
+        throw ApiError.badRequest("Only paid or processing orders can be cancelled");
+      }
       return db.$transaction(async (tx) => {
-        const updated = await tx.order.update({
-          where: { id: orderId },
+        const updated = await tx.vendorOrder.update({
+          where: { id: vendorOrderId },
           data: { status: "cancelled" },
-          include: ORDER_INCLUDE,
+          include: VENDOR_ORDER_INCLUDE,
         });
-        for (const item of order.items) {
-          await tx.product.update({
-            where: { id: item.productId },
-            data: { stockQty: { increment: item.qty } },
-          });
+        for (const item of vo.items) {
+          await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
         }
         return updated;
       });
+    }
+
+    const validNext: Record<string, string[]> = {
+      paid: ["processing"],
+      processing: ["dispatched"],
+      dispatched: ["delivered"],
+    };
+    if (input.status && !(validNext[vo.status] ?? []).includes(input.status)) {
+      throw ApiError.badRequest(`Cannot move a ${vo.status} order to ${input.status}`);
     }
 
     const data: Record<string, unknown> = {};
@@ -241,7 +278,6 @@ export const orderService = {
       if (input.status === "dispatched") data.dispatchedAt = new Date();
       if (input.status === "delivered") data.deliveredAt = new Date();
     }
-
-    return db.order.update({ where: { id: orderId }, data, include: ORDER_INCLUDE });
+    return db.vendorOrder.update({ where: { id: vendorOrderId }, data, include: VENDOR_ORDER_INCLUDE });
   },
 };
