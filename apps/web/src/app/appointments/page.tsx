@@ -80,7 +80,7 @@ export default function AppointmentsPage() {
     try {
       const payment = await api.initiateMpesaPayment({ appointmentId: payAppt.id, phoneNumber: payPhone });
       if (!IS_TILL_MODE) setPayMsg({ kind: "ok", text: "STK push sent! Check your phone and enter your M-Pesa PIN." });
-      setSimCheckoutId(payment.checkoutRequestId ?? null);
+      setSimCheckoutId(payment.gatewayRef ?? null);
       await load();
     } catch (err) {
       setPayMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Payment failed." });
@@ -223,7 +223,7 @@ export default function AppointmentsPage() {
               {IS_TILL_MODE && simCheckoutId ? (
                 <>
                   <TillPayBox
-                    checkoutRequestId={simCheckoutId}
+                    gatewayRef={simCheckoutId}
                     amountKes={payAppt.feeKes}
                     noun="consultation"
                     onSubmitted={load}

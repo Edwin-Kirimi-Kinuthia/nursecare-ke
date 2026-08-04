@@ -14,12 +14,12 @@ const kes = (n: number) => `KES ${n.toLocaleString("en-KE")}`;
  * Used by the appointment, pharmacy-order, and home-visit checkout flows.
  */
 export function TillPayBox({
-  checkoutRequestId,
+  gatewayRef,
   amountKes,
   noun = "service",
   onSubmitted,
 }: {
-  checkoutRequestId: string;
+  gatewayRef: string;
   amountKes: number;
   /** e.g. "consultation", "order", "home visit" — used in the success copy. */
   noun?: string;
@@ -34,7 +34,7 @@ export function TillPayBox({
     setError(null);
     setBusy(true);
     try {
-      await api.submitTillPayment({ checkoutRequestId, code });
+      await api.submitTillPayment({ gatewayRef, code });
       setDone(true);
       onSubmitted?.();
     } catch (err) {

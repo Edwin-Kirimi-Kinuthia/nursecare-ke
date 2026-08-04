@@ -9,9 +9,7 @@ import {
   type VerificationsQuery,
   type TillContext,
 } from "@carebora/shared";
-import { paymentService } from "../payment/payment.service";
-import { orderService } from "../pharmacy/order.service";
-import { homeVisitService } from "../homevisit/homevisit.service";
+import { settlementService } from "../payment/settlement.service";
 
 async function writeAuditLog(
   actorId: string,
@@ -169,26 +167,29 @@ export const adminService = {
       appointmentGroups,
       paymentCompleted,
       platformFees,
-      orderGroups,
+      orderCount,
+      vendorOrderGroups,
       homeVisitGroups,
-      orderRevenue,
-      homeVisitRevenue,
+      revenueBySubject,
     ] = await Promise.all([
       db.user.groupBy({ by: ["role"], _count: { _all: true } }),
       db.appointment.groupBy({ by: ["status"], _count: { _all: true } }),
       db.payment.aggregate({ where: { status: "completed" }, _count: { _all: true }, _sum: { amountKes: true } }),
       db.ledgerEntry.aggregate({ where: { type: "platform_fee" }, _sum: { amountKes: true } }),
-      db.order.groupBy({ by: ["status"], _count: { _all: true } }),
+      db.order.count(),
+      // Fulfilment status lives per vendor slice of a checkout now (a cart can span orgs).
+      db.vendorOrder.groupBy({ by: ["status"], _count: { _all: true } }),
       db.homeVisit.groupBy({ by: ["status"], _count: { _all: true } }),
-      // Pharmacy revenue: any order that has been paid (paid → delivered).
-      db.order.aggregate({ where: { paidAt: { not: null } }, _sum: { totalKes: true } }),
-      // Home-visit revenue: any visit that has been paid.
-      db.homeVisit.aggregate({ where: { paidAt: { not: null } }, _sum: { feeKes: true } }),
+      // Revenue by subject type, straight off the single polymorphic Payment
+      // table — every subject (appointment/order/home visit/…) is counted the
+      // same way, so a new subject type in a later phase needs no new query here.
+      db.payment.groupBy({ by: ["subjectType"], where: { status: "completed" }, _sum: { amountKes: true } }),
     ]);
 
-    const consultationsKes = paymentCompleted._sum.amountKes ?? 0;
-    const pharmacyKes = orderRevenue._sum.totalKes ?? 0;
-    const homeVisitsKes = homeVisitRevenue._sum.feeKes ?? 0;
+    const bySubject = Object.fromEntries(revenueBySubject.map((r) => [r.subjectType, r._sum.amountKes ?? 0]));
+    const consultationsKes = bySubject.appointment ?? 0;
+    const pharmacyKes = bySubject.order ?? 0;
+    const homeVisitsKes = bySubject.home_visit ?? 0;
 
     const toMap = (groups: { _count: { _all: number }; [k: string]: unknown }[], key: string) =>
       Object.fromEntries(groups.map((g) => [g[key] as string, g._count._all]));
@@ -204,8 +205,7 @@ export const adminService = {
       },
       payments: {
         completedCount: paymentCompleted._count._all,
-        // Platform-wide revenue across consultations, pharmacy, and home visits.
-        totalRevenueKes: consultationsKes + pharmacyKes + homeVisitsKes,
+        totalRevenueKes: paymentCompleted._sum.amountKes ?? 0,
         platformFeeKes: platformFees._sum.amountKes ?? 0,
         breakdown: {
           consultationsKes,
@@ -214,8 +214,8 @@ export const adminService = {
         },
       },
       orders: {
-        total: orderGroups.reduce((s, g) => s + g._count._all, 0),
-        byStatus: toMap(orderGroups, "status"),
+        total: orderCount,
+        byStatus: toMap(vendorOrderGroups, "status"),
       },
       homeVisits: {
         total: homeVisitGroups.reduce((s, g) => s + g._count._all, 0),
@@ -275,74 +275,73 @@ export const adminService = {
 
   // ── Till payment verification (interim manual M-Pesa mode) ──────────────────
 
-  /** All Till payments awaiting admin verification, across every payment surface. */
+  /**
+   * All Till payments awaiting admin verification. One query against the
+   * polymorphic Payment table now covers every surface (appointment, order,
+   * home visit, and future ambulance/lab order) — no more per-table unions.
+   */
   async listTillVerifications() {
-    const [payments, orders, visits] = await Promise.all([
-      db.payment.findMany({
-        where: { status: "awaiting_verification" },
-        include: {
-          patient: { select: { fullName: true, phone: true } },
-          provider: { select: { fullName: true } },
-          appointment: { select: { appointmentType: true } },
-        },
-        orderBy: { updatedAt: "asc" },
-      }),
-      db.order.findMany({
-        where: { status: "awaiting_verification" },
-        include: { patient: { select: { fullName: true, phone: true } }, items: { select: { qty: true } } },
-        orderBy: { updatedAt: "asc" },
-      }),
-      db.homeVisit.findMany({
-        where: { status: "awaiting_verification" },
-        include: { patient: { select: { fullName: true, phone: true } } },
-        orderBy: { updatedAt: "asc" },
-      }),
-    ]);
+    const payments = await db.payment.findMany({
+      where: { status: "awaiting_verification" },
+      include: {
+        patient: { select: { fullName: true } },
+        provider: { select: { fullName: true } },
+      },
+      orderBy: { updatedAt: "asc" },
+    });
 
-    const items = [
-      ...payments.map((p) => ({
-        context: "appointment" as TillContext,
+    const bySubject = new Map<string, string[]>();
+    for (const p of payments) {
+      const list = bySubject.get(p.subjectType) ?? [];
+      list.push(p.subjectId);
+      bySubject.set(p.subjectType, list);
+    }
+    const [orders, visits] = await Promise.all([
+      db.order.findMany({
+        where: { id: { in: bySubject.get("order") ?? [] } },
+        include: { vendorOrders: { include: { items: { select: { qty: true } } } } },
+      }),
+      db.homeVisit.findMany({ where: { id: { in: bySubject.get("home_visit") ?? [] } } }),
+    ]);
+    const orderMap = new Map(orders.map((o) => [o.id, o]));
+    const visitMap = new Map(visits.map((v) => [v.id, v]));
+
+    const items = payments.map((p) => {
+      let description = `${p.subjectType.replace("_", " ")} payment`;
+      if (p.subjectType === "appointment") {
+        description = `Consultation with ${p.provider?.fullName ?? "provider"}`;
+      } else if (p.subjectType === "order") {
+        const order = orderMap.get(p.subjectId);
+        const itemCount = order?.vendorOrders.reduce((n, vo) => n + vo.items.reduce((m, i) => m + i.qty, 0), 0) ?? 0;
+        description = `Pharmacy order · ${itemCount} item(s)`;
+      } else if (p.subjectType === "home_visit") {
+        const visit = visitMap.get(p.subjectId);
+        description = `Home visit · ${visit?.specialty ?? ""}`;
+      }
+      return {
+        context: p.subjectType as TillContext,
         id: p.id,
-        code: p.mpesaReceiptNumber ?? "",
+        code: p.receiptNumber ?? "",
         amountKes: p.amountKes,
         phone: p.phoneNumber,
         patientName: p.patient.fullName,
-        description: `${p.appointment?.appointmentType ?? "Consultation"} with ${p.provider.fullName}`,
+        description,
         submittedAt: p.updatedAt,
-      })),
-      ...orders.map((o) => ({
-        context: "order" as TillContext,
-        id: o.id,
-        code: o.mpesaReceiptNumber ?? "",
-        amountKes: o.totalKes,
-        phone: o.phoneNumber,
-        patientName: o.patient.fullName,
-        description: `Pharmacy order · ${o.items.reduce((n, i) => n + i.qty, 0)} item(s)`,
-        submittedAt: o.updatedAt,
-      })),
-      ...visits.map((v) => ({
-        context: "home_visit" as TillContext,
-        id: v.id,
-        code: v.mpesaReceiptNumber ?? "",
-        amountKes: v.feeKes ?? 0,
-        phone: v.phoneNumber ?? "",
-        patientName: v.patient.fullName,
-        description: `Home visit · ${v.specialty}`,
-        submittedAt: v.updatedAt,
-      })),
-    ].sort((a, b) => a.submittedAt.getTime() - b.submittedAt.getTime());
+      };
+    });
 
     return { items, total: items.length };
   },
 
-  /** Approve or reject a Till payment, dispatching to the owning service, with an audit trail. */
-  async verifyTillPayment(context: TillContext, id: string, approve: boolean, actorId: string) {
-    if (context === "appointment") await paymentService.verifyTill(id, approve);
-    else if (context === "order") await orderService.verifyTill(id, approve);
-    else if (context === "home_visit") await homeVisitService.verifyTill(id, approve);
-    else throw ApiError.badRequest("Unknown payment context");
-
-    await writeAuditLog(actorId, approve ? "till_payment_approved" : "till_payment_rejected", context, id);
-    return { context, id, approved: approve };
+  /** Approve or reject a Till payment (by Payment id), with an audit trail. */
+  async verifyTillPayment(id: string, approve: boolean, actorId: string) {
+    const payment = await settlementService.verifyTill(id, approve);
+    await writeAuditLog(
+      actorId,
+      approve ? "till_payment_approved" : "till_payment_rejected",
+      payment.subjectType,
+      payment.subjectId,
+    );
+    return { id, approved: approve };
   },
 };

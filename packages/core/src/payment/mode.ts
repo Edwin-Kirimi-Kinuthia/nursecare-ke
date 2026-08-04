@@ -1,19 +1,35 @@
 import { randomUUID } from "node:crypto";
+import type { PaymentGateway, PaymentSubject } from "@carebora/db";
+import { getEnv } from "../config/env";
 
 /**
- * Payment mode.
+ * Which payment gateway *family* is active, driven by the `PAYMENTS_MODE` env var:
  *
- * - `daraja`  — automated M-Pesa STK push + callback (needs live Daraja API creds).
- * - `till`    — interim manual "Buy Goods" Till: the patient pays on their phone and
- *               enters the M-Pesa confirmation code, then an admin verifies it before
- *               the service is unlocked. No Daraja credentials required.
- *
- * Flip with the `PAYMENTS_MODE` env var. Defaults to `daraja`.
+ * - `jenga`        — Jenga API. Order checkouts use the hosted PGW (cards/Equitel/
+ *                    bank/M-Pesa in one screen); every other subject (appointment,
+ *                    home visit, …) uses server-to-server STK push.
+ * - `till`         — interim manual "Buy Goods" Till: the patient enters the M-Pesa
+ *                    confirmation code, an admin verifies it. No gateway credentials needed.
+ * - `mpesa_daraja` — legacy direct Safaricom Daraja STK push for every subject, kept
+ *                    for environments without Jenga credentials yet.
  */
-export const PAYMENTS_MODE: "daraja" | "till" =
-  process.env.PAYMENTS_MODE === "till" ? "till" : "daraja";
+export function currentGatewayFamily() {
+  return getEnv().PAYMENTS_MODE;
+}
 
-export const isTillMode = () => PAYMENTS_MODE === "till";
+/** Resolves the family into the concrete gateway for a given payment subject. */
+export function resolveGateway(subjectType: PaymentSubject): PaymentGateway {
+  const family = currentGatewayFamily();
+  if (family === "till") return "till";
+  if (family === "mpesa_daraja") return "mpesa_daraja";
+  return subjectType === "order" ? "jenga_pgw" : "jenga_stk";
+}
 
-/** Synthetic reference used in place of a Daraja CheckoutRequestID for Till payments. */
+export const isTillMode = () => currentGatewayFamily() === "till";
+
+/** Synthetic reference used in place of a real gateway checkout id for Till payments. */
 export const tillReference = () => `TILL-${randomUUID()}`;
+
+/** Our own generated order reference for gateways that require one upfront (Jenga). */
+export const generateGatewayRef = (prefix: string) =>
+  `${prefix}${randomUUID().replace(/-/g, "").slice(0, 16)}`.toUpperCase();

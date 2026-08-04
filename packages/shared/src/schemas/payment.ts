@@ -35,6 +35,27 @@ export const mpesaCallbackSchema = z.object({
 });
 export type MpesaCallback = z.infer<typeof mpesaCallbackSchema>;
 
+/**
+ * Jenga STK/IPN callback — the exact shape varies (confirmation callback vs IPN),
+ * so this is intentionally loose; the settlement service extracts fields
+ * defensively. Confirm the precise shape against a real Jenga UAT transaction.
+ */
+export const jengaCallbackSchema = z.record(z.string(), z.unknown());
+export type JengaCallback = z.infer<typeof jengaCallbackSchema>;
+
+/** Jenga PGW hosted-checkout redirect callback (query params on the browser redirect). */
+export const jengaPgwCallbackSchema = z.object({
+  transactionId: z.string(),
+  status: z.string(),
+  amount: z.string(),
+  orderReference: z.string(),
+  hash: z.string(),
+  desc: z.string().optional(),
+  date: z.string().optional(),
+  extraData: z.string().optional(),
+});
+export type JengaPgwCallback = z.infer<typeof jengaPgwCallbackSchema>;
+
 export const paymentsQuerySchema = z.object({
   status: z.enum(["pending", "awaiting_verification", "completed", "failed", "refunded", "cancelled"]).optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
@@ -43,14 +64,16 @@ export const paymentsQuerySchema = z.object({
 export type PaymentsQuery = z.infer<typeof paymentsQuerySchema>;
 
 // ── Interim Till payment mode ────────────────────────────────────────────────
+// One polymorphic Payment table now backs every surface (appointment/order/home
+// visit/ambulance/lab order), so Till verification is just Payment rows with
+// status "awaiting_verification" — `context` mirrors Payment.subjectType.
 
-/** The three payment surfaces a Till payment can belong to. */
-export const TILL_CONTEXTS = ["appointment", "order", "home_visit"] as const;
+export const TILL_CONTEXTS = ["appointment", "order", "home_visit", "ambulance", "lab_order"] as const;
 export type TillContext = (typeof TILL_CONTEXTS)[number];
 
 /** Patient reports the M-Pesa confirmation code for a Till payment. */
 export const submitTillSchema = z.object({
-  checkoutRequestId: z.string().min(1),
+  gatewayRef: z.string().min(1),
   code: z
     .string()
     .trim()
@@ -59,9 +82,8 @@ export const submitTillSchema = z.object({
 });
 export type SubmitTillInput = z.infer<typeof submitTillSchema>;
 
-/** Admin decision on a Till payment awaiting verification. */
+/** Admin decision on a Till payment awaiting verification. `id` is the Payment id. */
 export const verifyTillSchema = z.object({
-  context: z.enum(TILL_CONTEXTS),
   id: z.string().uuid(),
   approve: z.boolean(),
 });

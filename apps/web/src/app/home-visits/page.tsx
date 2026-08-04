@@ -98,7 +98,7 @@ export default function HomeVisitsPage() {
     try {
       const updated = await api.payHomeVisit(payVisit.id, { phoneNumber: phone });
       if (!IS_TILL_MODE) setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
-      setSimCheckoutId(updated.checkoutRequestId ?? null);
+      setSimCheckoutId(updated.payment?.gatewayRef ?? null);
       await load();
     } catch (err: unknown) {
       setPayMsg(err instanceof Error ? err.message : "Payment failed.");
@@ -263,7 +263,7 @@ export default function HomeVisitsPage() {
             {IS_TILL_MODE && simCheckoutId ? (
               <div className="mt-4 space-y-3">
                 <TillPayBox
-                  checkoutRequestId={simCheckoutId}
+                  gatewayRef={simCheckoutId}
                   amountKes={payVisit.feeKes ?? 0}
                   noun="home visit"
                   onSubmitted={load}
@@ -353,9 +353,9 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </button>
       )}
 
-      {visit.mpesaReceiptNumber && (
+      {visit.payment?.receiptNumber && (
         <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          Receipt: <span className="font-mono font-semibold">{visit.mpesaReceiptNumber}</span>
+          Receipt: <span className="font-mono font-semibold">{visit.payment.receiptNumber}</span>
         </div>
       )}
 
@@ -365,9 +365,9 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </div>
       )}
 
-      {visit.status === "cancelled" && visit.paymentFailReason && (
+      {visit.status === "cancelled" && visit.payment?.failureReason && (
         <div className="mt-3 flex items-center gap-1.5 text-xs text-rose-600">
-          <XCircle className="h-3.5 w-3.5" /> {visit.paymentFailReason}
+          <XCircle className="h-3.5 w-3.5" /> {visit.payment.failureReason}
         </div>
       )}
     </div>

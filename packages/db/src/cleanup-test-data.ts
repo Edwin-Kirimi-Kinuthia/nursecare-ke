@@ -36,7 +36,7 @@ async function main() {
   if (apptIds.length) {
     // Reviews + dependents reference appointments — clear them first.
     await db.review.deleteMany({ where: { appointmentId: { in: apptIds } } });
-    await db.payment.deleteMany({ where: { appointmentId: { in: apptIds } } });
+    await db.payment.deleteMany({ where: { subjectType: "appointment", subjectId: { in: apptIds } } });
     const cons = await db.consultation.findMany({ where: { appointmentId: { in: apptIds } }, select: { id: true } });
     const consIds = cons.map((c) => c.id);
     if (consIds.length) {
@@ -52,11 +52,17 @@ async function main() {
   }
 
   // Home visits + orders by test users.
-  await db.homeVisit.deleteMany({ where: { patientId: { in: testIds } } });
+  const testVisits = await db.homeVisit.findMany({ where: { patientId: { in: testIds } }, select: { id: true } });
+  const visitIds = testVisits.map((v) => v.id);
+  if (visitIds.length) {
+    await db.payment.deleteMany({ where: { subjectType: "home_visit", subjectId: { in: visitIds } } });
+    await db.homeVisit.deleteMany({ where: { id: { in: visitIds } } });
+  }
   const testOrders = await db.order.findMany({ where: { patientId: { in: testIds } }, select: { id: true } });
   const orderIds = testOrders.map((o) => o.id);
   if (orderIds.length) {
-    await db.orderItem.deleteMany({ where: { orderId: { in: orderIds } } });
+    await db.payment.deleteMany({ where: { subjectType: "order", subjectId: { in: orderIds } } });
+    // VendorOrder and OrderItem cascade-delete with their parent Order.
     await db.order.deleteMany({ where: { id: { in: orderIds } } });
   }
 

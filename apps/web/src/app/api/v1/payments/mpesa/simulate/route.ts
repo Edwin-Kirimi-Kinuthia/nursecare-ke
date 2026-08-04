@@ -1,46 +1,26 @@
 import { route, jsonOk } from "@/server/http";
 import { requireAuth } from "@/server/auth";
-import { ApiError, type MpesaCallback } from "@carebora/shared";
-import { paymentService, orderService, homeVisitService } from "@carebora/core";
+import { ApiError } from "@carebora/shared";
+import { settlementService } from "@carebora/core";
 
 /**
  * POST /api/v1/payments/mpesa/simulate — dev/sandbox helper.
- * The Daraja sandbox accepts an STK push but never posts a real success callback,
- * so this fires the same success callback our webhook handles, completing the
- * matching appointment payment, pharmacy order, or home-visit payment. Disabled
- * when MPESA_ENV=production.
+ * Sandbox gateways (Daraja and Jenga UAT alike) don't reliably post a real
+ * success callback, so this fires the same success outcome our webhooks handle,
+ * completing the matching appointment payment, pharmacy order, or home-visit
+ * payment. Gated on NODE_ENV, not just MPESA_ENV — a production deploy that
+ * forgets to set MPESA_ENV must not leave this reachable.
  */
 export const POST = route(async (req) => {
   await requireAuth(req);
-  if (process.env.MPESA_ENV === "production") {
+  if (process.env.NODE_ENV === "production" || process.env.MPESA_ENV === "production") {
     throw ApiError.forbidden("Payment simulation is disabled in production.");
   }
 
-  const { checkoutRequestId } = (await req.json()) as { checkoutRequestId?: string };
-  if (!checkoutRequestId) throw ApiError.badRequest("checkoutRequestId is required");
+  const { gatewayRef } = (await req.json()) as { gatewayRef?: string };
+  if (!gatewayRef) throw ApiError.badRequest("gatewayRef is required");
 
-  const payload: MpesaCallback = {
-    Body: {
-      stkCallback: {
-        MerchantRequestID: `sim-${Date.now()}`,
-        CheckoutRequestID: checkoutRequestId,
-        ResultCode: 0,
-        ResultDesc: "The service request is processed successfully.",
-        CallbackMetadata: {
-          Item: [
-            { Name: "MpesaReceiptNumber", Value: `SIM${Math.random().toString(36).slice(2, 9).toUpperCase()}` },
-            { Name: "PhoneNumber", Value: 254708374149 },
-          ],
-        },
-      },
-    },
-  };
-
-  let type: "appointment" | "order" | "home_visit" | null = null;
-  if (await paymentService.handleDarajaCallback(payload)) type = "appointment";
-  else if (await orderService.handleCallback(payload)) type = "order";
-  else if (await homeVisitService.handleCallback(payload)) type = "home_visit";
-
+  const type = await settlementService.simulateSuccess(gatewayRef);
   if (!type) throw ApiError.notFound("No pending payment matched that reference.");
   return jsonOk({ completed: true, type });
 });

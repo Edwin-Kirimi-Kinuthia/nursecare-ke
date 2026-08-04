@@ -1,209 +1,250 @@
-import { db } from "@carebora/db";
-import { ApiError, type MpesaCallback, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
-import { initiateStkPush, normaliseMpesaPhone } from "./daraja";
-import { isTillMode, tillReference } from "./mode";
-import { PROVIDER_ROLES } from "@carebora/shared";
-import { notificationService } from "../notifications/notification.service";
-
-const PLATFORM_FEE_PERCENT = Number(process.env.PLATFORM_FEE_PERCENT ?? "10");
-
-function extractCallbackMeta(items: { Name: string; Value?: string | number }[]) {
-  const get = (name: string) => items.find((i) => i.Name === name)?.Value;
-  return {
-    receiptNumber: get("MpesaReceiptNumber") as string | undefined,
-    amount: get("Amount") as number | undefined,
-    phone: get("PhoneNumber") as string | undefined,
-  };
-}
-
-/**
- * Settle a completed appointment payment: mark it paid, write the platform-fee /
- * provider-payout ledger entries, and fire the receipt notification. Shared by the
- * Daraja callback and the admin Till-verification flow.
- */
-async function settleAppointmentPayment(paymentId: string, receiptNumber: string | null) {
-  const payment = await db.payment.findUnique({ where: { id: paymentId } });
-  if (!payment || payment.status === "completed") return;
-
-  const platformFee = Math.round(payment.amountKes * PLATFORM_FEE_PERCENT / 100);
-  const providerNet = payment.amountKes - platformFee;
-
-  await db.$transaction([
-    db.payment.update({
-      where: { id: payment.id },
-      data: { status: "completed", mpesaReceiptNumber: receiptNumber, paidAt: new Date() },
-    }),
-    db.ledgerEntry.create({
-      data: {
-        paymentId: payment.id,
-        type: "platform_fee",
-        amountKes: platformFee,
-        description: `${PLATFORM_FEE_PERCENT}% platform commission`,
-      },
-    }),
-    db.ledgerEntry.create({
-      data: {
-        paymentId: payment.id,
-        type: "provider_payout",
-        amountKes: providerNet,
-        description: "Provider net payout",
-      },
-    }),
-  ]);
-
-  const full = await db.payment.findUnique({
-    where: { id: payment.id },
-    include: { patient: { select: { email: true, fullName: true, phone: true } }, provider: { select: { fullName: true } } },
-  });
-  if (full) {
-    void notificationService.paymentReceived({
-      patientEmail: full.patient.email,
-      patientPhone: full.patient.phone,
-      patientName: full.patient.fullName,
-      providerName: full.provider.fullName,
-      amountKes: full.amountKes,
-      receiptNumber: full.mpesaReceiptNumber,
-      context: "appointment",
-    });
-  }
-}
+import { db, Prisma, type Payment, type PaymentSubject } from "@carebora/db";
+import { ApiError, PROVIDER_ROLES, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
+import { getEnv } from "../config/env";
+import { initiatePayment, type InitiatePaymentResult } from "./gateway";
 
 const PAYMENT_INCLUDE = {
-  appointment: {
-    select: {
-      id: true,
-      appointmentType: true,
-      status: true,
-      slot: { select: { startsAt: true, endsAt: true } },
-    },
-  },
-  patient: { select: { id: true, fullName: true, phone: true } },
+  patient: { select: { id: true, fullName: true, phone: true, email: true } },
   provider: { select: { id: true, fullName: true } },
   ledgerEntries: true,
 } as const;
 
+export interface InitiateInput {
+  subjectType: PaymentSubject;
+  subjectId: string;
+  patientId: string;
+  patientName: string;
+  patientEmail: string;
+  providerId?: string | null;
+  orgId?: string | null;
+  amountKes: number;
+  phoneNumber: string;
+  description: string;
+  refPrefix: string;
+}
+
+/** A minimal, JSON-safe payment shape attached to appointments/orders/home visits. */
+export interface PaymentSummary {
+  id: string;
+  status: Payment["status"];
+  method: Payment["method"];
+  gateway: Payment["gateway"];
+  gatewayRef: string;
+  amountKes: number;
+  receiptNumber: string | null;
+  failureReason: string | null;
+  paidAt: Date | null;
+  createdAt: Date;
+}
+
+export function toPaymentSummary(p: Payment): PaymentSummary {
+  return {
+    id: p.id,
+    status: p.status,
+    method: p.method,
+    gateway: p.gateway,
+    gatewayRef: p.gatewayRef,
+    amountKes: p.amountKes,
+    receiptNumber: p.receiptNumber,
+    failureReason: p.failureReason,
+    paidAt: p.paidAt,
+    createdAt: p.createdAt,
+  };
+}
+
 export const paymentService = {
-  /** Initiate an M-Pesa STK push for an appointment. */
+  /** Patient initiates payment for a confirmed appointment. */
   async initiateMpesa(patientId: string, input: MpesaStkInput) {
-    const appointment = await db.appointment.findUnique({
-      where: { id: input.appointmentId },
-      include: { payment: true },
-    });
+    const appointment = await db.appointment.findUnique({ where: { id: input.appointmentId } });
     if (!appointment) throw ApiError.notFound("Appointment not found");
     if (appointment.patientId !== patientId) throw ApiError.forbidden();
     if (appointment.status !== "confirmed") {
       throw ApiError.badRequest("Only confirmed appointments can be paid for");
     }
-    if (appointment.payment?.status === "completed") {
-      throw ApiError.conflict("This appointment has already been paid");
-    }
-    // Cancel any previous pending payment so we get a clean slate
-    if (appointment.payment && appointment.payment.status === "pending") {
-      await db.payment.update({
-        where: { id: appointment.payment.id },
-        data: { status: "cancelled" },
-      });
+    const existing = await db.payment.findFirst({
+      where: { subjectType: "appointment", subjectId: appointment.id, status: "completed" },
+    });
+    if (existing) throw ApiError.conflict("This appointment has already been paid");
+
+    const patient = await db.user.findUniqueOrThrow({ where: { id: patientId } });
+    const { payment } = await this.initiate({
+      subjectType: "appointment",
+      subjectId: appointment.id,
+      patientId,
+      providerId: appointment.providerId,
+      patientName: patient.fullName,
+      patientEmail: patient.email,
+      amountKes: appointment.feeKes,
+      phoneNumber: input.phoneNumber,
+      description: "CareBora appointment payment",
+      refPrefix: "APT",
+    });
+    return toPaymentSummary(payment);
+  },
+
+  /**
+   * Cancel any prior pending payment for a subject, call the active gateway, and
+   * create the new Payment row. Every checkout path (appointment, order, home
+   * visit, and future ambulance/lab) goes through this one function.
+   */
+  async initiate(input: InitiateInput): Promise<{ payment: Payment; redirect: InitiatePaymentResult["redirect"] }> {
+    const prior = await db.payment.findFirst({
+      where: { subjectType: input.subjectType, subjectId: input.subjectId, status: "pending" },
+    });
+    if (prior) {
+      await db.payment.update({ where: { id: prior.id }, data: { status: "cancelled" } });
     }
 
-    const phone = normaliseMpesaPhone(input.phoneNumber);
-
-    // Interim Till mode: no STK push — create a pending record the patient will
-    // attach an M-Pesa code to, then an admin verifies it.
-    if (isTillMode()) {
-      return db.payment.create({
-        data: {
-          appointmentId: appointment.id,
-          patientId,
-          providerId: appointment.providerId,
-          amountKes: appointment.feeKes,
-          phoneNumber: phone,
-          method: "till",
-          checkoutRequestId: tillReference(),
-        },
-        include: PAYMENT_INCLUDE,
-      });
-    }
-
-    const push = await initiateStkPush({
-      amount: appointment.feeKes,
-      phone,
-      accountRef: `APT-${appointment.id.slice(0, 8).toUpperCase()}`,
-      description: `CareBora appointment payment`,
+    const result = await initiatePayment({
+      subjectType: input.subjectType,
+      amountKes: input.amountKes,
+      phoneNumber: input.phoneNumber,
+      description: input.description,
+      refPrefix: input.refPrefix,
+      patientName: input.patientName,
+      patientEmail: input.patientEmail,
     });
 
-    return db.payment.create({
+    const commissionPercent = Number(getEnv().PLATFORM_FEE_PERCENT);
+    const payment = await db.payment.create({
       data: {
-        appointmentId: appointment.id,
-        patientId,
-        providerId: appointment.providerId,
-        amountKes: appointment.feeKes,
-        phoneNumber: phone,
-        checkoutRequestId: push.checkoutRequestId,
-        merchantRequestId: push.merchantRequestId,
+        subjectType: input.subjectType,
+        subjectId: input.subjectId,
+        patientId: input.patientId,
+        providerId: input.providerId ?? null,
+        orgId: input.orgId ?? null,
+        gateway: result.gateway,
+        method: result.gateway === "till" ? "till" : "mpesa",
+        amountKes: input.amountKes,
+        phoneNumber: input.phoneNumber,
+        gatewayRef: result.gatewayRef,
+        gatewayTxnRef: result.gatewayTxnRef,
+        commissionPercentSnapshot: commissionPercent,
+        rawInitResponse: (result.rawInitResponse as Prisma.InputJsonValue) ?? Prisma.DbNull,
       },
-      include: PAYMENT_INCLUDE,
     });
+
+    return { payment, redirect: result.redirect };
   },
 
-  /** Handle the Daraja callback for an appointment payment. Returns true if matched. */
-  async handleDarajaCallback(payload: MpesaCallback): Promise<boolean> {
-    const cb = payload.Body.stkCallback;
-    const payment = await db.payment.findUnique({
-      where: { checkoutRequestId: cb.CheckoutRequestID },
-    });
-    if (!payment) return false;
-    // Already settled — ignore late/duplicate callbacks (incl. sandbox noise) so
-    // a success is never downgraded by a subsequent failure.
-    if (payment.status === "completed") return true;
+  /**
+   * The single settlement path for every gateway and every subject type. Writes
+   * the ledger split (gross sale, platform fee, vendor/provider payout) in one
+   * transaction. Idempotent — a replayed success callback is a no-op once the
+   * payment is already `completed`. Returns null if gatewayRef matches nothing.
+   */
+  async settle(
+    gatewayRef: string,
+    outcome: { success: boolean; receiptNumber?: string | null; gatewayTxnRef?: string | null; failureReason?: string | null },
+  ): Promise<Payment | null> {
+    const payment = await db.payment.findUnique({ where: { gatewayRef } });
+    if (!payment) return null;
+    if (payment.status === "completed") return payment; // already settled — ignore replay
 
-    if (cb.ResultCode === 0) {
-      const meta = extractCallbackMeta(cb.CallbackMetadata?.Item ?? []);
-      await settleAppointmentPayment(payment.id, meta.receiptNumber ?? null);
-    } else {
-      await db.payment.update({
+    if (!outcome.success) {
+      return db.payment.update({
         where: { id: payment.id },
-        data: { status: "failed", failureReason: cb.ResultDesc },
+        data: { status: "failed", failureReason: outcome.failureReason ?? "Payment failed" },
       });
     }
-    return true;
+
+    const gross = payment.amountKes;
+    const platformFee = Math.round((gross * payment.commissionPercentSnapshot) / 100);
+    const net = gross - platformFee;
+    const payoutType = payment.orgId ? "vendor_payout" : "provider_payout";
+    const hasPayee = Boolean(payment.orgId || payment.providerId);
+
+    const [updated] = await db.$transaction([
+      db.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "completed",
+          receiptNumber: outcome.receiptNumber ?? payment.receiptNumber,
+          gatewayTxnRef: outcome.gatewayTxnRef ?? payment.gatewayTxnRef,
+          paidAt: new Date(),
+        },
+      }),
+      db.ledgerEntry.create({
+        data: { paymentId: payment.id, type: "gross_sale", amountKes: gross, description: "Gross sale" },
+      }),
+      ...(hasPayee
+        ? [
+            db.ledgerEntry.create({
+              data: {
+                paymentId: payment.id,
+                type: "platform_fee",
+                orgId: payment.orgId,
+                providerId: payment.providerId,
+                amountKes: platformFee,
+                description: `${payment.commissionPercentSnapshot}% platform commission`,
+              },
+            }),
+            db.ledgerEntry.create({
+              data: {
+                paymentId: payment.id,
+                type: payoutType,
+                orgId: payment.orgId,
+                providerId: payment.providerId,
+                amountKes: net,
+                description: payment.orgId ? "Vendor net payout" : "Provider net payout",
+              },
+            }),
+          ]
+        : []),
+    ]);
+
+    return updated;
   },
 
-  /**
-   * Till mode: the patient reports the M-Pesa confirmation code for a Till payment.
-   * Moves the payment to `awaiting_verification` for admin review. Matched by the
-   * synthetic checkout reference. Returns true if a matching payment was found.
-   */
-  async submitTill(checkoutRequestId: string, code: string): Promise<boolean> {
-    const payment = await db.payment.findUnique({ where: { checkoutRequestId } });
-    if (!payment) return false;
-    if (payment.status === "completed") return true;
-    await db.payment.update({
+  /** Till mode: patient reports the M-Pesa code → payment awaits admin verification. */
+  async submitTill(gatewayRef: string, code: string): Promise<Payment | null> {
+    const payment = await db.payment.findUnique({ where: { gatewayRef } });
+    if (!payment) return null;
+    if (payment.status === "completed") return payment;
+    return db.payment.update({
       where: { id: payment.id },
-      data: { status: "awaiting_verification", method: "till", mpesaReceiptNumber: code, failureReason: null },
+      data: { status: "awaiting_verification", receiptNumber: code, failureReason: null },
     });
-    return true;
   },
 
-  /**
-   * Admin decision on a Till payment awaiting verification.
-   * Approve → settle (paid + ledger + receipt). Reject → back to `pending` so the
-   * patient can re-submit a corrected code.
-   */
-  async verifyTill(paymentId: string, approve: boolean) {
+  /** Admin decision on a Till payment. Approve → settle. Reject → back to pending. */
+  async verifyTill(paymentId: string, approve: boolean): Promise<Payment> {
     const payment = await db.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw ApiError.notFound("Payment not found");
     if (payment.status !== "awaiting_verification") {
       throw ApiError.badRequest("This payment is not awaiting verification");
     }
     if (approve) {
-      await settleAppointmentPayment(payment.id, payment.mpesaReceiptNumber);
-    } else {
-      await db.payment.update({
-        where: { id: payment.id },
-        data: { status: "pending", failureReason: "Payment could not be verified", mpesaReceiptNumber: null },
-      });
+      const settled = await this.settle(payment.gatewayRef, { success: true, receiptNumber: payment.receiptNumber });
+      return settled!;
     }
-    return db.payment.findUnique({ where: { id: paymentId }, include: PAYMENT_INCLUDE });
+    return db.payment.update({
+      where: { id: paymentId },
+      data: { status: "pending", failureReason: "Payment could not be verified", receiptNumber: null },
+    });
+  },
+
+  /** A single subject's current payment (if any) — attached to appointments/orders/visits. */
+  async getForSubject(subjectType: PaymentSubject, subjectId: string): Promise<PaymentSummary | null> {
+    const payment = await db.payment.findFirst({
+      where: { subjectType, subjectId },
+      orderBy: { createdAt: "desc" },
+    });
+    return payment ? toPaymentSummary(payment) : null;
+  },
+
+  /** Batched version of getForSubject — avoids N+1 queries when listing many subjects. */
+  async getForSubjects(subjectType: PaymentSubject, subjectIds: string[]): Promise<Map<string, PaymentSummary>> {
+    if (subjectIds.length === 0) return new Map();
+    const payments = await db.payment.findMany({
+      where: { subjectType, subjectId: { in: subjectIds } },
+      orderBy: { createdAt: "desc" },
+    });
+    const map = new Map<string, PaymentSummary>();
+    for (const p of payments) {
+      if (!map.has(p.subjectId)) map.set(p.subjectId, toPaymentSummary(p)); // first hit per id = most recent
+    }
+    return map;
   },
 
   /** List payments for the calling user. */
@@ -227,10 +268,7 @@ export const paymentService = {
   },
 
   async getById(paymentId: string, userId: string) {
-    const payment = await db.payment.findUnique({
-      where: { id: paymentId },
-      include: PAYMENT_INCLUDE,
-    });
+    const payment = await db.payment.findUnique({ where: { id: paymentId }, include: PAYMENT_INCLUDE });
     if (!payment) throw ApiError.notFound("Payment not found");
     if (payment.patientId !== userId && payment.providerId !== userId) {
       throw ApiError.forbidden();
@@ -238,10 +276,7 @@ export const paymentService = {
     return payment;
   },
 
-  /**
-   * Mark a payment as refunded and reverse the ledger.
-   * Actual M-Pesa B2C reversal is manual / handled separately.
-   */
+  /** Mark a payment as refunded and reverse the ledger. Gateway-side reversal is manual. */
   async refund(paymentId: string, userId: string, role: UserRole) {
     const payment = await db.payment.findUnique({ where: { id: paymentId } });
     if (!payment) throw ApiError.notFound("Payment not found");
@@ -256,15 +291,10 @@ export const paymentService = {
     await db.$transaction([
       db.payment.update({
         where: { id: paymentId },
-        data: { status: "refunded" },
+        data: { status: "refunded", refundedKes: payment.amountKes },
       }),
       db.ledgerEntry.create({
-        data: {
-          paymentId,
-          type: "refund",
-          amountKes: -payment.amountKes,
-          description: "Refund issued",
-        },
+        data: { paymentId, type: "refund", amountKes: -payment.amountKes, description: "Refund issued" },
       }),
     ]);
 

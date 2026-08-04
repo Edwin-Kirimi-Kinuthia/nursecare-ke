@@ -1,9 +1,13 @@
 import { NextResponse, type NextRequest } from "next/server";
 
 // ── Rate limiting (in-memory sliding window, per cold start) ──────────────────
-const RATE_RULES: Record<string, { max: number; windowMs: number }> = {
-  "/api/v1/auth/login":    { max: 10, windowMs: 60_000 },
-  "/api/v1/auth/register": { max: 5,  windowMs: 60_000 },
+const RATE_RULES: Record<string, { max: number; windowMs: number; method?: string }> = {
+  "/api/v1/auth/login":           { max: 10, windowMs: 60_000, method: "POST" },
+  "/api/v1/auth/register":        { max: 5,  windowMs: 60_000, method: "POST" },
+  "/api/v1/payments/mpesa/stk":   { max: 10, windowMs: 60_000, method: "POST" },
+  "/api/v1/payments/till/submit": { max: 10, windowMs: 60_000, method: "POST" },
+  "/api/v1/orders":               { max: 10, windowMs: 60_000, method: "POST" },
+  "/api/v1/home-visits":          { max: 10, windowMs: 60_000, method: "POST" },
 };
 interface RateEntry { count: number; resetAt: number }
 const rateStore = new Map<string, RateEntry>();
@@ -11,6 +15,7 @@ const rateStore = new Map<string, RateEntry>();
 function checkRateLimit(pathname: string, req: NextRequest): Response | null {
   const rule = RATE_RULES[pathname];
   if (!rule) return null;
+  if (rule.method && rule.method !== req.method) return null;
   const clientIp =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
     req.headers.get("x-real-ip") ??

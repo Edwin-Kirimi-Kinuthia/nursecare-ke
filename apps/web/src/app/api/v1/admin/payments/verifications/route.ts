@@ -13,7 +13,7 @@ export const GET = route(async (req) => {
 /** POST /api/v1/admin/payments/verifications — approve or reject a Till payment. */
 export const POST = route(async (req) => {
   const claims = await requireAuth(req, ["admin"]);
-  const { context, id, approve } = verifyTillSchema.parse(await req.json());
-  const result = await adminService.verifyTillPayment(context, id, approve, claims.sub);
+  const { id, approve } = verifyTillSchema.parse(await req.json());
+  const result = await adminService.verifyTillPayment(id, approve, claims.sub);
   return jsonOk(result);
 });
