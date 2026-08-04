@@ -57,6 +57,7 @@ export { notificationService } from "./notifications/notification.service";
 export { inAppNotifications } from "./notifications/inapp.service";
 export { reviewService } from "./reviews/review.service";
 export { orgService, resolveMembership } from "./org/org.service";
+export { ambulanceService } from "./ambulance/ambulance.service";
 export { getEnv, type Env } from "./config/env";
 export { putFile, STORAGE_LIMITS, type StorageKind, type StoredFile } from "./storage/storage";
 export { aiService } from "./ai/ai.service";

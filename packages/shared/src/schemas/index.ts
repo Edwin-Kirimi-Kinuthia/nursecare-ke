@@ -9,3 +9,4 @@ export * from "./admin";
 export * from "./review";
 export * from "./ai";
 export * from "./org";
+export * from "./ambulance";
