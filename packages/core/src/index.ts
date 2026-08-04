@@ -53,5 +53,7 @@ export { adminService } from "./admin/admin.service";
 export { notificationService } from "./notifications/notification.service";
 export { inAppNotifications } from "./notifications/inapp.service";
 export { reviewService } from "./reviews/review.service";
+export { getEnv, type Env } from "./config/env";
+export { putFile, STORAGE_LIMITS, type StorageKind, type StoredFile } from "./storage/storage";
 export { aiService } from "./ai/ai.service";
 export type { SymptomCheckResult, ProviderMatchResult, FactCheckResult, PharmacySuggestion } from "./ai/ai.service";
