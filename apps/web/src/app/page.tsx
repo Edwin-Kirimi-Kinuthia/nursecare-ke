@@ -1,12 +1,13 @@
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
-  ArrowRight, Star, FileText, Baby,
+  ArrowRight, Star, FileText, Baby, ClipboardCheck,
 } from "lucide-react";
 
 const FEATURES = [
   { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/providers" },
   { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", href: "/providers" },
+  { Icon: ClipboardCheck, title: "Official medical reports & certificates", desc: "Medical reports, fitness-to-fly, and clearance certificates requested by schools, airports, employers, and embassies — issued by verified providers.", href: "/providers" },
   { Icon: Baby, title: "Pregnancy crisis management", desc: "Urgent OB-GYN support and pregnancy crisis management, any time — from bleeding to severe symptoms.", href: "/providers" },
   { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication and supplies, delivered to your door.", href: "/pharmacy" },
   { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/home-visits" },
