@@ -10,3 +10,5 @@ export * from "./review";
 export * from "./ai";
 export * from "./org";
 export * from "./ambulance";
+export * from "./records";
+export * from "./lab";
