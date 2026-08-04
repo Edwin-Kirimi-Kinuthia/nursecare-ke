@@ -6,7 +6,9 @@
 > the same engine powers web today and mobile tomorrow.
 
 - **Owner / Engineer:** solo build (Edwin)
-- **Status:** planning → build
+- **Status:** M0–M9 (below) shipped; **v2** (multi-vendor pharmacy marketplace,
+  ambulance dispatch, full medical records + labs, Jenga payments) shipped on top —
+  see [§13 v2](#13-v2--marketplace-ambulance-records--jenga-payments) for what changed.
 - **Plan created:** 2026-06-12
 - **Origin doc:** *Telehealth SME start-up* business plan (formerly "Genz Hospital")
 - **Primary goal:** ship a **complete, investor-ready full stack** — investors have
@@ -28,6 +30,7 @@
 10. [Out of Scope (Parking Lot)](#10-out-of-scope-parking-lot)
 11. [Daily Working Rhythm](#11-daily-working-rhythm)
 12. [Risks & Mitigations](#12-risks--mitigations)
+13. [v2 — Marketplace, Ambulance, Records & Jenga Payments](#13-v2--marketplace-ambulance-records--jenga-payments)
 
 ---
 
@@ -40,7 +43,7 @@ quality-signalling, easy to say, and distinct enough to own a domain and tradema
 - **Tagline options:** *"Quality care, made accessible."* / *"Afya bora, popote ulipo."*
 - **Tone:** warm, modern, trustworthy — friendly enough for Gen-Z, credible enough for clinicians.
 
-**The product (six core flows):**
+**The product (original six core flows, M0–M8):**
 
 | # | Flow | What it does |
 |---|------|--------------|
@@ -50,6 +53,8 @@ quality-signalling, easy to say, and distinct enough to own a domain and tradema
 | 4 | **M-Pesa Payments** | Real Daraja STK-push payments, receipts, refunds |
 | 5 | **Pharmacy Shop** | Medication catalogue, cart, checkout, delivery tracking |
 | 6 | **Home-Based Care** | Request a nurse / physiotherapist to visit; assignment & visit lifecycle |
+
+**v2 added four more** (see [§13](#13-v2--marketplace-ambulance-records--jenga-payments)): a **multi-vendor pharmacy marketplace** (flow 5 above is now one storefront over many independent pharmacy businesses, ranked by distance), **ambulance request & dispatch**, a patient-owned **medical records** system with consent-scoped provider access, and **lab test ordering & results** — plus a second payment gateway (**Jenga**, alongside Daraja).
 
 ---
 
@@ -169,6 +174,15 @@ High-level entities (full schema designed in M0/M1):
 - **VerificationDocument** — provider KYC / license uploads
 - **AuditLog** — clinical & admin actions (compliance)
 
+**Added in v2** (full detail in [§13](#13-v2--marketplace-ambulance-records--jenga-payments)):
+`Organization` / `OrgMember` / `OrgBranch` (vendor businesses), `Drug` / `Listing`
+(split from `Product`), `VendorOrder` (per-vendor slice of an `Order`),
+`Ambulance` / `AmbulanceRequest` / `AmbulanceRequestEvent`, `Allergy` /
+`Condition` / `MedicationEntry` / `VitalSign` / `Immunization` /
+`MedicalDocument` / `RecordAccessGrant` / `RecordAccessLog` (patient EMR),
+`LabTest` / `LabOrder` / `LabOrderItem` / `LabResult`, and `PaymentEvent` /
+`Payout` alongside the now-polymorphic `Payment`.
+
 ---
 
 ## 6. API Design
@@ -186,6 +200,10 @@ High-level entities (full schema designed in M0/M1):
   - `POST /home-visits` · `PATCH /home-visits/:id` (assign / accept / complete)
   - `POST /payments/mpesa/stk` · `POST /payments/mpesa/callback` (webhook)
   - Admin: `/admin/verifications`, `/admin/providers`, `/admin/analytics`
+  - v2: `/vendors/apply` · `/admin/organizations`, `/vendor/{org,branches,members,
+    listings,orders}` · `/storefront/{drugs,labs}` (proximity-ranked, public) ·
+    `/ambulance-requests` · `/records/:patientId` (+ `/allergies`, `/conditions`,
+    `/grants`, `/access-log`) · `/lab-orders` · `/payments/jenga/{callback,pgw/callback}`
 - **Every endpoint:** Zod-validated input, RBAC-checked, typed response, consistent
   error envelope `{ error: { code, message, details? } }`.
 - **Docs:** OpenAPI spec generated and served at `/api/docs` — this is the artifact
@@ -288,11 +306,16 @@ Deliberately deferred until after the investor-ready stack is shipped:
 
 - Native **mobile app** build (architecture already supports it — that's the point)
 - **Cryptocurrency** payments (BTC/ETH/stablecoins)
-- **AI** features: provider matching, NLP symptom checker, demand forecasting
 - **Insurance / NHIF** integration and corporate health plans
 - **IoT / wearables** and blockchain medical records
 - Full **Swahili / local-language i18n** (architect for it now, translate later)
 - Advanced logistics: cold-chain, route optimization, courier dispatch
+- **Live ambulance GPS tracking** (v2 shipped request → dispatch → status timeline;
+  live map tracking of the vehicle itself is deferred to a later version)
+
+> Shipped since this list was written: **AI** features (M9 — provider matching,
+> symptom-check triage) and the multi-vendor pharmacy marketplace, ambulance
+> dispatch, and full medical records (all v2, see [§13](#13-v2--marketplace-ambulance-records--jenga-payments)) — none of these are out of scope anymore.
 
 ---
 
@@ -319,6 +342,94 @@ To sustain daily coding without burning out:
 | Compliance (Data Protection Act) | RBAC + encryption + audit logs from M0; legal review pre-launch |
 | Solo bus-factor / momentum | Daily deploy + end-of-day log; everything in git; this plan as the map |
 | "Complete stack" goalpost moving | §9 checklist is the shared, written definition of complete |
+
+---
+
+## 13. v2 — Marketplace, Ambulance, Records & Jenga Payments
+
+Shipped on top of M0–M9 (which stay as written above — this is additive, not a
+rewrite). Full phase-by-phase design lived in a planning doc during the build;
+this section is the durable summary.
+
+**Why:** the original platform was single-tenant — one global drug catalogue with
+no owner, payments hard-wired to Daraja, and no ambulance capability. v2 turns it
+into a multi-tenant marketplace so independent pharmacy/ambulance/lab businesses
+can operate on the platform, adds a patient-owned medical record, and adds a
+second payment gateway (Jenga).
+
+**New core domain — `Organization`:** one model (`type`: `pharmacy | ambulance | lab
+| clinic`) with members (`owner | manager | staff`) and branches (geocoded, PostGIS
+`geography(Point,4326)` + a GiST index) backs every vendor feature. `UserRole`
+gained `vendor`. Vendors apply via `POST /vendors/apply` (mirrors the existing
+provider-application flow), land in an admin review queue (`GET/POST
+/admin/organizations`), and only appear on any public storefront once `approved` —
+enforced at the query level, not just a status flag.
+
+**Payments became polymorphic:** `Payment.subjectType` (`appointment | order |
+home_visit | ambulance | lab_order`) + `subjectId` replaces the old one-gateway,
+inline-columns-on-every-table design. `PAYMENTS_MODE` is a gateway *family*
+(`jenga | till | mpesa_daraja`), not a single gateway — within `jenga` mode, order
+checkouts use the hosted PGW (card/Equitel/bank) while every other subject uses
+STK push. Every webhook payload is logged to `PaymentEvent` (dedupe key) before
+being parsed, so replays are no-ops. The Jenga STK callback is unsigned by design,
+so it's never trusted directly — it triggers a call to Jenga's own order-status
+query endpoint, and if that query is unavailable the payment stays `pending`
+rather than trusting the callback's self-reported result (a scheduled
+reconciliation sweep retries the query later). The Jenga PGW callback verifies a
+cryptographic `hash` before ever settling.
+
+**Multi-vendor pharmacy marketplace:** the old single `Product` split into `Drug`
+(canonical, admin-curated) + `Listing` (one vendor's price/stock offer of a drug).
+`GET /storefront/drugs` ranks by distance from the buyer (PostGIS `ST_Distance`,
+falling back to county match with no location) and shows best price + nearest
+vendor; `GET /storefront/drugs/:id/offers` lists every vendor's offer. A cart can
+span multiple vendors — checkout is still **one** `Order` and **one** `Payment`,
+fanned out into one `VendorOrder` per org, each with its own fulfilment status and
+ledger split (platform fee / vendor payout), settled together when the single
+payment completes.
+
+**Ambulance request & dispatch:** `POST /ambulance-requests` finds nearby
+operators by type via the same PostGIS proximity helper; first operator to accept
+via `POST /vendor/ambulance-requests/:id/accept` wins (a second acceptance
+attempt gets a 409, not a silent overwrite). Status moves through a fixed
+timeline (`accepted → dispatched → en_route_pickup → arrived_pickup →
+en_route_destination → completed`), each transition writing an
+`AmbulanceRequestEvent` so the patient sees a timeline without live GPS tracking
+(explicitly out of scope for this version — see §10). Payment happens after
+completion, once the operator has set a fee.
+
+**Medical records (EMR) + lab orders:** patient-owned `Allergy`, `Condition`,
+`MedicationEntry`, `VitalSign`, `Immunization`, and `MedicalDocument` records,
+aggregated alongside existing `Consultation`/`Prescription` data into one
+timeline. Every single read — no exceptions — goes through one choke point,
+`assertCanRead(patientId, actor)`: the patient always; a provider with an
+active/recent care relationship; anyone holding a live `RecordAccessGrant`
+(patient-issued, revocable, by grantee email); an admin only with an explicit
+break-glass `reason` querystring, which is itself logged. Every outcome (view /
+denied / break_glass) writes a `RecordAccessLog` row the patient can read back.
+Lab orders (`LabTest`/`LabOrder`/`LabOrderItem`/`LabResult`) follow the same
+storefront-proximity pattern as pharmacies; a lab cannot mark an order `accepted`
+until its payment is `completed`; a verified result with an attached scan writes
+both a `LabResult` and a `MedicalDocument`, landing automatically in the
+patient's record.
+
+**Storage:** all file uploads (vendor KYC docs, catalogue images, EMR documents,
+lab-result scans) route through one seam, `putFile()` in `packages/core/src/
+storage/storage.ts`. Today it's a base64-data-URL passthrough (an accepted,
+revisit-later tradeoff — see the original planning doc's risk note); swapping to
+Vercel Blob later is a one-file change, not a rewrite.
+
+**Verification:** every phase was checked with a live end-to-end smoke test
+against a running dev server (not just typecheck/build/lint) — vendor apply →
+admin approve → listings appear on the storefront; a cart spanning two vendors
+splits into two vendor orders under one payment; an ambulance request is
+accepted, dispatched, completed, and paid; a lab order is blocked from
+acceptance until paid, then resulted, with the result visible in the patient's
+record; and a provider with no relationship to a patient is denied their record
+— and that denial is logged. Playwright coverage lives in `apps/web/e2e/`
+(`vendor-onboarding`, `marketplace`, `ambulance`, `records`, `lab`,
+`jenga-payments` specs, plus the pre-existing specs updated for the new
+storefront/order shapes).
 
 ---
 

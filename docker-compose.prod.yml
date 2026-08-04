@@ -2,7 +2,7 @@
 # Usage: docker compose -f docker-compose.prod.yml up -d --build
 services:
   db:
-    image: postgres:16
+    image: postgis/postgis:16-3.4-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: carebora

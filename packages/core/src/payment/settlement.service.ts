@@ -107,17 +107,18 @@ export const settlementService = {
     if (!payment) return false;
 
     // Confirm via the query-status endpoint rather than trusting the unsigned callback outright.
+    // If the query itself is unavailable, do NOT fall back to the callback's self-reported
+    // status — that would let anyone who can guess (or has seen) a gatewayRef POST a forged
+    // "success" callback and get it trusted whenever Jenga's query API has a blip. Leave the
+    // payment pending instead; reconcilePending() retries the query on a schedule.
     const confirmed = await queryOrderStatus(payment.gatewayRef).catch(() => ({ found: false as const }));
-    const resultCode = stkCallback.ResultCode as number | undefined;
-    const transactionStatus = transaction.status as string | undefined;
-    const looksSuccessful =
-      confirmed.found ? confirmed.status === "SUCCESS" : resultCode === 0 || transactionStatus === "SUCCESS";
+    if (!confirmed.found) return false;
 
-    if (looksSuccessful) {
+    if (confirmed.status === "SUCCESS") {
       return settleAndDispatch(payment.gatewayRef, {
         success: true,
         receiptNumber: (transaction.reference as string | undefined) ?? null,
-        gatewayTxnRef: confirmed.found ? confirmed.gatewayTxnRef : paymentReference,
+        gatewayTxnRef: confirmed.gatewayTxnRef,
       });
     }
     return settleAndDispatch(payment.gatewayRef, {

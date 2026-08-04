@@ -33,7 +33,7 @@ function mins(h: number, m = 0) {
 async function upsertUser(data: {
   email: string;
   fullName: string;
-  role: "patient" | "doctor" | "nurse" | "physio" | "pharmacy" | "admin";
+  role: "patient" | "doctor" | "nurse" | "physio" | "pharmacy" | "vendor" | "admin";
   phone?: string;
   avatarUrl?: string;
 }) {
@@ -400,23 +400,23 @@ async function main() {
     }
   }
 
-  // ── Pharmacy products ─────────────────────────────────────────────────────
-  const products = [
-    { name: "Paracetamol 500mg (24 tabs)", genericName: "Paracetamol",   category: "Pain Relief",      priceKes:  60, stockQty: 500, requiresPrescription: false, description: "For mild to moderate pain and fever." },
-    { name: "Ibuprofen 400mg (20 tabs)",   genericName: "Ibuprofen",     category: "Pain Relief",      priceKes: 120, stockQty: 300, requiresPrescription: false, description: "Anti-inflammatory pain relief." },
-    { name: "ORS Sachets (10 pack)",       genericName: "ORS",           category: "Gastrointestinal", priceKes:  90, stockQty: 400, requiresPrescription: false, description: "Rehydration salts for diarrhoea." },
-    { name: "Zinc 20mg (10 tabs)",         genericName: "Zinc Sulphate", category: "Supplements",      priceKes:  80, stockQty: 350, requiresPrescription: false, description: "Zinc supplement for children with diarrhoea." },
-    { name: "Vitamin C 1000mg (30 tabs)",  genericName: "Ascorbic Acid", category: "Supplements",      priceKes: 280, stockQty: 600, requiresPrescription: false, description: "Immune support supplement." },
-    { name: "Clotrimazole Cream 2% 30g",  genericName: "Clotrimazole",  category: "Dermatology",      priceKes: 220, stockQty: 150, requiresPrescription: false, description: "Antifungal cream for skin infections." },
-    { name: "Saline Nasal Spray 30ml",    genericName: "NaCl 0.9%",     category: "ENT",              priceKes: 350, stockQty: 200, requiresPrescription: false, description: "Relieves nasal congestion." },
-    { name: "Hydrocortisone Cream 1% 15g",genericName: "Hydrocortisone",category: "Dermatology",      priceKes: 180, stockQty: 180, requiresPrescription: false, description: "Mild topical steroid." },
-    { name: "Amoxicillin 500mg (21 caps)",  genericName: "Amoxicillin",  category: "Antibiotics",      priceKes: 380, stockQty: 200, requiresPrescription: true,  description: "Broad-spectrum antibiotic." },
-    { name: "Metformin 500mg (60 tabs)",    genericName: "Metformin",    category: "Diabetes",         priceKes: 450, stockQty: 150, requiresPrescription: true,  description: "First-line type 2 diabetes treatment." },
-    { name: "Amlodipine 5mg (30 tabs)",     genericName: "Amlodipine",   category: "Cardiovascular",   priceKes: 520, stockQty: 120, requiresPrescription: true,  description: "Calcium channel blocker for hypertension." },
-    { name: "Atorvastatin 40mg (30 tabs)",  genericName: "Atorvastatin", category: "Cardiovascular",   priceKes: 680, stockQty: 100, requiresPrescription: true,  description: "Statin for cholesterol." },
-    { name: "Salbutamol Inhaler 100mcg",    genericName: "Salbutamol",   category: "Respiratory",      priceKes: 890, stockQty:  80, requiresPrescription: true,  description: "Reliever inhaler for asthma." },
-    { name: "Omeprazole 20mg (28 caps)",    genericName: "Omeprazole",   category: "Gastrointestinal", priceKes: 490, stockQty: 200, requiresPrescription: true,  description: "Proton pump inhibitor for acid reflux." },
-    { name: "Azithromycin 250mg (6 tabs)",  genericName: "Azithromycin", category: "Antibiotics",      priceKes: 550, stockQty: 160, requiresPrescription: true,  description: "Macrolide antibiotic." },
+  // ── Canonical drug catalogue (shared across every vendor) ────────────────
+  const drugSpecs = [
+    { name: "Paracetamol 500mg (24 tabs)", genericName: "Paracetamol",   category: "Pain Relief",      requiresPrescription: false, description: "For mild to moderate pain and fever." },
+    { name: "Ibuprofen 400mg (20 tabs)",   genericName: "Ibuprofen",     category: "Pain Relief",      requiresPrescription: false, description: "Anti-inflammatory pain relief." },
+    { name: "ORS Sachets (10 pack)",       genericName: "ORS",           category: "Gastrointestinal", requiresPrescription: false, description: "Rehydration salts for diarrhoea." },
+    { name: "Zinc 20mg (10 tabs)",         genericName: "Zinc Sulphate", category: "Supplements",      requiresPrescription: false, description: "Zinc supplement for children with diarrhoea." },
+    { name: "Vitamin C 1000mg (30 tabs)",  genericName: "Ascorbic Acid", category: "Supplements",      requiresPrescription: false, description: "Immune support supplement." },
+    { name: "Clotrimazole Cream 2% 30g",  genericName: "Clotrimazole",  category: "Dermatology",      requiresPrescription: false, description: "Antifungal cream for skin infections." },
+    { name: "Saline Nasal Spray 30ml",    genericName: "NaCl 0.9%",     category: "ENT",              requiresPrescription: false, description: "Relieves nasal congestion." },
+    { name: "Hydrocortisone Cream 1% 15g",genericName: "Hydrocortisone",category: "Dermatology",      requiresPrescription: false, description: "Mild topical steroid." },
+    { name: "Amoxicillin 500mg (21 caps)",  genericName: "Amoxicillin",  category: "Antibiotics",      requiresPrescription: true,  description: "Broad-spectrum antibiotic." },
+    { name: "Metformin 500mg (60 tabs)",    genericName: "Metformin",    category: "Diabetes",         requiresPrescription: true,  description: "First-line type 2 diabetes treatment." },
+    { name: "Amlodipine 5mg (30 tabs)",     genericName: "Amlodipine",   category: "Cardiovascular",   requiresPrescription: true,  description: "Calcium channel blocker for hypertension." },
+    { name: "Atorvastatin 40mg (30 tabs)",  genericName: "Atorvastatin", category: "Cardiovascular",   requiresPrescription: true,  description: "Statin for cholesterol." },
+    { name: "Salbutamol Inhaler 100mcg",    genericName: "Salbutamol",   category: "Respiratory",      requiresPrescription: true,  description: "Reliever inhaler for asthma." },
+    { name: "Omeprazole 20mg (28 caps)",    genericName: "Omeprazole",   category: "Gastrointestinal", requiresPrescription: true,  description: "Proton pump inhibitor for acid reflux." },
+    { name: "Azithromycin 250mg (6 tabs)",  genericName: "Azithromycin", category: "Antibiotics",      requiresPrescription: true,  description: "Macrolide antibiotic." },
   ];
 
   const IMAGE_SLUGS: Record<string, string> = {
@@ -436,67 +436,223 @@ async function main() {
     "Omeprazole 20mg (28 caps)": "omeprazole",
     "Azithromycin 250mg (6 tabs)": "azithromycin",
   };
-  for (const product of products) {
-    const slug = IMAGE_SLUGS[product.name];
+
+  const drugs: Record<string, Awaited<ReturnType<typeof db.drug.upsert>>> = {};
+  for (const spec of drugSpecs) {
+    const slug = IMAGE_SLUGS[spec.name];
     const imageUrl = slug ? `/products/${slug}.jpg` : undefined;
     const images = imageUrl ? [imageUrl] : [];
-    const existing = await db.product.findFirst({ where: { name: product.name } });
-    if (!existing) {
-      await db.product.create({ data: { ...product, imageUrl, images, isActive: true } });
-    } else if (imageUrl && (existing.imageUrl !== imageUrl || existing.images.length === 0)) {
-      await db.product.update({ where: { id: existing.id }, data: { imageUrl, images } });
+    const existing = await db.drug.findFirst({ where: { name: spec.name } });
+    drugs[spec.name] = existing
+      ? await db.drug.update({ where: { id: existing.id }, data: { imageUrl, images } })
+      : await db.drug.create({ data: { ...spec, imageUrl, images, isActive: true } });
+  }
+
+  // ── Vendor pharmacies (Organizations) — demonstrates multi-vendor + proximity ──
+  async function upsertVendorOrg(spec: {
+    slug: string; name: string; ownerEmail: string; ownerName: string;
+    branchName: string; county: string; town: string; lat: number; lng: number;
+    type?: "pharmacy" | "ambulance" | "lab" | "clinic"; licencePrefix?: string;
+  }) {
+    const owner = await upsertUser({ email: spec.ownerEmail, fullName: spec.ownerName, role: "vendor", phone: "+254700100" + spec.slug.length });
+    let org = await db.organization.findUnique({ where: { slug: spec.slug } });
+    if (!org) {
+      org = await db.organization.create({
+        data: {
+          type: spec.type ?? "pharmacy", name: spec.name, slug: spec.slug, status: "approved",
+          licenceNumber: `${spec.licencePrefix ?? "PPB"}-SEED-${spec.slug}`, contactEmail: spec.ownerEmail,
+        },
+      });
+      await db.orgBranch.create({
+        data: {
+          orgId: org.id, name: spec.branchName, county: spec.county, town: spec.town,
+          latitude: spec.lat, longitude: spec.lng, deliveryRadiusKm: 15, deliveryFeeKes: 100,
+        },
+      });
     }
+    // Independent of org creation — an existing org (found by slug) might still
+    // be missing this owner's membership (e.g. the owner user was just created).
+    await db.orgMember.upsert({
+      where: { orgId_userId: { orgId: org.id, userId: owner.id } },
+      update: {},
+      create: { orgId: org.id, userId: owner.id, role: "owner" },
+    });
+    return org;
+  }
+
+  const wellcare = await upsertVendorOrg({
+    slug: "wellcare-pharmacy", name: "Wellcare Pharmacy", ownerEmail: "owner.wellcare@example.com", ownerName: "Grace Muthoni",
+    branchName: "CBD Branch", county: "Nairobi", town: "CBD", lat: -1.2841, lng: 36.8155,
+  });
+  const medipoint = await upsertVendorOrg({
+    slug: "medipoint-pharmacy", name: "MediPoint Pharmacy", ownerEmail: "owner.medipoint@example.com", ownerName: "Kevin Otieno",
+    branchName: "Westlands Branch", county: "Nairobi", town: "Westlands", lat: -1.2673, lng: 36.8065,
+  });
+  const coastMeds = await upsertVendorOrg({
+    slug: "coast-meds-pharmacy", name: "Coast Meds Pharmacy", ownerEmail: "owner.coastmeds@example.com", ownerName: "Fatuma Said",
+    branchName: "Nyali Branch", county: "Mombasa", town: "Nyali", lat: -4.0435, lng: 39.6682,
+  });
+
+  /** Idempotently claims a listing for an org, with a price nudge so vendors don't all match exactly. */
+  async function upsertListing(orgId: string, drugName: string, priceKes: number, stockQty: number) {
+    const drug = drugs[drugName];
+    if (!drug) return;
+    const existing = await db.listing.findUnique({ where: { orgId_drugId: { orgId, drugId: drug.id } } });
+    if (existing) return existing;
+    return db.listing.create({ data: { orgId, drugId: drug.id, priceKes, stockQty } });
+  }
+
+  const wellcarePrices: Record<string, number> = {
+    "Paracetamol 500mg (24 tabs)": 60, "Ibuprofen 400mg (20 tabs)": 120, "ORS Sachets (10 pack)": 90,
+    "Zinc 20mg (10 tabs)": 80, "Vitamin C 1000mg (30 tabs)": 280, "Clotrimazole Cream 2% 30g": 220,
+    "Saline Nasal Spray 30ml": 350, "Hydrocortisone Cream 1% 15g": 180, "Amoxicillin 500mg (21 caps)": 380,
+    "Metformin 500mg (60 tabs)": 450, "Amlodipine 5mg (30 tabs)": 520, "Atorvastatin 40mg (30 tabs)": 680,
+    "Salbutamol Inhaler 100mcg": 890, "Omeprazole 20mg (28 caps)": 490, "Azithromycin 250mg (6 tabs)": 550,
+  };
+  for (const [name, price] of Object.entries(wellcarePrices)) {
+    await upsertListing(wellcare.id, name, price, 200);
+  }
+
+  // MediPoint stocks a subset, slightly cheaper on OTC items (undercuts Wellcare on price).
+  const medipointPrices: Record<string, number> = {
+    "Paracetamol 500mg (24 tabs)": 55, "Ibuprofen 400mg (20 tabs)": 110, "ORS Sachets (10 pack)": 85,
+    "Vitamin C 1000mg (30 tabs)": 260, "Clotrimazole Cream 2% 30g": 210, "Amoxicillin 500mg (21 caps)": 360,
+    "Metformin 500mg (60 tabs)": 430, "Amlodipine 5mg (30 tabs)": 500, "Omeprazole 20mg (28 caps)": 470,
+    "Azithromycin 250mg (6 tabs)": 530,
+  };
+  for (const [name, price] of Object.entries(medipointPrices)) {
+    await upsertListing(medipoint.id, name, price, 150);
+  }
+
+  // Coast Meds (Mombasa) — far from Nairobi buyers, demonstrates distance ranking.
+  const coastPrices: Record<string, number> = {
+    "Paracetamol 500mg (24 tabs)": 65, "ORS Sachets (10 pack)": 95, "Zinc 20mg (10 tabs)": 85,
+    "Amoxicillin 500mg (21 caps)": 400, "Azithromycin 250mg (6 tabs)": 560,
+    "Salbutamol Inhaler 100mcg": 900, "Omeprazole 20mg (28 caps)": 500,
+    "Saline Nasal Spray 30ml": 340,
+  };
+  for (const [name, price] of Object.entries(coastPrices)) {
+    await upsertListing(coastMeds.id, name, price, 120);
+  }
+
+  // ── Ambulance operator (demonstrates request + dispatch) ──────────────────
+  const rapidResponse = await upsertVendorOrg({
+    slug: "rapid-response-ambulance", name: "Rapid Response Ambulance", ownerEmail: "owner.rapidresponse@example.com",
+    ownerName: "Samuel Kiptoo", type: "ambulance", licencePrefix: "NASA",
+    branchName: "Upper Hill Base", county: "Nairobi", town: "Upper Hill", lat: -1.2963, lng: 36.8172,
+  });
+  const existingAmbulances = await db.ambulance.count({ where: { orgId: rapidResponse.id } });
+  if (existingAmbulances === 0) {
+    await db.ambulance.create({
+      data: { orgId: rapidResponse.id, plateNumber: "KDA 001A", type: "advanced_life_support", crewSize: 3, equipment: ["Defibrillator", "Oxygen", "Stretcher"] },
+    });
+    await db.ambulance.create({
+      data: { orgId: rapidResponse.id, plateNumber: "KDA 002B", type: "basic", crewSize: 2, equipment: ["Oxygen", "First Aid"] },
+    });
+  }
+
+  // ── Diagnostic lab (demonstrates lab-order request + result flow) ─────────
+  const precisionLab = await upsertVendorOrg({
+    slug: "precision-diagnostics-lab", name: "Precision Diagnostics Lab", ownerEmail: "owner.precisionlab@example.com",
+    ownerName: "Dr. Wanjiku Kamau", type: "lab", licencePrefix: "KMLTTB",
+    branchName: "Hurlingham Branch", county: "Nairobi", town: "Hurlingham", lat: -1.2977, lng: 36.7889,
+  });
+  const existingLabTests = await db.labTest.count({ where: { orgId: precisionLab.id } });
+  if (existingLabTests === 0) {
+    await db.labTest.createMany({
+      data: [
+        { orgId: precisionLab.id, code: "FBC", name: "Full Blood Count", category: "Haematology", priceKes: 800, turnaroundHours: 4, sampleType: "Blood" },
+        { orgId: precisionLab.id, code: "MP", name: "Malaria Parasites (BS)", category: "Parasitology", priceKes: 300, turnaroundHours: 2, sampleType: "Blood" },
+        { orgId: precisionLab.id, code: "RBS", name: "Random Blood Sugar", category: "Chemistry", priceKes: 250, turnaroundHours: 1, sampleType: "Blood" },
+        { orgId: precisionLab.id, code: "LFT", name: "Liver Function Test", category: "Chemistry", priceKes: 1500, turnaroundHours: 6, sampleType: "Blood" },
+        { orgId: precisionLab.id, code: "UECR", name: "Urea, Electrolytes & Creatinine", category: "Chemistry", priceKes: 1800, turnaroundHours: 6, sampleType: "Blood" },
+        { orgId: precisionLab.id, code: "HIV", name: "HIV Test (Rapid)", category: "Serology", priceKes: 500, turnaroundHours: 1, sampleType: "Blood" },
+      ],
+    });
   }
 
   // ── Sample pharmacy orders (so the admin Orders tab has content) ──────────
   const existingOrders = await db.order.count();
   if (existingOrders === 0) {
-    const byName = async (name: string) => db.product.findFirst({ where: { name: { contains: name } } });
-    const paracetamol = await byName("Paracetamol");
-    const vitaminC = await byName("Vitamin C");
-    const ors = await byName("ORS");
-    const zinc = await byName("Zinc");
+    const paracetamolListing = await db.listing.findFirst({ where: { orgId: wellcare.id, drugId: drugs["Paracetamol 500mg (24 tabs)"]!.id } });
+    const vitaminCListing = await db.listing.findFirst({ where: { orgId: wellcare.id, drugId: drugs["Vitamin C 1000mg (30 tabs)"]!.id } });
+    const orsListing = await db.listing.findFirst({ where: { orgId: medipoint.id, drugId: drugs["ORS Sachets (10 pack)"]!.id } });
 
-    type Line = { product: Awaited<ReturnType<typeof byName>>; qty: number };
+    type Line = { listing: typeof paracetamolListing; drugName: string; qty: number };
     const demoOrders: {
-      patient: typeof alice; status: "delivered" | "dispatched" | "paid"; address: string; phone: string; daysAgo: number; lines: Line[];
+      patient: typeof alice; orgId: string; status: "delivered" | "dispatched" | "paid";
+      address: string; phone: string; daysAgo: number; lines: Line[];
     }[] = [
-      { patient: alice, status: "delivered", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 6,
-        lines: [{ product: paracetamol, qty: 2 }, { product: vitaminC, qty: 1 }] },
-      { patient: bob, status: "dispatched", address: "Apt 4B, Kileleshwa, Nairobi", phone: "+254733000002", daysAgo: 2,
-        lines: [{ product: ors, qty: 3 }, { product: zinc, qty: 1 }] },
-      { patient: alice, status: "paid", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 0,
-        lines: [{ product: paracetamol, qty: 1 }] },
+      { patient: alice, orgId: wellcare.id, status: "delivered", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 6,
+        lines: [{ listing: paracetamolListing, drugName: "Paracetamol 500mg (24 tabs)", qty: 2 }, { listing: vitaminCListing, drugName: "Vitamin C 1000mg (30 tabs)", qty: 1 }] },
+      { patient: bob, orgId: medipoint.id, status: "dispatched", address: "Apt 4B, Kileleshwa, Nairobi", phone: "+254733000002", daysAgo: 2,
+        lines: [{ listing: orsListing, drugName: "ORS Sachets (10 pack)", qty: 3 }] },
+      { patient: alice, orgId: wellcare.id, status: "paid", address: "House 12, Maple Ave, Lavington, Nairobi", phone: "+254733000001", daysAgo: 0,
+        lines: [{ listing: paracetamolListing, drugName: "Paracetamol 500mg (24 tabs)", qty: 1 }] },
     ];
 
     for (const o of demoOrders) {
-      const items = o.lines.filter((l): l is { product: NonNullable<Line["product"]>; qty: number } => l.product !== null);
+      const items = o.lines.filter((l): l is { listing: NonNullable<Line["listing"]>; drugName: string; qty: number } => l.listing !== null);
       if (!items.length) continue;
-      const total = items.reduce((sum, l) => sum + l.product.priceKes * l.qty, 0);
+      const subtotal = items.reduce((sum, l) => sum + l.listing.priceKes * l.qty, 0);
       const createdAt = new Date(Date.now() - o.daysAgo * 86_400_000);
-      await db.order.create({
+      const order = await db.order.create({
         data: {
           patientId: o.patient.id,
-          status: o.status,
-          totalKes: total,
+          totalKes: subtotal,
           phoneNumber: o.phone,
           deliveryAddress: o.address,
           createdAt,
-          paidAt: createdAt,
-          mpesaReceiptNumber: `SDE${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
-          ...(o.status === "dispatched" ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000) } : {}),
-          ...(o.status === "delivered"
-            ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000), deliveredAt: new Date(createdAt.getTime() + 2 * 86_400_000) }
-            : {}),
-          items: {
-            create: items.map((l) => ({
-              productId: l.product.id,
-              productName: l.product.name,
-              unitPriceKes: l.product.priceKes,
-              qty: l.qty,
-            })),
+          vendorOrders: {
+            create: [{
+              orgId: o.orgId,
+              status: o.status,
+              subtotalKes: subtotal,
+              ...(o.status === "dispatched" ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000) } : {}),
+              ...(o.status === "delivered"
+                ? { dispatchedAt: new Date(createdAt.getTime() + 3_600_000), deliveredAt: new Date(createdAt.getTime() + 2 * 86_400_000) }
+                : {}),
+              items: {
+                create: items.map((l) => ({
+                  listingId: l.listing.id,
+                  drugName: l.drugName,
+                  unitPriceKes: l.listing.priceKes,
+                  qty: l.qty,
+                })),
+              },
+            }],
           },
         },
+      });
+      // Every paid/dispatched/delivered order needs a matching Payment (the
+      // polymorphic Payment table is now the sole source of receipt/paidAt data).
+      const payment = await db.payment.create({
+        data: {
+          subjectType: "order",
+          subjectId: order.id,
+          patientId: o.patient.id,
+          orgId: o.orgId,
+          gateway: "till",
+          method: "till",
+          status: "completed",
+          amountKes: subtotal,
+          phoneNumber: o.phone,
+          gatewayRef: `TILL-SEED-${order.id}`,
+          receiptNumber: `SDE${Math.random().toString(36).slice(2, 9).toUpperCase()}`,
+          commissionPercentSnapshot: 10,
+          paidAt: createdAt,
+          createdAt,
+        },
+      });
+      const platformFee = Math.round(subtotal * 0.1);
+      await db.ledgerEntry.create({
+        data: { paymentId: payment.id, type: "gross_sale", amountKes: subtotal, description: "Gross sale (seed)" },
+      });
+      await db.ledgerEntry.create({
+        data: { paymentId: payment.id, type: "platform_fee", orgId: o.orgId, amountKes: platformFee, description: "10% platform commission (seed)" },
+      });
+      await db.ledgerEntry.create({
+        data: { paymentId: payment.id, type: "vendor_payout", orgId: o.orgId, amountKes: subtotal - platformFee, description: "Vendor net payout (seed)" },
       });
     }
   }
@@ -514,8 +670,16 @@ async function main() {
   console.log("  alice@example.com         patient");
   console.log("  bob@example.com           patient");
   console.log("  carol@example.com         patient");
+  console.log("  owner.wellcare@example.com   vendor · Wellcare Pharmacy · Nairobi CBD");
+  console.log("  owner.medipoint@example.com  vendor · MediPoint Pharmacy · Westlands");
+  console.log("  owner.coastmeds@example.com  vendor · Coast Meds Pharmacy · Mombasa");
+  console.log("  owner.rapidresponse@example.com vendor · Rapid Response Ambulance · Nairobi");
+  console.log("  owner.precisionlab@example.com  vendor · Precision Diagnostics Lab · Nairobi");
   console.log("  ──────────────────────────────────────────────");
-  console.log("  15 pharmacy products (8 OTC + 7 Rx)");
+  console.log("  15 drugs in the shared catalogue (8 OTC + 7 Rx)");
+  console.log("  3 approved pharmacy vendors with overlapping + distance-varied listings");
+  console.log("  1 ambulance operator with 2 vehicles (ALS + basic)");
+  console.log("  1 diagnostic lab with 6 tests");
   console.log("  Teleconsult slots generated for 3 doctors (next 30 days)\n");
 }
 

@@ -1,9 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 /**
- * Pharmacy order flow E2E — verifies product catalogue and order creation
- * up to the point of STK push (which requires live M-Pesa sandbox).
- * Catalogue tests confirm the seed data is present.
+ * Pharmacy marketplace checkout E2E — a cart of storefront listings (which may
+ * span multiple vendor pharmacies) becomes one Order with one Payment and one
+ * VendorOrder per org. Verifies up to the point of payment completion (which
+ * requires either the /mpesa/simulate helper or the till verification flow).
  */
 
 const UNIQUE = Date.now();
@@ -13,9 +14,9 @@ const PASSWORD = "Test1234!";
 test.describe.configure({ mode: "serial" });
 
 let accessToken = "";
-let otcProductId = "";
+let otcListingId = "";
 
-test.describe("Pharmacy orders", () => {
+test.describe("Pharmacy marketplace checkout", () => {
   test("register patient", async ({ request }) => {
     const res = await request.post("/api/v1/auth/register", {
       data: { email: EMAIL, password: PASSWORD, fullName: "E2E Shopper", role: "patient" },
@@ -24,26 +25,29 @@ test.describe("Pharmacy orders", () => {
     accessToken = (await res.json()).data.accessToken;
   });
 
-  test("GET /products — OTC products are in catalogue", async ({ request }) => {
-    const res = await request.get("/api/v1/products?requiresPrescription=false&inStock=true");
+  test("GET /storefront/drugs — OTC drugs are in the catalogue", async ({ request }) => {
+    const res = await request.get("/api/v1/storefront/drugs?requiresPrescription=false");
     expect(res.status()).toBe(200);
     const { data } = await res.json();
-    expect(data.products.length).toBeGreaterThan(0);
-    otcProductId = data.products[0].id;
+    expect(data.drugs.length).toBeGreaterThan(0);
   });
 
-  test("GET /products?search=paracetamol finds by name", async ({ request }) => {
-    const res = await request.get("/api/v1/products?search=paracetamol");
+  test("GET /storefront/drugs/:id/offers finds a purchasable listing", async ({ request }) => {
+    const listRes = await request.get("/api/v1/storefront/drugs?requiresPrescription=false");
+    const { data } = await listRes.json();
+    const drugId = data.drugs[0].drugId;
+
+    const res = await request.get(`/api/v1/storefront/drugs/${drugId}/offers`);
     expect(res.status()).toBe(200);
-    const { data } = await res.json();
-    expect(data.products.length).toBeGreaterThan(0);
-    expect(data.products[0].genericName?.toLowerCase()).toContain("paracetamol");
+    const offers = (await res.json()).data.offers;
+    expect(offers.length).toBeGreaterThan(0);
+    otcListingId = offers[0].listingId;
   });
 
   test("POST /orders requires auth", async ({ request }) => {
     const res = await request.post("/api/v1/orders", {
       data: {
-        items: [{ productId: otcProductId, qty: 1 }],
+        items: [{ listingId: otcListingId, qty: 1 }],
         phoneNumber: "0712345678",
         deliveryAddress: "Test Address, Nairobi",
       },
@@ -51,11 +55,11 @@ test.describe("Pharmacy orders", () => {
     expect(res.status()).toBe(401);
   });
 
-  test("POST /orders with invalid product id → 400", async ({ request }) => {
+  test("POST /orders with invalid listing id → 400", async ({ request }) => {
     const res = await request.post("/api/v1/orders", {
       headers: { Authorization: `Bearer ${accessToken}` },
       data: {
-        items: [{ productId: "00000000-0000-0000-0000-000000000000", qty: 1 }],
+        items: [{ listingId: "00000000-0000-0000-0000-000000000000", qty: 1 }],
         phoneNumber: "0712345678",
         deliveryAddress: "Test Address, Nairobi",
       },
@@ -75,6 +79,22 @@ test.describe("Pharmacy orders", () => {
     expect(res.status()).toBe(422);
   });
 
+  test("POST /orders checks out successfully and fans out into vendor orders + one payment", async ({ request }) => {
+    const res = await request.post("/api/v1/orders", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      data: {
+        items: [{ listingId: otcListingId, qty: 2 }],
+        phoneNumber: "0712345678",
+        deliveryAddress: "Test Address, Nairobi",
+      },
+    });
+    expect(res.status()).toBe(201);
+    const { data } = await res.json();
+    expect(data.vendorOrders.length).toBeGreaterThan(0);
+    expect(data.payment).toHaveProperty("gatewayRef");
+    expect(data.payment.status).toBe("pending");
+  });
+
   test("GET /orders lists patient orders", async ({ request }) => {
     const res = await request.get("/api/v1/orders", {
       headers: { Authorization: `Bearer ${accessToken}` },
@@ -82,5 +102,6 @@ test.describe("Pharmacy orders", () => {
     expect(res.status()).toBe(200);
     const { data } = await res.json();
     expect(Array.isArray(data.orders)).toBe(true);
+    expect(data.orders.length).toBeGreaterThan(0);
   });
 });

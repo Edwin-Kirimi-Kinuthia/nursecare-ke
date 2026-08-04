@@ -2,8 +2,11 @@ import { NextResponse, type NextRequest } from "next/server";
 
 // ── Rate limiting (in-memory sliding window, per cold start) ──────────────────
 const RATE_RULES: Record<string, { max: number; windowMs: number; method?: string }> = {
-  "/api/v1/auth/login":           { max: 10, windowMs: 60_000, method: "POST" },
-  "/api/v1/auth/register":        { max: 5,  windowMs: 60_000, method: "POST" },
+  "/api/v1/auth/login":           { max: 30, windowMs: 60_000, method: "POST" },
+  // Shared IPs (NAT, campus/office networks, cybercafés) can legitimately
+  // produce several signups a minute — 5/min was tight enough to false-positive
+  // real users, not just abuse.
+  "/api/v1/auth/register":        { max: 20, windowMs: 60_000, method: "POST" },
   "/api/v1/payments/mpesa/stk":   { max: 10, windowMs: 60_000, method: "POST" },
   "/api/v1/payments/till/submit": { max: 10, windowMs: 60_000, method: "POST" },
   "/api/v1/orders":               { max: 10, windowMs: 60_000, method: "POST" },
