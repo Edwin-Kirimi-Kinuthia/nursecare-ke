@@ -59,7 +59,7 @@ export interface PublicUser {
   email: string;
   fullName: string;
   phone: string | null;
-  role: (typeof SIGNUP_ROLES)[number] | "admin";
+  role: (typeof SIGNUP_ROLES)[number] | "vendor" | "admin";
   avatarUrl: string | null;
   emailVerified: boolean;
   phoneVerified: boolean;

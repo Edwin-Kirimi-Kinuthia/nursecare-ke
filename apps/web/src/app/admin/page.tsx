@@ -5,73 +5,26 @@ import { useRouter } from "next/navigation";
 import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
-  Loader2, AlertCircle, RefreshCw, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
-  Upload, ImageIcon, X,
+  Loader2, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
+  Upload, ImageIcon, X, Building2, Ban,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
-  Appointment, Product, Order, ProviderPublicProfile,
+  Appointment, Drug, Order, ProviderPublicProfile, Organization, OrgBranch,
 } from "@carebora/api-client";
-import type { CreateProductInput, TillVerificationItem } from "@carebora/shared";
+import type { CreateDrugInput, TillVerificationItem } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
+import { useSection, SectionShell } from "@/components/dashboard/section";
 
-type Tab = "overview" | "appointments" | "users" | "verifications" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
+type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
 
 const TONES: Record<string, string> = {
   teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
   emerald: "from-emerald-500 to-green-600", amber: "from-amber-500 to-orange-600",
   rose: "from-rose-500 to-pink-600",
 };
-
-/** Fetches a section's data on mount; exposes loading / error / data + reload.
- *  Each section is independent, so one failing endpoint never blanks the others. */
-function useSection<T>(fetcher: () => Promise<T>) {
-  const [data, setData] = useState<T | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const reload = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setData(await fetcher());
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
-  }, [fetcher]);
-
-  useEffect(() => { reload(); }, [reload]);
-  return { data, loading, error, reload };
-}
-
-/** Uniform loading / error / empty shell so every section behaves the same. */
-function SectionShell({
-  loading, error, onRetry, empty, emptyText, children,
-}: {
-  loading: boolean; error: string | null; onRetry: () => void;
-  empty?: boolean; emptyText?: string; children: React.ReactNode;
-}) {
-  if (loading) return <div className="grid h-52 place-items-center rounded-2xl border border-slate-200 bg-white text-slate-300"><Loader2 className="h-6 w-6 animate-spin" /></div>;
-  if (error) {
-    return (
-      <div className="grid h-52 place-items-center rounded-2xl border border-rose-200 bg-rose-50">
-        <div className="text-center">
-          <AlertCircle className="mx-auto h-6 w-6 text-rose-500" />
-          <p className="mt-2 text-sm font-medium text-rose-700">{error}</p>
-          <button onClick={onRetry} className="mt-3 inline-flex items-center gap-1.5 rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-rose-700">
-            <RefreshCw className="h-3.5 w-3.5" /> Retry
-          </button>
-        </div>
-      </div>
-    );
-  }
-  if (empty) return <div className="grid h-52 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">{emptyText ?? "Nothing here yet."}</p></div>;
-  return <>{children}</>;
-}
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -98,6 +51,7 @@ export default function AdminPage() {
     { id: "appointments", label: "Appointments", Icon: CalendarDays },
     { id: "users", label: "Users", Icon: Users },
     { id: "verifications", label: "Applications", Icon: ShieldCheck },
+    { id: "organizations", label: "Vendors", Icon: Building2 },
     { id: "pharmacy", label: "Pharmacy", Icon: Pill },
     { id: "orders", label: "Orders", Icon: ShoppingBag },
     { id: "home-visits", label: "Home visits", Icon: HomeIcon },
@@ -145,6 +99,7 @@ export default function AdminPage() {
           {tab === "appointments" && <AppointmentsTab />}
           {tab === "users" && <UsersTab />}
           {tab === "verifications" && <VerificationsTab />}
+          {tab === "organizations" && <OrganizationsTab />}
           {tab === "pharmacy" && <PharmacyTab />}
           {tab === "orders" && <OrdersTab />}
           {tab === "home-visits" && <HomeVisitsTab />}
@@ -317,6 +272,95 @@ function VerificationsTab() {
   );
 }
 
+// ── Organizations (vendor businesses) ────────────────────────────────────────────
+const ORG_STATUS_CLS: Record<string, string> = {
+  pending: "bg-amber-100 text-amber-700", in_review: "bg-indigo-100 text-indigo-700",
+  approved: "bg-emerald-100 text-emerald-700", suspended: "bg-rose-100 text-rose-700",
+  rejected: "bg-rose-100 text-rose-700",
+};
+
+function OrganizationsTab() {
+  const fetcher = useCallback(() => api.adminListOrganizations({ limit: 100 }).then((r) => r.organizations), []);
+  const { data, loading, error, reload } = useSection(fetcher);
+  const orgs = data ?? [];
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<"all" | "pending" | "approved" | "suspended">("all");
+
+  const filtered = orgs.filter((o) => {
+    if (filter === "all") return true;
+    if (filter === "pending") return o.status === "pending" || o.status === "in_review";
+    return o.status === filter;
+  });
+
+  async function review(org: Organization, status: "approved" | "rejected" | "suspended") {
+    setBusyId(org.id);
+    try { await api.adminReviewOrganization(org.id, { status }); await reload(); }
+    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
+    finally { setBusyId(null); }
+  }
+
+  return (
+    <SectionShell loading={loading} error={error} onRetry={reload} empty={orgs.length === 0} emptyText="No vendor applications yet.">
+      <div className="mb-3 flex flex-wrap gap-1">
+        {(["all", "pending", "approved", "suspended"] as const).map((f) => (
+          <button key={f} onClick={() => setFilter(f)}
+            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${filter === f ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            {f}
+          </button>
+        ))}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {filtered.map((o: Organization & { branches: OrgBranch[] }) => (
+          <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex items-start justify-between">
+              <div>
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-teal-600" />
+                  <span className="font-bold text-slate-900">{o.name}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">{o.type}</span>
+                </div>
+                <div className="mt-1 text-xs text-slate-400">
+                  Licence {o.licenceNumber ?? "—"} · {o.branches.length} branch(es)
+                  {o.branches[0] && ` · ${o.branches[0].county}`}
+                </div>
+              </div>
+              <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${ORG_STATUS_CLS[o.status] ?? ""}`}>
+                {o.status.replace("_", " ")}
+              </span>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {(o.status === "pending" || o.status === "in_review") && (
+                <>
+                  <button onClick={() => review(o, "approved")} disabled={busyId === o.id}
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                    <BadgeCheck className="h-4 w-4" /> Approve
+                  </button>
+                  <button onClick={() => review(o, "rejected")} disabled={busyId === o.id}
+                    className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
+                    <XCircle className="h-4 w-4" /> Reject
+                  </button>
+                </>
+              )}
+              {o.status === "approved" && (
+                <button onClick={() => review(o, "suspended")} disabled={busyId === o.id}
+                  className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-3 py-1.5 text-sm font-semibold text-rose-600 hover:bg-rose-50 disabled:opacity-60">
+                  <Ban className="h-4 w-4" /> Suspend
+                </button>
+              )}
+              {o.status === "suspended" && (
+                <button onClick={() => review(o, "approved")} disabled={busyId === o.id}
+                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60">
+                  <BadgeCheck className="h-4 w-4" /> Reinstate
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+    </SectionShell>
+  );
+}
+
 // ── Home visits ─────────────────────────────────────────────────────────────────
 const VISIT_STATUS_CLS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700", awaiting_verification: "bg-orange-100 text-orange-700",
@@ -342,7 +386,7 @@ function PayVerifyTab() {
   async function decide(item: TillVerificationItem, approve: boolean) {
     setErr(null); setBusyId(item.id);
     try {
-      await api.adminVerifyTillPayment({ context: item.context, id: item.id, approve });
+      await api.adminVerifyTillPayment({ id: item.id, approve });
       await reload();
     } catch (e: unknown) {
       setErr(e instanceof Error ? e.message : "Failed to update");
@@ -634,8 +678,8 @@ function AppointmentsTab() {
   );
 }
 
-// ── Pharmacy catalogue management ────────────────────────────────────────────────
-const EMPTY_PRODUCT: CreateProductInput = { name: "", category: "", priceKes: 0, stockQty: 0, requiresPrescription: false };
+// ── Drug catalogue curation (admin-only; vendors manage price/stock as Listings) ──
+const EMPTY_DRUG: CreateDrugInput = { name: "", category: "", requiresPrescription: false };
 
 /** Reads an image file and returns a downscaled JPEG data URL (keeps payloads small). */
 function fileToDataUrl(file: File, max = 480): Promise<string> {
@@ -662,57 +706,55 @@ function fileToDataUrl(file: File, max = 480): Promise<string> {
 }
 
 function PharmacyTab() {
-  const fetcher = useCallback(() => api.adminListProducts({ limit: 50 }).then((r) => r.products), []);
+  const fetcher = useCallback(() => api.adminListDrugs({ limit: 50 }).then((r) => r.drugs), []);
   const { data, loading, error, reload } = useSection(fetcher);
-  const products = data ?? [];
-  const [editing, setEditing] = useState<Product | "new" | null>(null);
+  const drugs = data ?? [];
+  const [editing, setEditing] = useState<Drug | "new" | null>(null);
 
-  async function remove(p: Product) {
-    if (!confirm(`Remove "${p.name}" from the catalogue?`)) return;
-    try { await api.adminDeleteProduct(p.id); await reload(); }
+  async function remove(d: Drug) {
+    if (!confirm(`Remove "${d.name}" from the shared catalogue? This hides it from every vendor.`)) return;
+    try { await api.adminDeleteDrug(d.id); await reload(); }
     catch (e) { alert(e instanceof Error ? e.message : "Failed to remove"); }
   }
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={false}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-slate-500">{products.length} products</p>
+        <p className="text-sm text-slate-500">{drugs.length} drugs in the shared catalogue</p>
         <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
-          <Plus className="h-4 w-4" /> Add product
+          <Plus className="h-4 w-4" /> Add drug
         </button>
       </div>
-      {products.length === 0 ? (
-        <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No products yet.</p></div>
+      {drugs.length === 0 ? (
+        <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No drugs yet.</p></div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[520px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr><th className="px-4 py-3">Product</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Actions</th></tr>
+              <tr><th className="px-4 py-3">Drug</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {products.map((p: Product) => (
-                <tr key={p.id} className={`hover:bg-slate-50 ${!p.isActive ? "opacity-50" : ""}`}>
+              {drugs.map((d: Drug) => (
+                <tr key={d.id} className={`hover:bg-slate-50 ${!d.isActive ? "opacity-50" : ""}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
-                        {p.imageUrl ? (
+                        {d.imageUrl ? (
                           // eslint-disable-next-line @next/next/no-img-element
-                          <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />
+                          <img src={d.imageUrl} alt="" className="h-full w-full object-cover" />
                         ) : (
                           <ImageIcon className="h-4 w-4 text-slate-300" />
                         )}
                       </div>
-                      <span className="font-medium text-slate-800">{p.name}</span>
+                      <span className="font-medium text-slate-800">{d.name}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">{p.category}</td>
-                  <td className="px-4 py-3 text-slate-700">{kes(p.priceKes)}</td>
-                  <td className="px-4 py-3"><span className={`font-medium ${p.stockQty === 0 ? "text-rose-600" : p.stockQty < 20 ? "text-amber-600" : "text-slate-700"}`}>{p.stockQty}</span></td>
-                  <td className="px-4 py-3">{p.requiresPrescription ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">Rx</span> : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">OTC</span>}</td>
+                  <td className="px-4 py-3 text-slate-500">{d.category}</td>
+                  <td className="px-4 py-3">{d.requiresPrescription ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">Rx</span> : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">OTC</span>}</td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
-                      <button onClick={() => setEditing(p)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
-                      <button onClick={() => remove(p)} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50" title="Remove"><Trash2 className="h-4 w-4" /></button>
+                      <button onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
+                      <button onClick={() => remove(d)} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50" title="Remove"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
                 </tr>
@@ -721,21 +763,22 @@ function PharmacyTab() {
           </table>
         </div>
       )}
-      {editing && <ProductModal product={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(); }} />}
+      {editing && <DrugModal drug={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(); }} />}
     </SectionShell>
   );
 }
 
-function ProductModal({ product, onClose, onSaved }: { product: Product | null; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState<CreateProductInput>(product ? {
-    name: product.name, genericName: product.genericName ?? undefined, description: product.description ?? undefined,
-    category: product.category, priceKes: product.priceKes, stockQty: product.stockQty, requiresPrescription: product.requiresPrescription,
-    images: product.images?.length ? product.images : product.imageUrl ? [product.imageUrl] : [],
-  } : { ...EMPTY_PRODUCT });
+function DrugModal({ drug, onClose, onSaved }: { drug: Drug | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<CreateDrugInput>(drug ? {
+    name: drug.name, genericName: drug.genericName ?? undefined, description: drug.description ?? undefined,
+    category: drug.category, form: drug.form ?? undefined, strength: drug.strength ?? undefined,
+    requiresPrescription: drug.requiresPrescription,
+    images: drug.images?.length ? drug.images : drug.imageUrl ? [drug.imageUrl] : [],
+  } : { ...EMPTY_DRUG });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const set = <K extends keyof CreateProductInput>(k: K, v: CreateProductInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof CreateDrugInput>(k: K, v: CreateDrugInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const images = form.images ?? [];
 
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -755,8 +798,8 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
     e.preventDefault();
     setErr(null); setBusy(true);
     try {
-      if (product) await api.adminUpdateProduct(product.id, form);
-      else await api.adminCreateProduct(form);
+      if (drug) await api.adminUpdateDrug(drug.id, form);
+      else await api.adminCreateDrug(form);
       onSaved();
     } catch (e) { setErr(e instanceof Error ? e.message : "Failed to save"); }
     finally { setBusy(false); }
@@ -765,9 +808,10 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
-        <h2 className="text-lg font-bold text-slate-900">{product ? "Edit product" : "Add product"}</h2>
+        <h2 className="text-lg font-bold text-slate-900">{drug ? "Edit drug" : "Add drug"}</h2>
+        <p className="mt-1 text-xs text-slate-400">Shared across every vendor. Price and stock are set per-vendor in their own catalogue.</p>
         <form onSubmit={submit} className="mt-4 space-y-3">
-          {/* Product images (up to 6) */}
+          {/* Images (up to 6) */}
           <div>
             <label className="mb-1 block text-xs font-medium text-slate-500">Images (up to 6)</label>
             <div className="flex flex-wrap gap-2">
@@ -795,20 +839,14 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
             />
           </div>
 
-          <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Product name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <input required value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Drug name" className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <div className="grid gap-3 sm:grid-cols-2">
             <input value={form.genericName ?? ""} onChange={(e) => set("genericName", e.target.value || undefined)} placeholder="Generic name (optional)" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             <input required value={form.category} onChange={(e) => set("category", e.target.value)} placeholder="Category e.g. Pain Relief" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">Price (KES)</label>
-              <input required type="number" min="1" value={form.priceKes || ""} onChange={(e) => set("priceKes", parseInt(e.target.value, 10) || 0)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
-            <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">Stock quantity</label>
-              <input required type="number" min="0" value={form.stockQty ?? 0} onChange={(e) => set("stockQty", parseInt(e.target.value, 10) || 0)} className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-            </div>
+            <input value={form.form ?? ""} onChange={(e) => set("form", e.target.value || undefined)} placeholder="Form e.g. tablet (optional)" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <input value={form.strength ?? ""} onChange={(e) => set("strength", e.target.value || undefined)} placeholder="Strength e.g. 500mg (optional)" className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
           <textarea value={form.description ?? ""} onChange={(e) => set("description", e.target.value || undefined)} placeholder="Description (optional)" rows={2} className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <label className="flex items-center gap-2 text-sm text-slate-700">
@@ -817,7 +855,7 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
           </label>
           {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
           <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">{busy ? "Saving…" : product ? "Save changes" : "Add product"}</button>
+            <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">{busy ? "Saving…" : drug ? "Save changes" : "Add drug"}</button>
             <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
           </div>
         </form>
@@ -826,55 +864,47 @@ function ProductModal({ product, onClose, onSaved }: { product: Product | null; 
   );
 }
 
-// ── Orders oversight ─────────────────────────────────────────────────────────────
+// ── Orders oversight (read-only — fulfilment is advanced per-vendor in the vendor dashboard) ──
 const ORDER_STATUS_CLS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700", awaiting_verification: "bg-orange-100 text-orange-700",
   paid: "bg-blue-100 text-blue-700", processing: "bg-indigo-100 text-indigo-700",
   dispatched: "bg-violet-100 text-violet-700", delivered: "bg-emerald-100 text-emerald-700", cancelled: "bg-slate-100 text-slate-500",
 };
-const NEXT_STATUS: Record<string, "processing" | "dispatched" | "delivered" | null> = {
-  paid: "processing", processing: "dispatched", dispatched: "delivered",
-};
 
 function OrdersTab() {
-  const fetcher = useCallback(() => api.listOrders({ limit: 50 }).then((r) => r.orders), []);
+  const fetcher = useCallback(() => api.adminListOrders({ limit: 50 }).then((r) => r.orders), []);
   const { data, loading, error, reload } = useSection(fetcher);
   const orders = data ?? [];
-  const [busyId, setBusyId] = useState<string | null>(null);
-
-  async function advance(o: Order) {
-    const next = NEXT_STATUS[o.status];
-    if (!next) return;
-    setBusyId(o.id);
-    try { await api.patchOrder(o.id, { status: next }); await reload(); }
-    catch (e) { alert(e instanceof Error ? e.message : "Failed to update"); }
-    finally { setBusyId(null); }
-  }
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
       <div className="space-y-3">
-        {orders.map((o: Order) => (
-          <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <div className="font-semibold text-slate-900">Order #{o.id.slice(0, 8).toUpperCase()}</div>
-                <div className="mt-0.5 text-xs text-slate-400">{o.patient.fullName} · {when(o.createdAt)}</div>
-                <div className="mt-1 text-sm text-slate-600">{o.items.length} item(s) · <span className="font-semibold text-slate-800">{kes(o.totalKes)}</span></div>
-                <div className="mt-0.5 text-xs text-slate-400">{o.deliveryAddress}</div>
+        {orders.map((o: Order) => {
+          const itemCount = o.vendorOrders.reduce((n, vo) => n + vo.items.reduce((m, i) => m + i.qty, 0), 0);
+          return (
+            <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <div className="font-semibold text-slate-900">Order #{o.id.slice(0, 8).toUpperCase()}</div>
+                  <div className="mt-0.5 text-xs text-slate-400">{o.patient.fullName} · {when(o.createdAt)}</div>
+                  <div className="mt-1 text-sm text-slate-600">{itemCount} item(s) across {o.vendorOrders.length} vendor(s) · <span className="font-semibold text-slate-800">{kes(o.totalKes)}</span></div>
+                  <div className="mt-0.5 text-xs text-slate-400">{o.deliveryAddress}</div>
+                </div>
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${o.payment?.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
+                  {o.payment?.status ?? "unpaid"}
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${ORDER_STATUS_CLS[o.status] ?? "bg-slate-100 text-slate-600"}`}>{o.status}</span>
-                {NEXT_STATUS[o.status] && (
-                  <button onClick={() => advance(o)} disabled={busyId === o.id}
-                    className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                    Mark {NEXT_STATUS[o.status]}
-                  </button>
-                )}
+              <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+                {o.vendorOrders.map((vo) => (
+                  <div key={vo.id} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-600">{vo.organization.name} · {vo.items.reduce((n, i) => n + i.qty, 0)} item(s)</span>
+                    <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100 text-slate-600"}`}>{vo.status.replace("_", " ")}</span>
+                  </div>
+                ))}
               </div>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </SectionShell>
   );

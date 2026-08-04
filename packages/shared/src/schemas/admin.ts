@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const userRoleEnum = z.enum(["patient", "doctor", "nurse", "physio", "pharmacy", "admin"]);
+const userRoleEnum = z.enum(["patient", "doctor", "nurse", "physio", "pharmacy", "vendor", "admin"]);
 const verificationStatusEnum = z.enum(["unverified", "pending", "in_review", "verified", "rejected"]);
 
 export const adminUsersQuerySchema = z.object({

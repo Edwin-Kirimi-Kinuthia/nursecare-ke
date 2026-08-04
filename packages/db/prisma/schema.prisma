@@ -9,12 +9,17 @@
 // (no FK yet) — M3 and M4 migrations add the constraints.
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  // Only postgis itself — geography columns + ST_Distance/ST_DWithin. The
+  // postgis/postgis Docker image also ships postgis_topology/tiger_geocoder/
+  // fuzzystrmatch, but those aren't declared (or used) here.
+  extensions = [postgis]
 }
 
 enum UserRole {
@@ -23,6 +28,9 @@ enum UserRole {
   nurse
   physio
   pharmacy
+  /// A business-account user (org owner/manager/staff) — pharmacies, ambulance
+  /// operators, labs, clinics. See Organization/OrgMember below.
+  vendor
   admin
 }
 
@@ -75,6 +83,36 @@ enum PaymentMethod {
   till
 }
 
+/// What a Payment is paying for. Payment is polymorphic — subjectId is a plain
+/// UUID with no DB-level FK (Prisma has no native polymorphic relations), so
+/// every lookup joins manually in the service layer, keyed on (subjectType, subjectId).
+enum PaymentSubject {
+  appointment
+  order
+  home_visit
+  ambulance
+  lab_order
+}
+
+/// Which backend processed the money movement. `till` is a pseudo-gateway —
+/// no API call, just a manually-verified Buy Goods payment.
+enum PaymentGateway {
+  jenga_stk
+  jenga_pgw
+  till
+  mpesa_daraja
+}
+
+enum LedgerEntryType {
+  gross_sale
+  platform_fee
+  vendor_payout
+  provider_payout
+  delivery_fee
+  refund
+  payout_settled
+}
+
 enum OrderStatus {
   pending
   awaiting_verification
@@ -117,24 +155,42 @@ model User {
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  credentials           Credentials?
-  sessions              Session[]
-  verificationCodes     VerificationCode[]
-  patientProfile        PatientProfile?
-  providerProfile       ProviderProfile?
-  verificationDocuments VerificationDocument[] @relation("DocumentOwner")
-  reviewedDocuments     VerificationDocument[] @relation("DocumentReviewer")
-  auditLogs             AuditLog[]             @relation("AuditActor")
-  appointments          Appointment[]          @relation("PatientAppointments")
-  sentMessages          Message[]
-  patientPrescriptions  Prescription[]         @relation("PatientPrescriptions")
-  providerPrescriptions Prescription[]         @relation("ProviderPrescriptions")
-  patientPayments       Payment[]              @relation("PatientPayments")
-  providerPayments      Payment[]              @relation("ProviderPayments")
-  patientOrders         Order[]                @relation("PatientOrders")
-  patientHomeVisits     HomeVisit[]            @relation("PatientHomeVisits")
-  patientReviews        Review[]               @relation("PatientReviews")
-  notifications         Notification[]
+  credentials                Credentials?
+  sessions                   Session[]
+  verificationCodes          VerificationCode[]
+  patientProfile             PatientProfile?
+  providerProfile            ProviderProfile?
+  verificationDocuments      VerificationDocument[] @relation("DocumentOwner")
+  reviewedDocuments          VerificationDocument[] @relation("DocumentReviewer")
+  auditLogs                  AuditLog[]             @relation("AuditActor")
+  appointments               Appointment[]          @relation("PatientAppointments")
+  sentMessages               Message[]
+  patientPrescriptions       Prescription[]         @relation("PatientPrescriptions")
+  providerPrescriptions      Prescription[]         @relation("ProviderPrescriptions")
+  patientPayments            Payment[]              @relation("PatientPayments")
+  providerPayments           Payment[]              @relation("ProviderPayments")
+  patientOrders              Order[]                @relation("PatientOrders")
+  patientHomeVisits          HomeVisit[]            @relation("PatientHomeVisits")
+  patientReviews             Review[]               @relation("PatientReviews")
+  notifications              Notification[]
+  orgMemberships             OrgMember[]
+  reviewedOrgs               Organization[]         @relation("OrgReviewer")
+  patientAmbulanceRequests   AmbulanceRequest[]     @relation("PatientAmbulanceRequests")
+  requestedAmbulanceRequests AmbulanceRequest[]     @relation("RequestedAmbulanceRequests")
+  patientAllergies           Allergy[]              @relation("PatientAllergies")
+  patientConditions          Condition[]            @relation("PatientConditions")
+  patientMedications         MedicationEntry[]      @relation("PatientMedications")
+  patientVitals              VitalSign[]            @relation("PatientVitals")
+  patientImmunizations       Immunization[]         @relation("PatientImmunizations")
+  patientDocuments           MedicalDocument[]      @relation("PatientDocuments")
+  uploadedDocuments          MedicalDocument[]      @relation("UploadedDocuments")
+  patientAccessGrants        RecordAccessGrant[]    @relation("PatientAccessGrants")
+  grantedAccess              RecordAccessGrant[]    @relation("GrantedToUser")
+  patientAccessLogs          RecordAccessLog[]      @relation("PatientAccessLogs")
+  actorAccessLogs            RecordAccessLog[]      @relation("ActorAccessLogs")
+  patientLabOrders           LabOrder[]             @relation("PatientLabOrders")
+  orderedLabOrders           LabOrder[]             @relation("OrderedLabOrders")
+  verifiedLabResults         LabResult[]            @relation("VerifiedLabResults")
 
   @@index([role])
   @@map("users")
@@ -342,8 +398,9 @@ model Appointment {
   provider     ProviderProfile @relation(fields: [providerId], references: [userId])
   slot         Slot            @relation(fields: [slotId], references: [id])
   consultation Consultation?
-  payment      Payment?
   review       Review?
+  // Payment is polymorphic (subjectType/subjectId) — no direct relation here;
+  // paymentService.getForSubjects() attaches it manually where needed.
 
   @@index([patientId, status])
   @@index([providerId, status])
@@ -356,23 +413,26 @@ model Appointment {
 /// Live consultation session tied to an appointment.
 /// roomName is the LiveKit room identifier.
 model Consultation {
-  id            String             @id @default(uuid()) @db.Uuid
-  appointmentId String             @unique @map("appointment_id") @db.Uuid
-  roomName      String             @unique @map("room_name")
-  status        ConsultationStatus @default(pending)
-  clinicalNotes String?            @map("clinical_notes")
+  id             String             @id @default(uuid()) @db.Uuid
+  appointmentId  String             @unique @map("appointment_id") @db.Uuid
+  roomName       String             @unique @map("room_name")
+  status         ConsultationStatus @default(pending)
+  clinicalNotes  String?            @map("clinical_notes")
   /// Structured, role-specific clinical documentation (doctor treatment sheet,
   /// nurse cardex, physio assessment) as a { sectionKey: text } map.
   /// clinicalNotes holds a readable plain-text rendering derived from this.
-  clinicalRecord Json?             @map("clinical_record")
-  startedAt     DateTime?          @map("started_at") @db.Timestamptz(6)
-  endedAt       DateTime?          @map("ended_at") @db.Timestamptz(6)
-  createdAt     DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  clinicalRecord Json?              @map("clinical_record")
+  startedAt      DateTime?          @map("started_at") @db.Timestamptz(6)
+  endedAt        DateTime?          @map("ended_at") @db.Timestamptz(6)
+  createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  appointment   Appointment    @relation(fields: [appointmentId], references: [id])
-  messages      Message[]
-  prescriptions Prescription[]
+  appointment      Appointment       @relation(fields: [appointmentId], references: [id])
+  messages         Message[]
+  prescriptions    Prescription[]
+  vitalSigns       VitalSign[]
+  medicalDocuments MedicalDocument[]
+  labOrders        LabOrder[]
 
   @@map("consultations")
 }
@@ -407,10 +467,11 @@ model Prescription {
   createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
-  patient      User         @relation("PatientPrescriptions", fields: [patientId], references: [id])
-  provider     User         @relation("ProviderPrescriptions", fields: [providerId], references: [id])
-  orders       Order[]
+  consultation      Consultation      @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+  patient           User              @relation("PatientPrescriptions", fields: [patientId], references: [id])
+  provider          User              @relation("ProviderPrescriptions", fields: [providerId], references: [id])
+  orders            Order[]
+  medicationEntries MedicationEntry[]
 
   @@index([consultationId])
   @@index([patientId])
@@ -421,118 +482,226 @@ model Prescription {
 
 /// M-Pesa payment record tied to an appointment.
 /// checkoutRequestId is the Daraja STK-push correlation key used to match callbacks.
+/// Polymorphic payment record — one per money-collecting subject (appointment,
+/// pharmacy order, home visit, ambulance request, lab order). subjectId is a plain
+/// UUID column; the service layer resolves it against the right table based on
+/// subjectType (no DB-level FK — Prisma has no native polymorphic associations).
 model Payment {
-  id                  String        @id @default(uuid()) @db.Uuid
-  appointmentId       String        @unique @map("appointment_id") @db.Uuid
-  patientId           String        @map("patient_id") @db.Uuid
-  providerId          String        @map("provider_id") @db.Uuid
-  method              PaymentMethod @default(mpesa)
-  status              PaymentStatus @default(pending)
-  amountKes           Int           @map("amount_kes")
-  phoneNumber         String        @map("phone_number")
-  checkoutRequestId   String?       @unique @map("checkout_request_id")
-  merchantRequestId   String?       @map("merchant_request_id")
-  mpesaReceiptNumber  String?       @map("mpesa_receipt_number")
-  failureReason       String?       @map("failure_reason")
-  paidAt              DateTime?     @map("paid_at") @db.Timestamptz(6)
-  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                        String         @id @default(uuid()) @db.Uuid
+  subjectType               PaymentSubject @map("subject_type")
+  subjectId                 String         @map("subject_id") @db.Uuid
+  patientId                 String         @map("patient_id") @db.Uuid
+  providerId                String?        @map("provider_id") @db.Uuid
+  orgId                     String?        @map("org_id") @db.Uuid
+  gateway                   PaymentGateway @default(mpesa_daraja)
+  method                    PaymentMethod  @default(mpesa)
+  status                    PaymentStatus  @default(pending)
+  amountKes                 Int            @map("amount_kes")
+  refundedKes               Int            @default(0) @map("refunded_kes")
+  currency                  String         @default("KES")
+  phoneNumber               String         @map("phone_number")
+  /// Our own generated reference, sent to the gateway (Daraja checkoutRequestId /
+  /// Jenga orderReference / synthetic TILL-<uuid>). Unique — the sole lookup key
+  /// every webhook and reconciliation query uses.
+  gatewayRef                String         @unique @map("gateway_ref")
+  /// The gateway's own transaction id once known (Daraja MerchantRequestID /
+  /// Jenga transactionReference) — informational, not a lookup key.
+  gatewayTxnRef             String?        @map("gateway_txn_ref")
+  receiptNumber             String?        @map("receipt_number")
+  /// Commission rate frozen at creation time so a later PLATFORM_FEE_PERCENT
+  /// change never silently re-prices historical payments.
+  commissionPercentSnapshot Int            @map("commission_percent_snapshot")
+  rawInitResponse           Json?          @map("raw_init_response")
+  failureReason             String?        @map("failure_reason")
+  paidAt                    DateTime?      @map("paid_at") @db.Timestamptz(6)
+  createdAt                 DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                 DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  appointment   Appointment    @relation(fields: [appointmentId], references: [id])
-  patient       User           @relation("PatientPayments",  fields: [patientId],  references: [id])
-  provider      User           @relation("ProviderPayments", fields: [providerId], references: [id])
+  patient       User           @relation("PatientPayments", fields: [patientId], references: [id])
+  provider      User?          @relation("ProviderPayments", fields: [providerId], references: [id])
   ledgerEntries LedgerEntry[]
+  events        PaymentEvent[]
 
+  @@index([subjectType, subjectId])
   @@index([patientId, status])
   @@index([providerId, status])
+  @@index([orgId, status])
   @@map("payments")
 }
 
-/// Double-entry ledger for platform commission and provider payouts.
+/// Raw webhook/callback log, kept before parsing so nothing is ever lost, and
+/// used to dedupe replayed gateway callbacks (dedupeKey is unique).
+model PaymentEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  paymentId      String?  @map("payment_id") @db.Uuid
+  source         String // "mpesa_daraja" | "jenga_stk" | "jenga_pgw"
+  payload        Json
+  signatureValid Boolean  @default(false) @map("signature_valid")
+  dedupeKey      String   @unique @map("dedupe_key")
+  receivedAt     DateTime @default(now()) @map("received_at") @db.Timestamptz(6)
+
+  payment Payment? @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@index([paymentId])
+  @@map("payment_events")
+}
+
+/// Double-entry ledger for gross sales, platform commission, vendor/provider
+/// payouts, delivery fees, and refunds. Every settled Payment writes here —
+/// this is the single source of truth for revenue and vendor/provider earnings.
 model LedgerEntry {
-  id          String   @id @default(uuid()) @db.Uuid
-  paymentId   String   @map("payment_id") @db.Uuid
-  type        String   // "platform_fee" | "provider_payout" | "refund"
-  amountKes   Int      @map("amount_kes")
+  id          String          @id @default(uuid()) @db.Uuid
+  paymentId   String          @map("payment_id") @db.Uuid
+  type        LedgerEntryType
+  orgId       String?         @map("org_id") @db.Uuid
+  providerId  String?         @map("provider_id") @db.Uuid
+  amountKes   Int             @map("amount_kes")
   description String?
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
   payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
 
   @@index([paymentId])
+  @@index([orgId, type])
+  @@index([providerId, type])
   @@map("ledger_entries")
 }
 
-// ─── M5: Pharmacy & E-commerce ───────────────────────────────────────────────
+/// A settlement run paying out accumulated vendor/provider earnings. Execution
+/// (the actual bank/M-Pesa transfer) is admin-triggered and recorded here, not
+/// automated yet — this is the ledger-balance bookkeeping side of payouts.
+model Payout {
+  id            String    @id @default(uuid()) @db.Uuid
+  orgId         String?   @map("org_id") @db.Uuid
+  providerId    String?   @map("provider_id") @db.Uuid
+  periodStart   DateTime  @map("period_start") @db.Timestamptz(6)
+  periodEnd     DateTime  @map("period_end") @db.Timestamptz(6)
+  amountKes     Int       @map("amount_kes")
+  status        String    @default("pending") // "pending" | "processing" | "paid" | "failed"
+  method        String?
+  reference     String?
+  processedById String?   @map("processed_by") @db.Uuid
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
-/// Medication / health product in the pharmacy catalogue.
-model Product {
+  @@index([orgId, status])
+  @@index([providerId, status])
+  @@map("payouts")
+}
+
+// ─── M5 / V2-3: Pharmacy & E-commerce (multi-vendor marketplace) ─────────────
+//
+// Catalogue and offer are split: Drug is the canonical, admin-curated
+// medication record; Listing is one vendor org's offer of a Drug (price,
+// stock). A checkout is one Order (one Payment, subjectType "order") that
+// fans out into one VendorOrder per org represented in the cart — each with
+// its own fulfilment status, so a multi-vendor cart's items ship and get
+// tracked independently per pharmacy.
+
+/// Canonical medication record — shared by every vendor, admin-curated.
+model Drug {
   id                   String   @id @default(uuid()) @db.Uuid
   name                 String
   genericName          String?  @map("generic_name")
   description          String?
   category             String
+  form                 String? // "tablet" | "capsule" | "syrup" | "cream" | …
+  strength             String? // e.g. "500mg"
   imageUrl             String?  @map("image_url")
   images               String[] @default([])
-  priceKes             Int      @map("price_kes")
   requiresPrescription Boolean  @default(false) @map("requires_prescription")
-  stockQty             Int      @default(0) @map("stock_qty")
   isActive             Boolean  @default(true) @map("is_active")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  orderItems OrderItem[]
+  listings Listing[]
 
   @@index([category])
-  @@index([isActive, stockQty])
-  @@map("products")
+  @@index([isActive])
+  @@map("drugs")
 }
 
-/// A patient's pharmacy order (checkout is client-side cart → one POST).
-/// Payments use M-Pesa STK push via the same /payments/mpesa/callback webhook.
+/// One vendor org's offer of a Drug — its price and stock.
+model Listing {
+  id        String   @id @default(uuid()) @db.Uuid
+  orgId     String   @map("org_id") @db.Uuid
+  drugId    String   @map("drug_id") @db.Uuid
+  priceKes  Int      @map("price_kes")
+  stockQty  Int      @default(0) @map("stock_qty")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  drug         Drug         @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  orderItems   OrderItem[]
+
+  @@unique([orgId, drugId])
+  @@index([drugId, isActive, stockQty])
+  @@map("listings")
+}
+
+/// A patient's checkout — one Payment (subjectType "order"), fanned out into
+/// one VendorOrder per pharmacy represented in the cart. Payment lookup via
+/// paymentService.getForSubject("order", order.id).
 model Order {
-  id                  String      @id @default(uuid()) @db.Uuid
-  patientId           String      @map("patient_id") @db.Uuid
-  prescriptionId      String?     @map("prescription_id") @db.Uuid
-  prescriptionImageUrl String?    @map("prescription_image_url")
-  status              OrderStatus @default(pending)
-  totalKes            Int         @map("total_kes")
-  phoneNumber         String      @map("phone_number")
-  deliveryAddress     String      @map("delivery_address")
-  deliveryNotes       String?     @map("delivery_notes")
-  checkoutRequestId   String?     @unique @map("checkout_request_id")
-  merchantRequestId   String?     @map("merchant_request_id")
-  mpesaReceiptNumber  String?     @map("mpesa_receipt_number")
-  failureReason       String?     @map("failure_reason")
-  paidAt              DateTime?   @map("paid_at") @db.Timestamptz(6)
-  dispatchedAt        DateTime?   @map("dispatched_at") @db.Timestamptz(6)
-  deliveredAt         DateTime?   @map("delivered_at") @db.Timestamptz(6)
-  createdAt           DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                   String   @id @default(uuid()) @db.Uuid
+  patientId            String   @map("patient_id") @db.Uuid
+  prescriptionId       String?  @map("prescription_id") @db.Uuid
+  prescriptionImageUrl String?  @map("prescription_image_url")
+  totalKes             Int      @map("total_kes")
+  phoneNumber          String   @map("phone_number")
+  deliveryAddress      String   @map("delivery_address")
+  deliveryNotes        String?  @map("delivery_notes")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  patient      User          @relation("PatientOrders",  fields: [patientId],      references: [id])
+  patient      User          @relation("PatientOrders", fields: [patientId], references: [id])
   prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
-  items        OrderItem[]
+  vendorOrders VendorOrder[]
 
-  @@index([patientId, status])
-  @@index([status, createdAt])
+  @@index([patientId])
+  @@index([createdAt])
   @@map("orders")
 }
 
-/// Line item inside an Order. Snapshots name and price at checkout time.
-model OrderItem {
-  id           String  @id @default(uuid()) @db.Uuid
-  orderId      String  @map("order_id") @db.Uuid
-  productId    String  @map("product_id") @db.Uuid
-  productName  String  @map("product_name")
-  unitPriceKes Int     @map("unit_price_kes")
-  qty          Int
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+/// One vendor's slice of an Order — its own items and fulfilment lifecycle.
+model VendorOrder {
+  id             String      @id @default(uuid()) @db.Uuid
+  orderId        String      @map("order_id") @db.Uuid
+  orgId          String      @map("org_id") @db.Uuid
+  branchId       String?     @map("branch_id") @db.Uuid
+  status         OrderStatus @default(pending)
+  subtotalKes    Int         @map("subtotal_kes")
+  deliveryFeeKes Int         @default(0) @map("delivery_fee_kes")
+  dispatchedAt   DateTime?   @map("dispatched_at") @db.Timestamptz(6)
+  deliveredAt    DateTime?   @map("delivered_at") @db.Timestamptz(6)
+  createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  order   Order   @relation(fields: [orderId],   references: [id], onDelete: Cascade)
-  product Product @relation(fields: [productId], references: [id])
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [orgId], references: [id])
+  items        OrderItem[]
 
   @@index([orderId])
+  @@index([orgId, status])
+  @@map("vendor_orders")
+}
+
+/// Line item inside a VendorOrder. Snapshots the drug name and price at checkout time.
+model OrderItem {
+  id            String   @id @default(uuid()) @db.Uuid
+  vendorOrderId String   @map("vendor_order_id") @db.Uuid
+  listingId     String   @map("listing_id") @db.Uuid
+  drugName      String   @map("drug_name")
+  unitPriceKes  Int      @map("unit_price_kes")
+  qty           Int
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+  listing     Listing     @relation(fields: [listingId], references: [id])
+
+  @@index([vendorOrderId])
   @@map("order_items")
 }
 
@@ -541,35 +710,32 @@ model OrderItem {
 /// On-demand home visit request from a patient.
 /// Lifecycle: pending → assigned (admin sets provider+fee) → paid (M-Pesa confirmed)
 ///            → en_route → arrived → completed  |  cancelled (any pre-en_route state).
+/// Payment lives in the polymorphic Payment table (subjectType: home_visit); look
+/// it up via paymentService.getForSubject("home_visit", visit.id) rather than a
+/// column here.
 model HomeVisit {
-  id                 String          @id @default(uuid()) @db.Uuid
-  patientId          String          @map("patient_id") @db.Uuid
-  providerId         String?         @map("provider_id") @db.Uuid
-  specialty          String          // "nurse" | "physio" | "doctor"
-  urgency            VisitUrgency    @default(routine)
-  description        String          // patient's chief complaint
-  address            String
-  county             String
-  scheduledAt        DateTime?       @map("scheduled_at") @db.Timestamptz(6)
-  status             HomeVisitStatus @default(pending)
-  feeKes             Int?            @map("fee_kes")
-  visitNotes         String?         @map("visit_notes")
-  assignedAt         DateTime?       @map("assigned_at") @db.Timestamptz(6)
-  enRouteAt          DateTime?       @map("en_route_at") @db.Timestamptz(6)
-  arrivedAt          DateTime?       @map("arrived_at") @db.Timestamptz(6)
-  completedAt        DateTime?       @map("completed_at") @db.Timestamptz(6)
-  cancelledAt        DateTime?       @map("cancelled_at") @db.Timestamptz(6)
-  // Inline payment tracking (same pattern as Order)
-  phoneNumber        String?         @map("phone_number")
-  checkoutRequestId  String?         @unique @map("checkout_request_id")
-  merchantRequestId  String?         @map("merchant_request_id")
-  mpesaReceiptNumber String?         @map("mpesa_receipt_number")
-  paymentFailReason  String?         @map("payment_fail_reason")
-  paidAt             DateTime?       @map("paid_at") @db.Timestamptz(6)
-  createdAt          DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id          String          @id @default(uuid()) @db.Uuid
+  patientId   String          @map("patient_id") @db.Uuid
+  providerId  String?         @map("provider_id") @db.Uuid
+  specialty   String // "nurse" | "physio" | "doctor"
+  urgency     VisitUrgency    @default(routine)
+  description String // patient's chief complaint
+  address     String
+  county      String
+  scheduledAt DateTime?       @map("scheduled_at") @db.Timestamptz(6)
+  status      HomeVisitStatus @default(pending)
+  feeKes      Int?            @map("fee_kes")
+  visitNotes  String?         @map("visit_notes")
+  assignedAt  DateTime?       @map("assigned_at") @db.Timestamptz(6)
+  enRouteAt   DateTime?       @map("en_route_at") @db.Timestamptz(6)
+  arrivedAt   DateTime?       @map("arrived_at") @db.Timestamptz(6)
+  completedAt DateTime?       @map("completed_at") @db.Timestamptz(6)
+  cancelledAt DateTime?       @map("cancelled_at") @db.Timestamptz(6)
+  phoneNumber String?         @map("phone_number")
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  patient  User             @relation("PatientHomeVisits", fields: [patientId],  references: [id])
+  patient  User             @relation("PatientHomeVisits", fields: [patientId], references: [id])
   provider ProviderProfile? @relation(fields: [providerId], references: [userId])
 
   @@index([patientId, status])
@@ -587,7 +753,7 @@ model Review {
   appointmentId String   @unique @map("appointment_id") @db.Uuid
   patientId     String   @map("patient_id") @db.Uuid
   providerId    String   @map("provider_id") @db.Uuid
-  rating        Int      // 1–5
+  rating        Int // 1–5
   comment       String?
   isVisible     Boolean  @default(true) @map("is_visible")
   createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -621,4 +787,512 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+// ─── V2: Marketplace Organizations (vendor businesses) ──────────────────────
+//
+// A pharmacy, ambulance operator, lab, or clinic on the platform. One model
+// shared by every business type so KYC, staffing, geo-branches, and payouts
+// are built once. `type` gates which of Product/Ambulance/LabTest a branch's
+// org may own; a clinic org type is reserved for a future multi-provider
+// facility feature and isn't populated by anything yet.
+
+enum OrgType {
+  pharmacy
+  ambulance
+  lab
+  clinic
+}
+
+enum OrgStatus {
+  pending
+  in_review
+  approved
+  suspended
+  rejected
+}
+
+enum OrgMemberRole {
+  owner
+  manager
+  staff
+}
+
+/// A vendor business on the platform (pharmacy, ambulance operator, lab, clinic).
+model Organization {
+  id                String    @id @default(uuid()) @db.Uuid
+  type              OrgType
+  name              String
+  slug              String    @unique
+  description       String?
+  logoUrl           String?   @map("logo_url")
+  licenceNumber     String?   @map("licence_number")
+  licenceBody       String?   @map("licence_body")
+  kraPin            String?   @map("kra_pin")
+  contactEmail      String?   @map("contact_email")
+  contactPhone      String?   @map("contact_phone")
+  status            OrgStatus @default(pending)
+  reviewedById      String?   @map("reviewed_by") @db.Uuid
+  reviewedAt        DateTime? @map("reviewed_at") @db.Timestamptz(6)
+  reviewNotes       String?   @map("review_notes")
+  /// Overrides the platform default commission rate when set (null = use default).
+  commissionPercent Int?      @map("commission_percent")
+  payoutMethod      String?   @map("payout_method")
+  payoutAccount     String?   @map("payout_account")
+  payoutName        String?   @map("payout_name")
+  ratingAvg         Float     @default(0) @map("rating_avg")
+  ratingCount       Int       @default(0) @map("rating_count")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  reviewer           User?               @relation("OrgReviewer", fields: [reviewedById], references: [id])
+  members            OrgMember[]
+  branches           OrgBranch[]
+  listings           Listing[]
+  vendorOrders       VendorOrder[]
+  ambulances         Ambulance[]
+  ambulanceRequests  AmbulanceRequest[]
+  recordAccessGrants RecordAccessGrant[]
+  labTests           LabTest[]
+  labOrders          LabOrder[]
+
+  @@index([type, status])
+  @@map("organizations")
+}
+
+/// A user's membership/role within an Organization. A user may belong to more
+/// than one org (e.g. staff moonlighting at a second pharmacy).
+model OrgMember {
+  id        String        @id @default(uuid()) @db.Uuid
+  orgId     String        @map("org_id") @db.Uuid
+  userId    String        @map("user_id") @db.Uuid
+  role      OrgMemberRole @default(staff)
+  isActive  Boolean       @default(true) @map("is_active")
+  createdAt DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, userId])
+  @@index([userId])
+  @@map("org_members")
+}
+
+/// A physical location an Organization operates from — used for proximity
+/// ranking (nearest pharmacy/ambulance/lab). `geog` is kept in sync with
+/// latitude/longitude by a DB trigger (see migration `add_geog_sync_trigger`);
+/// application code only ever reads/writes the plain Float columns.
+model OrgBranch {
+  id               String                                @id @default(uuid()) @db.Uuid
+  orgId            String                                @map("org_id") @db.Uuid
+  name             String
+  county           String
+  town             String?
+  addressLine      String?                               @map("address_line")
+  phone            String?
+  latitude         Float
+  longitude        Float
+  geog             Unsupported("geography(Point,4326)")?
+  deliveryRadiusKm Int                                   @default(10) @map("delivery_radius_km")
+  deliveryFeeKes   Int                                   @default(0) @map("delivery_fee_kes")
+  minOrderKes      Int                                   @default(0) @map("min_order_kes")
+  opensMinute      Int?                                  @map("opens_minute")
+  closesMinute     Int?                                  @map("closes_minute")
+  isOpen24h        Boolean                               @default(false) @map("is_open_24h")
+  isActive         Boolean                               @default(true) @map("is_active")
+  createdAt        DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@index([orgId])
+  @@index([county])
+  @@index([geog], type: Gist)
+  @@map("org_branches")
+}
+
+// ─── V2-4: Ambulance request + dispatch ──────────────────────────────────────
+
+enum AmbulanceType {
+  basic
+  advanced_life_support
+  icu
+  neonatal
+  mortuary
+}
+
+enum AmbulanceRequestStatus {
+  requested
+  accepted
+  dispatched
+  en_route_pickup
+  arrived_pickup
+  en_route_destination
+  completed
+  cancelled
+}
+
+/// A vehicle owned by an ambulance-operator Organization.
+model Ambulance {
+  id          String        @id @default(uuid()) @db.Uuid
+  orgId       String        @map("org_id") @db.Uuid
+  branchId    String?       @map("branch_id") @db.Uuid
+  plateNumber String        @unique @map("plate_number")
+  type        AmbulanceType
+  crewSize    Int           @default(2) @map("crew_size")
+  equipment   String[]      @default([])
+  isActive    Boolean       @default(true) @map("is_active")
+  isAvailable Boolean       @default(true) @map("is_available")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization       @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  requests     AmbulanceRequest[]
+
+  @@index([orgId, isActive, isAvailable])
+  @@map("ambulances")
+}
+
+/// A patient's ambulance request. Payment lives in the polymorphic Payment
+/// table (subjectType: ambulance); look it up via
+/// paymentService.getForSubject("ambulance", request.id).
+model AmbulanceRequest {
+  id                 String                                @id @default(uuid()) @db.Uuid
+  patientId          String                                @map("patient_id") @db.Uuid
+  requestedById      String                                @map("requested_by") @db.Uuid
+  orgId              String?                               @map("org_id") @db.Uuid
+  ambulanceId        String?                               @map("ambulance_id") @db.Uuid
+  type               AmbulanceType                         @default(basic)
+  urgency            VisitUrgency                          @default(urgent)
+  pickupAddress      String                                @map("pickup_address")
+  pickupCounty       String                                @map("pickup_county")
+  pickupLatitude     Float                                 @map("pickup_latitude")
+  pickupLongitude    Float                                 @map("pickup_longitude")
+  pickupGeog         Unsupported("geography(Point,4326)")? @map("pickup_geog")
+  destinationName    String?                               @map("destination_name")
+  destinationAddress String?                               @map("destination_address")
+  patientCondition   String                                @map("patient_condition")
+  contactPhone       String                                @map("contact_phone")
+  status             AmbulanceRequestStatus                @default(requested)
+  estimatedKes       Int?                                  @map("estimated_kes")
+  feeKes             Int?                                  @map("fee_kes")
+  acceptedAt         DateTime?                             @map("accepted_at") @db.Timestamptz(6)
+  dispatchedAt       DateTime?                             @map("dispatched_at") @db.Timestamptz(6)
+  arrivedPickupAt    DateTime?                             @map("arrived_pickup_at") @db.Timestamptz(6)
+  completedAt        DateTime?                             @map("completed_at") @db.Timestamptz(6)
+  cancelledAt        DateTime?                             @map("cancelled_at") @db.Timestamptz(6)
+  cancelReason       String?                               @map("cancel_reason")
+  createdAt          DateTime                              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime                              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient      User                    @relation("PatientAmbulanceRequests", fields: [patientId], references: [id])
+  requestedBy  User                    @relation("RequestedAmbulanceRequests", fields: [requestedById], references: [id])
+  organization Organization?           @relation(fields: [orgId], references: [id])
+  ambulance    Ambulance?              @relation(fields: [ambulanceId], references: [id])
+  events       AmbulanceRequestEvent[]
+
+  @@index([patientId, status])
+  @@index([orgId, status])
+  @@index([status, createdAt])
+  @@index([pickupGeog], type: Gist)
+  @@map("ambulance_requests")
+}
+
+/// Status timeline for an ambulance request — gives the patient visibility
+/// without live GPS tracking (out of scope for this version).
+model AmbulanceRequestEvent {
+  id        String                 @id @default(uuid()) @db.Uuid
+  requestId String                 @map("request_id") @db.Uuid
+  status    AmbulanceRequestStatus
+  note      String?
+  actorId   String?                @map("actor_id") @db.Uuid
+  at        DateTime               @default(now()) @db.Timestamptz(6)
+
+  request AmbulanceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([requestId])
+  @@map("ambulance_request_events")
+}
+
+// ─── V2-5: Medical records (EMR) ─────────────────────────────────────────────
+//
+// Existing clinical data stays where it already lives (Consultation.clinicalNotes
+// / clinicalRecord, Prescription.medications) — these are the *additional*
+// patient-owned record types (allergies, conditions, vitals, immunisations,
+// documents) plus the consent layer that gates every read of any of it.
+
+enum AllergySeverity {
+  mild
+  moderate
+  severe
+}
+
+enum ConditionStatus {
+  active
+  resolved
+  chronic
+}
+
+enum MedicalDocumentType {
+  lab_result
+  imaging
+  discharge_summary
+  referral
+  insurance
+  prescription
+  other
+}
+
+model Allergy {
+  id        String          @id @default(uuid()) @db.Uuid
+  patientId String          @map("patient_id") @db.Uuid
+  substance String
+  severity  AllergySeverity @default(mild)
+  reaction  String?
+  notedAt   DateTime        @default(now()) @map("noted_at") @db.Timestamptz(6)
+  isActive  Boolean         @default(true) @map("is_active")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient User @relation("PatientAllergies", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, isActive])
+  @@map("allergies")
+}
+
+model Condition {
+  id          String          @id @default(uuid()) @db.Uuid
+  patientId   String          @map("patient_id") @db.Uuid
+  name        String
+  icd10Code   String?         @map("icd10_code")
+  status      ConditionStatus @default(active)
+  diagnosedAt DateTime?       @map("diagnosed_at") @db.Timestamptz(6)
+  notes       String?
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient User @relation("PatientConditions", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, status])
+  @@map("conditions")
+}
+
+/// A medication the patient is (or was) taking — distinct from Prescription,
+/// which is the provider's issued order; this is the patient's running list
+/// (may originate from a Prescription or be self-reported, e.g. OTC/supplements).
+model MedicationEntry {
+  id             String    @id @default(uuid()) @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  prescriptionId String?   @map("prescription_id") @db.Uuid
+  name           String
+  dosage         String?
+  frequency      String?
+  startedAt      DateTime? @map("started_at") @db.Timestamptz(6)
+  endedAt        DateTime? @map("ended_at") @db.Timestamptz(6)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient      User          @relation("PatientMedications", fields: [patientId], references: [id], onDelete: Cascade)
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, isActive])
+  @@map("medication_entries")
+}
+
+/// A single vital-sign reading. `type` is a short free-form key (e.g. "blood_pressure",
+/// "pulse", "temperature", "weight", "spo2") to avoid a rigid column-per-vital schema.
+model VitalSign {
+  id             String   @id @default(uuid()) @db.Uuid
+  patientId      String   @map("patient_id") @db.Uuid
+  consultationId String?  @map("consultation_id") @db.Uuid
+  type           String
+  value          String
+  unit           String?
+  recordedAt     DateTime @default(now()) @map("recorded_at") @db.Timestamptz(6)
+  recordedById   String?  @map("recorded_by") @db.Uuid
+
+  patient      User          @relation("PatientVitals", fields: [patientId], references: [id], onDelete: Cascade)
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+
+  @@index([patientId, type, recordedAt])
+  @@map("vital_signs")
+}
+
+model Immunization {
+  id             String    @id @default(uuid()) @db.Uuid
+  patientId      String    @map("patient_id") @db.Uuid
+  vaccine        String
+  doseNumber     Int?      @map("dose_number")
+  administeredAt DateTime  @map("administered_at") @db.Timestamptz(6)
+  administeredBy String?   @map("administered_by")
+  nextDueAt      DateTime? @map("next_due_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient User @relation("PatientImmunizations", fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@map("immunizations")
+}
+
+/// An uploaded/attached document — lab result scan, imaging, discharge summary,
+/// referral letter, insurance card, etc. Written through the storage seam
+/// (packages/core/src/storage/storage.ts); fileUrl is a base64 data URL today.
+model MedicalDocument {
+  id             String              @id @default(uuid()) @db.Uuid
+  patientId      String              @map("patient_id") @db.Uuid
+  type           MedicalDocumentType @default(other)
+  title          String
+  fileUrl        String              @map("file_url")
+  uploadedById   String              @map("uploaded_by") @db.Uuid
+  consultationId String?             @map("consultation_id") @db.Uuid
+  createdAt      DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient      User          @relation("PatientDocuments", fields: [patientId], references: [id], onDelete: Cascade)
+  uploadedBy   User          @relation("UploadedDocuments", fields: [uploadedById], references: [id])
+  consultation Consultation? @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  labResult    LabResult?
+
+  @@index([patientId, type])
+  @@map("medical_documents")
+}
+
+/// A standing consent grant letting a specific provider or org read a patient's
+/// record beyond the implicit access an active appointment/consultation gives.
+model RecordAccessGrant {
+  id            String    @id @default(uuid()) @db.Uuid
+  patientId     String    @map("patient_id") @db.Uuid
+  granteeUserId String?   @map("grantee_user_id") @db.Uuid
+  granteeOrgId  String?   @map("grantee_org_id") @db.Uuid
+  scope         String[]  @default(["all"])
+  expiresAt     DateTime? @map("expires_at") @db.Timestamptz(6)
+  revokedAt     DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  patient     User          @relation("PatientAccessGrants", fields: [patientId], references: [id], onDelete: Cascade)
+  granteeUser User?         @relation("GrantedToUser", fields: [granteeUserId], references: [id], onDelete: Cascade)
+  granteeOrg  Organization? @relation(fields: [granteeOrgId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([granteeUserId])
+  @@index([granteeOrgId])
+  @@map("record_access_grants")
+}
+
+/// Every read of a patient's record is logged here — including denials, and
+/// including admin "break glass" access, which must always carry a reason.
+model RecordAccessLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  patientId String   @map("patient_id") @db.Uuid
+  actorId   String   @map("actor_id") @db.Uuid
+  action    String // "view" | "denied" | "break_glass"
+  reason    String?
+  at        DateTime @default(now()) @db.Timestamptz(6)
+
+  patient User @relation("PatientAccessLogs", fields: [patientId], references: [id], onDelete: Cascade)
+  actor   User @relation("ActorAccessLogs", fields: [actorId], references: [id])
+
+  @@index([patientId, at])
+  @@map("record_access_logs")
+}
+
+// ─── V2-5: Lab orders ─────────────────────────────────────────────────────────
+
+enum LabOrderStatus {
+  requested
+  accepted
+  sample_collected
+  processing
+  resulted
+  cancelled
+}
+
+enum LabResultFlag {
+  normal
+  high
+  low
+  critical
+}
+
+/// A test a lab-operator Organization offers.
+model LabTest {
+  id              String   @id @default(uuid()) @db.Uuid
+  orgId           String   @map("org_id") @db.Uuid
+  code            String?
+  name            String
+  category        String
+  priceKes        Int      @map("price_kes")
+  turnaroundHours Int?     @map("turnaround_hours")
+  sampleType      String?  @map("sample_type")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  organization Organization   @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  orderItems   LabOrderItem[]
+
+  @@index([orgId, isActive])
+  @@map("lab_tests")
+}
+
+/// A patient's lab order — self-requested or ordered by a provider from a
+/// consultation. Payment lives in the polymorphic Payment table (subjectType:
+/// lab_order); look it up via paymentService.getForSubject("lab_order", order.id).
+model LabOrder {
+  id             String         @id @default(uuid()) @db.Uuid
+  patientId      String         @map("patient_id") @db.Uuid
+  orderedById    String         @map("ordered_by") @db.Uuid
+  consultationId String?        @map("consultation_id") @db.Uuid
+  orgId          String         @map("org_id") @db.Uuid
+  branchId       String?        @map("branch_id") @db.Uuid
+  status         LabOrderStatus @default(requested)
+  collectionType String         @default("walk_in") @map("collection_type") // "walk_in" | "home_collection"
+  scheduledAt    DateTime?      @map("scheduled_at") @db.Timestamptz(6)
+  address        String?
+  totalKes       Int            @map("total_kes")
+  phoneNumber    String?        @map("phone_number")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  patient      User           @relation("PatientLabOrders", fields: [patientId], references: [id])
+  orderedBy    User           @relation("OrderedLabOrders", fields: [orderedById], references: [id])
+  consultation Consultation?  @relation(fields: [consultationId], references: [id], onDelete: SetNull)
+  organization Organization   @relation(fields: [orgId], references: [id])
+  items        LabOrderItem[]
+
+  @@index([patientId, status])
+  @@index([orgId, status])
+  @@map("lab_orders")
+}
+
+model LabOrderItem {
+  id         String   @id @default(uuid()) @db.Uuid
+  labOrderId String   @map("lab_order_id") @db.Uuid
+  labTestId  String   @map("lab_test_id") @db.Uuid
+  testName   String   @map("test_name")
+  priceKes   Int      @map("price_kes")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  labOrder LabOrder   @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  labTest  LabTest    @relation(fields: [labTestId], references: [id])
+  result   LabResult?
+
+  @@index([labOrderId])
+  @@map("lab_order_items")
+}
+
+model LabResult {
+  id             String         @id @default(uuid()) @db.Uuid
+  labOrderItemId String         @unique @map("lab_order_item_id") @db.Uuid
+  value          String
+  unit           String?
+  referenceRange String?        @map("reference_range")
+  flag           LabResultFlag?
+  resultedAt     DateTime       @default(now()) @map("resulted_at") @db.Timestamptz(6)
+  verifiedById   String?        @map("verified_by") @db.Uuid
+  documentId     String?        @unique @map("document_id") @db.Uuid
+
+  labOrderItem LabOrderItem     @relation(fields: [labOrderItemId], references: [id], onDelete: Cascade)
+  verifiedBy   User?            @relation("VerifiedLabResults", fields: [verifiedById], references: [id])
+  document     MedicalDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
+
+  @@map("lab_results")
 }

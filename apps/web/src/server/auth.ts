@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyAccessToken, type AccessClaims } from "@carebora/core";
+import { verifyAccessToken, resolveMembership, type AccessClaims } from "@carebora/core";
 import { ApiError, type UserRole } from "@carebora/shared";
 import type { RequestMeta } from "@carebora/core";
 
@@ -81,6 +81,24 @@ export async function requireAuth(
   if (!auth) throw ApiError.unauthorized();
   if (roles && !roles.includes(auth.role)) throw ApiError.forbidden();
   return auth;
+}
+
+/**
+ * Require the caller to be an active member of an Organization. Resolves the org
+ * from `opts.orgId` when given, else the caller's first active membership (the
+ * common case for single-org vendor users). Every `/api/v1/vendor/*` route starts
+ * with this, matching the `requireAuth(req, roles?)` convention used elsewhere.
+ */
+export async function requireOrgMember(
+  req: Request,
+  opts?: { orgId?: string; roles?: Array<"owner" | "manager" | "staff"> },
+): Promise<AccessClaims & { orgId: string; orgRole: "owner" | "manager" | "staff" }> {
+  const auth = await requireAuth(req);
+  const { orgId, role } = await resolveMembership(auth.sub, opts?.orgId);
+  if (opts?.roles && !opts.roles.includes(role)) {
+    throw ApiError.forbidden("Your role in this organization does not permit this action");
+  }
+  return { ...auth, orgId, orgRole: role };
 }
 
 /** Best-effort request metadata for audit/session records. */
