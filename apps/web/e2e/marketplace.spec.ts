@@ -21,6 +21,7 @@ let orderId = "";
 let vendorOrderAId = "";
 let vendorOrderBId = "";
 let gatewayRef = "";
+let paymentId = "";
 
 async function createApprovedVendor(request: import("@playwright/test").APIRequestContext, label: "A" | "B", drugName: string, priceKes: number) {
   const email = `mkt-vendor-${label}+${UNIQUE}@carebora.test`;
@@ -113,6 +114,7 @@ test.describe("Multi-vendor cart split", () => {
     // One payment for the whole cart.
     expect(data.payment.amountKes).toBe(240 + 340);
     gatewayRef = data.payment.gatewayRef;
+    paymentId = data.payment.id;
 
     const voA = data.vendorOrders.find((vo: { organization: { name: string } }) => vo.organization.name.includes("Pharmacy A"));
     const voB = data.vendorOrders.find((vo: { organization: { name: string } }) => vo.organization.name.includes("Pharmacy B"));
@@ -148,11 +150,21 @@ test.describe("Multi-vendor cart split", () => {
   });
 
   test("patient pays for the whole cart (one payment settles both vendor orders)", async ({ request }) => {
-    const res = await request.post("/api/v1/payments/mpesa/simulate", {
+    // Till submit + admin approve — not the dev-only /mpesa/simulate helper,
+    // which is unreachable once the app runs as a production build (`next
+    // start` hardcodes NODE_ENV=production regardless of other env vars, and
+    // CI's e2e job runs the production build, exactly like a real deploy).
+    const submitRes = await request.post("/api/v1/payments/till/submit", {
       headers: { Authorization: `Bearer ${patientToken}` },
-      data: { gatewayRef },
+      data: { gatewayRef, code: "MKTPAY01" },
     });
-    expect(res.status()).toBe(200);
+    expect(submitRes.status()).toBe(200);
+
+    const approveRes = await request.post("/api/v1/admin/payments/verifications", {
+      headers: { Authorization: `Bearer ${adminToken}` },
+      data: { id: paymentId, approve: true },
+    });
+    expect(approveRes.status()).toBe(200);
   });
 
   test("vendor B can advance its own slice", async ({ request }) => {

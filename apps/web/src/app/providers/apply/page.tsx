@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Stethoscope, CheckCircle2, Loader2 } from "lucide-react";
 import { ApiError, type ProviderApplicationInput } from "@carebora/shared";
 import { api } from "@/lib/api";
@@ -16,7 +15,6 @@ const ROLES = [
 ] as const;
 
 export default function ProviderApplyPage() {
-  const router = useRouter();
   const { refresh } = useAuth();
   const [form, setForm] = useState<ProviderApplicationInput>({
     fullName: "", email: "", phone: undefined, password: "",

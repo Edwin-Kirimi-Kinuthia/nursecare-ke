@@ -22,7 +22,10 @@ export function useSection<T>(fetcher: () => Promise<T>) {
     }
   }, [fetcher]);
 
-  useEffect(() => { reload(); }, [reload]);
+  // Deferred to a microtask so reload()'s setState calls run after — not
+  // synchronously within — the effect (matches the CartProvider hydration
+  // pattern and satisfies the react-hooks set-state-in-effect rule).
+  useEffect(() => { queueMicrotask(() => { reload(); }); }, [reload]);
   return { data, loading, error, reload };
 }
 

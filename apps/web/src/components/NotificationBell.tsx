@@ -31,8 +31,11 @@ export default function NotificationBell() {
 
   // Poll while logged in so "join now" arrives without a refresh.
   useEffect(() => {
-    if (!user) { setItems([]); setUnread(0); return; }
-    load();
+    if (!user) {
+      queueMicrotask(() => { setItems([]); setUnread(0); });
+      return;
+    }
+    queueMicrotask(() => { load(); });
     const iv = setInterval(load, 20_000);
     return () => clearInterval(iv);
   }, [user]);

@@ -50,8 +50,8 @@ export default function AppointmentsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
-    load();
-  }, [user, authLoading, router]); // eslint-disable-line react-hooks/exhaustive-deps
+    queueMicrotask(() => { load(); });
+  }, [user, authLoading, router]);
 
   async function confirmAppt(id: string) {
     setBusyId(id);
