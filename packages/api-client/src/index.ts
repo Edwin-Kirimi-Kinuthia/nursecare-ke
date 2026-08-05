@@ -17,14 +17,20 @@ import type {
   LoginInput,
   MpesaStkInput,
   OrdersQuery,
+  VendorOrdersQuery,
   PatchAppointmentInput,
   PatchConsultationInput,
   PatchHomeVisitInput,
-  PatchOrderInput,
+  PatchVendorOrderInput,
   PatchPatientProfileInput,
   PatchProviderProfileInput,
   PaymentsQuery,
-  ProductsQuery,
+  SubmitTillInput,
+  TillVerificationList,
+  VerifyTillInput,
+  DrugsQuery,
+  StorefrontQuery,
+  OffersQuery,
   ProvidersQuery,
   PublicUser,
   RegisterInput,
@@ -37,8 +43,41 @@ import type {
   ModerateReviewInput,
   ReviewsQuery,
   SymptomCheckInput,
-  CreateProductInput,
-  UpdateProductInput,
+  CreateDrugInput,
+  UpdateDrugInput,
+  CreateListingInput,
+  PatchListingInput,
+  VendorApplicationInput,
+  PatchOrgInput,
+  CreateBranchInput,
+  PatchBranchInput,
+  InviteMemberInput,
+  OrgsQuery,
+  ReviewOrgInput,
+  CreateAmbulanceRequestInput,
+  AcceptAmbulanceRequestInput,
+  PatchAmbulanceRequestInput,
+  AmbulanceRequestsQuery,
+  VendorAmbulanceQueueQuery,
+  CreateAmbulanceInput,
+  PatchAmbulanceInput,
+  CreateAllergyInput,
+  PatchAllergyInput,
+  CreateConditionInput,
+  PatchConditionInput,
+  CreateMedicationEntryInput,
+  PatchMedicationEntryInput,
+  CreateVitalSignInput,
+  CreateImmunizationInput,
+  CreateMedicalDocumentInput,
+  GrantAccessInput,
+  CreateLabTestInput,
+  PatchLabTestInput,
+  LabTestsQuery,
+  CreateLabOrderInput,
+  PatchLabOrderInput,
+  LabOrdersQuery,
+  EnterLabResultInput,
 } from "@carebora/shared";
 import { ApiError, ErrorCode } from "@carebora/shared";
 
@@ -103,6 +142,10 @@ export class CareBoraClient {
   /** Apply as a healthcare provider (creates a pending profile for admin review). */
   applyAsProvider(input: ProviderApplicationInput) {
     return this.post<AuthResult>("/providers/apply", input);
+  }
+  /** Apply as a marketplace vendor business — pharmacy, ambulance operator, or lab. */
+  applyAsVendor(input: VendorApplicationInput) {
+    return this.post<AuthResult>("/vendors/apply", input);
   }
   login(input: LoginInput) {
     return this.post<AuthResult>("/auth/login", input);
@@ -216,13 +259,17 @@ export class CareBoraClient {
     return this.request<{ consultations: MedicalHistoryEntry[] }>("/patients/me/consultations");
   }
 
-  // ── Payments / M-Pesa (M4) ──
+  // ── Payments (Jenga / M-Pesa) ──
   initiateMpesaPayment(input: MpesaStkInput) {
-    return this.post<PaymentRecord>("/payments/mpesa/stk", input);
+    return this.post<PaymentSummary>("/payments/mpesa/stk", input);
   }
-  /** Sandbox helper: completes a pending payment by firing the success callback. */
-  simulateMpesaPayment(checkoutRequestId: string) {
-    return this.post<{ completed: boolean; type: string }>("/payments/mpesa/simulate", { checkoutRequestId });
+  /** Sandbox helper: completes a pending payment by firing a synthetic success outcome. */
+  simulateMpesaPayment(gatewayRef: string) {
+    return this.post<{ completed: boolean; type: string }>("/payments/mpesa/simulate", { gatewayRef });
+  }
+  /** Till mode: report the M-Pesa confirmation code for a pending Till payment. */
+  submitTillPayment(input: SubmitTillInput) {
+    return this.post<{ submitted: boolean }>("/payments/till/submit", input);
   }
   listPayments(query?: Partial<PaymentsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
@@ -234,29 +281,48 @@ export class CareBoraClient {
   refundPayment(paymentId: string) {
     return this.post<PaymentRecord>(`/payments/${paymentId}/refund`, {});
   }
+  /** Admin: sweep Jenga STK payments stuck pending 10+ minutes via the query-status endpoint. */
+  adminReconcilePayments() {
+    return this.post<{ checked: number; settled: number; failed: number }>("/admin/payments/reconcile", {});
+  }
 
-  // ── Products / Pharmacy (M5) ──
-  listProducts(query?: Partial<ProductsQuery>) {
+  // ── Storefront (multi-vendor pharmacy, proximity-ranked) ──
+  searchDrugs(query?: Partial<StorefrontQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
-    return this.request<ProductListResult>(`/products?${params}`);
+    return this.request<StorefrontResult>(`/storefront/drugs?${params}`);
   }
-  getProduct(productId: string) {
-    return this.request<Product>(`/products/${productId}`);
+  getDrug(drugId: string) {
+    return this.request<Drug>(`/storefront/drugs/${drugId}`);
+  }
+  getDrugOffers(drugId: string, query?: Partial<OffersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<DrugOffersResult>(`/storefront/drugs/${drugId}/offers?${params}`);
+  }
+  /** Hydrates a single cart line item — used by the cart panel. */
+  getListing(listingId: string) {
+    return this.request<Listing & { organization: { id: string; name: string } }>(`/storefront/listings/${listingId}`);
+  }
+  /** The full canonical catalogue (not filtered to drugs with a listing) — used when a vendor is picking a drug to claim. */
+  browseCatalogue(query?: Partial<DrugsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<DrugListResult>(`/storefront/catalogue?${params}`);
   }
 
-  // ── Orders (M5) ──
+  // ── Orders — a cart may span multiple vendor pharmacies ──
   listOrders(query?: Partial<OrdersQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<OrderListResult>(`/orders?${params}`);
   }
+  /** `redirect` is present only under jenga_pgw mode — POST its fields to `actionUrl` to open hosted checkout. */
   createOrder(input: CreateOrderInput) {
-    return this.post<Order>("/orders", input);
+    return this.post<Order & { redirect: PgwRedirect | null }>("/orders", input);
   }
   getOrder(orderId: string) {
     return this.request<Order>(`/orders/${orderId}`);
   }
-  patchOrder(orderId: string, input: PatchOrderInput) {
-    return this.patch<Order>(`/orders/${orderId}`, input);
+  adminListOrders(query?: Partial<OrdersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<OrderListResult>(`/admin/orders?${params}`);
   }
 
   // ── Home-Based Care (M6) ──
@@ -278,6 +344,131 @@ export class CareBoraClient {
   }
   patchHomeVisit(visitId: string, input: PatchHomeVisitInput) {
     return this.patch<HomeVisit>(`/home-visits/${visitId}`, input);
+  }
+
+  // ── Ambulance (request + dispatch) ──
+  listAmbulanceRequests(query?: Partial<AmbulanceRequestsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<AmbulanceRequestListResult>(`/ambulance-requests?${params}`);
+  }
+  requestAmbulance(input: CreateAmbulanceRequestInput) {
+    return this.post<AmbulanceRequest>("/ambulance-requests", input);
+  }
+  getAmbulanceRequest(requestId: string) {
+    return this.request<AmbulanceRequest>(`/ambulance-requests/${requestId}`);
+  }
+  cancelAmbulanceRequest(requestId: string, cancelReason?: string) {
+    return this.patch<AmbulanceRequest>(`/ambulance-requests/${requestId}`, { cancelReason });
+  }
+  payAmbulanceRequest(requestId: string, phoneNumber: string) {
+    return this.post<PaymentSummary>(`/ambulance-requests/${requestId}/pay`, { phoneNumber });
+  }
+
+  // ── Vendor — ambulance dispatch ──
+  vendorAmbulanceQueue(query?: Partial<VendorAmbulanceQueueQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<{ own: AmbulanceRequest[]; unassigned: AmbulanceRequest[] }>(`/vendor/ambulance-requests?${params}`);
+  }
+  acceptAmbulanceRequest(requestId: string, input: AcceptAmbulanceRequestInput) {
+    return this.post<AmbulanceRequest>(`/vendor/ambulance-requests/${requestId}/accept`, input);
+  }
+  patchVendorAmbulanceRequest(requestId: string, input: PatchAmbulanceRequestInput) {
+    return this.patch<AmbulanceRequest>(`/vendor/ambulance-requests/${requestId}`, input);
+  }
+  listVendorAmbulances() {
+    return this.request<{ ambulances: Ambulance[] }>("/vendor/ambulances");
+  }
+  createVendorAmbulance(input: CreateAmbulanceInput) {
+    return this.post<Ambulance>("/vendor/ambulances", input);
+  }
+  patchVendorAmbulance(ambulanceId: string, input: PatchAmbulanceInput) {
+    return this.patch<Ambulance>(`/vendor/ambulances/${ambulanceId}`, input);
+  }
+
+  // ── Medical records (EMR) ──
+  getRecord(patientId: string, reason?: string) {
+    const params = reason ? `?reason=${encodeURIComponent(reason)}` : "";
+    return this.request<PatientRecord>(`/records/${patientId}${params}`);
+  }
+  addAllergy(patientId: string, input: CreateAllergyInput) {
+    return this.post<Allergy>(`/records/${patientId}/allergies`, input);
+  }
+  patchAllergy(patientId: string, allergyId: string, input: PatchAllergyInput) {
+    return this.patch<Allergy>(`/records/${patientId}/allergies/${allergyId}`, input);
+  }
+  addCondition(patientId: string, input: CreateConditionInput) {
+    return this.post<Condition>(`/records/${patientId}/conditions`, input);
+  }
+  patchCondition(patientId: string, conditionId: string, input: PatchConditionInput) {
+    return this.patch<Condition>(`/records/${patientId}/conditions/${conditionId}`, input);
+  }
+  addMedication(patientId: string, input: CreateMedicationEntryInput) {
+    return this.post<MedicationEntry>(`/records/${patientId}/medications`, input);
+  }
+  patchMedication(patientId: string, entryId: string, input: PatchMedicationEntryInput) {
+    return this.patch<MedicationEntry>(`/records/${patientId}/medications/${entryId}`, input);
+  }
+  addVital(patientId: string, input: CreateVitalSignInput) {
+    return this.post<VitalSign>(`/records/${patientId}/vitals`, input);
+  }
+  addImmunization(patientId: string, input: CreateImmunizationInput) {
+    return this.post<Immunization>(`/records/${patientId}/immunizations`, input);
+  }
+  uploadMedicalDocument(patientId: string, input: CreateMedicalDocumentInput) {
+    return this.post<MedicalDocument>(`/records/${patientId}/documents`, input);
+  }
+  listAccessGrants(patientId: string) {
+    return this.request<{ grants: RecordAccessGrant[] }>(`/records/${patientId}/grants`);
+  }
+  grantAccess(patientId: string, input: GrantAccessInput) {
+    return this.post<RecordAccessGrant>(`/records/${patientId}/grants`, input);
+  }
+  revokeAccess(patientId: string, grantId: string) {
+    return this.request<RecordAccessGrant>(`/records/${patientId}/grants/${grantId}`, { method: "DELETE" });
+  }
+  listAccessLog(patientId: string) {
+    return this.request<{ logs: RecordAccessLogEntry[] }>(`/records/${patientId}/access-log`);
+  }
+
+  // ── Labs (storefront + orders) ──
+  nearbyLabs(query?: { lat?: number; lng?: number; county?: string }) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<{ labs: NearbyLab[] }>(`/storefront/labs?${params}`);
+  }
+  labTestsFor(orgId: string, query?: Partial<LabTestsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<{ tests: LabTest[] }>(`/storefront/labs/${orgId}/tests?${params}`);
+  }
+  listLabOrders(query?: Partial<LabOrdersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<LabOrderListResult>(`/lab-orders?${params}`);
+  }
+  createLabOrder(input: CreateLabOrderInput) {
+    return this.post<LabOrder>("/lab-orders", input);
+  }
+  getLabOrder(labOrderId: string) {
+    return this.request<LabOrder>(`/lab-orders/${labOrderId}`);
+  }
+
+  // ── Vendor — lab test menu + fulfilment ──
+  listVendorLabTests() {
+    return this.request<{ tests: LabTest[] }>("/vendor/lab-tests");
+  }
+  createVendorLabTest(input: CreateLabTestInput) {
+    return this.post<LabTest>("/vendor/lab-tests", input);
+  }
+  patchVendorLabTest(testId: string, input: PatchLabTestInput) {
+    return this.patch<LabTest>(`/vendor/lab-tests/${testId}`, input);
+  }
+  listVendorLabOrders(query?: Partial<LabOrdersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<LabOrderListResult>(`/vendor/lab-orders?${params}`);
+  }
+  patchVendorLabOrder(labOrderId: string, input: PatchLabOrderInput) {
+    return this.patch<LabOrder>(`/vendor/lab-orders/${labOrderId}`, input);
+  }
+  enterLabResult(itemId: string, input: EnterLabResultInput) {
+    return this.post<LabResult>(`/vendor/lab-orders/items/${itemId}/result`, input);
   }
 
   // ── Admin — Users (M7) ──
@@ -304,6 +495,14 @@ export class CareBoraClient {
   // ── Admin — Stats & Audit (M7) ──
   adminGetStats() {
     return this.request<PlatformStats>("/admin/stats");
+  }
+
+  // ── Admin: Till payment verification (interim manual M-Pesa mode) ──
+  adminListTillVerifications() {
+    return this.request<TillVerificationList>("/admin/payments/verifications");
+  }
+  adminVerifyTillPayment(input: VerifyTillInput) {
+    return this.post<{ id: string; approved: boolean }>("/admin/payments/verifications", input);
   }
   adminListAuditLogs(query?: Partial<AuditLogsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
@@ -332,19 +531,74 @@ export class CareBoraClient {
     return this.request<AppointmentListResult>(`/admin/appointments?${params}`);
   }
 
-  // ── Admin — Pharmacy catalogue management ──
-  adminListProducts(query?: Partial<ProductsQuery>) {
+  // ── Admin — Drug catalogue curation ──
+  adminListDrugs(query?: Partial<DrugsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
-    return this.request<ProductListResult>(`/admin/products?${params}`);
+    return this.request<DrugListResult>(`/admin/drugs?${params}`);
   }
-  adminCreateProduct(input: CreateProductInput) {
-    return this.post<Product>(`/admin/products`, input);
+  adminCreateDrug(input: CreateDrugInput) {
+    return this.post<Drug>(`/admin/drugs`, input);
   }
-  adminUpdateProduct(productId: string, input: UpdateProductInput) {
-    return this.patch<Product>(`/admin/products/${productId}`, input);
+  adminUpdateDrug(drugId: string, input: UpdateDrugInput) {
+    return this.patch<Drug>(`/admin/drugs/${drugId}`, input);
   }
-  adminDeleteProduct(productId: string) {
-    return this.request<{ id: string; isActive: boolean }>(`/admin/products/${productId}`, { method: "DELETE" });
+  adminDeleteDrug(drugId: string) {
+    return this.request<{ id: string; isActive: boolean }>(`/admin/drugs/${drugId}`, { method: "DELETE" });
+  }
+
+  // ── Vendor — catalogue offers (listings) ──
+  listVendorListings() {
+    return this.request<{ listings: Listing[] }>("/vendor/listings");
+  }
+  createVendorListing(input: CreateListingInput) {
+    return this.post<Listing>("/vendor/listings", input);
+  }
+  patchVendorListing(listingId: string, input: PatchListingInput) {
+    return this.patch<Listing>(`/vendor/listings/${listingId}`, input);
+  }
+
+  // ── Vendor — order fulfilment ──
+  listVendorOrders(query?: Partial<VendorOrdersQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<VendorOrderListResult>(`/vendor/orders?${params}`);
+  }
+  patchVendorOrder(vendorOrderId: string, input: PatchVendorOrderInput) {
+    return this.patch<VendorOrder>(`/vendor/orders/${vendorOrderId}`, input);
+  }
+
+  // ── Vendor dashboard (org self-service) ──
+  getVendorOrg() {
+    return this.request<OrganizationDetail>("/vendor/org");
+  }
+  patchVendorOrg(input: PatchOrgInput) {
+    return this.patch<OrganizationDetail>("/vendor/org", input);
+  }
+  listVendorBranches() {
+    return this.request<{ branches: OrgBranch[] }>("/vendor/branches");
+  }
+  createVendorBranch(input: CreateBranchInput) {
+    return this.post<OrgBranch>("/vendor/branches", input);
+  }
+  patchVendorBranch(branchId: string, input: PatchBranchInput) {
+    return this.patch<OrgBranch>(`/vendor/branches/${branchId}`, input);
+  }
+  listVendorMembers() {
+    return this.request<{ members: OrgMemberSummary[] }>("/vendor/members");
+  }
+  inviteVendorMember(input: InviteMemberInput) {
+    return this.post<OrgMemberSummary>("/vendor/members", input);
+  }
+  removeVendorMember(memberId: string) {
+    return this.request<OrgMemberSummary>(`/vendor/members/${memberId}`, { method: "DELETE" });
+  }
+
+  // ── Admin — Organizations (vendor businesses) ──
+  adminListOrganizations(query?: Partial<OrgsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<OrganizationListResult>(`/admin/organizations?${params}`);
+  }
+  adminReviewOrganization(orgId: string, input: ReviewOrgInput) {
+    return this.post<OrganizationDetail>(`/admin/organizations/${orgId}/review`, input);
   }
 
   // ── AI (M9) ──
@@ -424,6 +678,78 @@ export interface ProviderPublicProfile extends ProviderProfile {
   user: { id: string; fullName: string; avatarUrl: string | null; role: string };
 }
 
+// ── Organizations (vendor businesses) ──────────────────────────────────────
+
+export type OrgType = "pharmacy" | "ambulance" | "lab" | "clinic";
+export type OrgStatus = "pending" | "in_review" | "approved" | "suspended" | "rejected";
+export type OrgMemberRole = "owner" | "manager" | "staff";
+
+export interface OrgBranch {
+  id: string;
+  orgId: string;
+  name: string;
+  county: string;
+  town: string | null;
+  addressLine: string | null;
+  phone: string | null;
+  latitude: number;
+  longitude: number;
+  deliveryRadiusKm: number;
+  deliveryFeeKes: number;
+  minOrderKes: number;
+  opensMinute: number | null;
+  closesMinute: number | null;
+  isOpen24h: boolean;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrgMemberSummary {
+  id: string;
+  orgId: string;
+  userId: string;
+  role: OrgMemberRole;
+  isActive: boolean;
+  createdAt: string;
+  user: { id: string; fullName: string; email: string; avatarUrl?: string | null; isActive?: boolean };
+}
+
+export interface Organization {
+  id: string;
+  type: OrgType;
+  name: string;
+  slug: string;
+  description: string | null;
+  logoUrl: string | null;
+  licenceNumber: string | null;
+  licenceBody: string | null;
+  kraPin: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  status: OrgStatus;
+  reviewedAt: string | null;
+  reviewNotes: string | null;
+  commissionPercent: number | null;
+  payoutMethod: string | null;
+  payoutAccount: string | null;
+  payoutName: string | null;
+  ratingAvg: number;
+  ratingCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface OrganizationDetail extends Organization {
+  branches: OrgBranch[];
+  members: OrgMemberSummary[];
+}
+
+export interface OrganizationListResult {
+  organizations: (Organization & { branches: OrgBranch[] })[];
+  total: number;
+}
+
 export interface ProviderListResult {
   providers: ProviderPublicProfile[];
   total: number;
@@ -466,7 +792,6 @@ export interface Appointment {
   feeKes: number;
   patientNotes: string | null;
   notes: string | null;
-  paymentId: string | null;
   createdAt: string;
   updatedAt: string;
   slot: Slot;
@@ -479,7 +804,7 @@ export interface Appointment {
   };
   patient: { id: string; fullName: string; avatarUrl: string | null };
   consultation?: Consultation | null;
-  payment?: { status: PaymentStatus } | null;
+  payment?: PaymentSummary | null;
 }
 
 export interface AppointmentListResult {
@@ -571,41 +896,65 @@ export interface MedicalHistoryEntry {
   }>;
 }
 
-export type PaymentStatus = "pending" | "completed" | "failed" | "refunded" | "cancelled";
+export type PaymentStatus = "pending" | "awaiting_verification" | "completed" | "failed" | "refunded" | "cancelled";
+export type PaymentSubjectType = "appointment" | "order" | "home_visit" | "ambulance" | "lab_order";
+export type PaymentGatewayName = "jenga_stk" | "jenga_pgw" | "till" | "mpesa_daraja";
+
+/** The minimal shape attached to appointments/orders/home visits — not the full ledger record. */
+export interface PaymentSummary {
+  id: string;
+  status: PaymentStatus;
+  method: "mpesa" | "till";
+  gateway: PaymentGatewayName;
+  gatewayRef: string;
+  amountKes: number;
+  receiptNumber: string | null;
+  failureReason: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
+/** jenga_pgw hosted checkout — POST `fields` as a form to `actionUrl` to open it. */
+export interface PgwRedirect {
+  actionUrl: string;
+  fields: Record<string, string>;
+}
 
 export interface LedgerEntry {
   id: string;
   paymentId: string;
-  type: "platform_fee" | "provider_payout" | "refund";
+  type: "gross_sale" | "platform_fee" | "vendor_payout" | "provider_payout" | "delivery_fee" | "refund" | "payout_settled";
+  orgId: string | null;
+  providerId: string | null;
   amountKes: number;
   description: string | null;
   createdAt: string;
 }
 
+/** The full payment record — GET /payments and /payments/:id. */
 export interface PaymentRecord {
   id: string;
-  appointmentId: string;
+  subjectType: PaymentSubjectType;
+  subjectId: string;
   patientId: string;
-  providerId: string;
-  method: "mpesa";
+  providerId: string | null;
+  orgId: string | null;
+  gateway: PaymentGatewayName;
+  method: "mpesa" | "till";
   status: PaymentStatus;
   amountKes: number;
+  refundedKes: number;
+  currency: string;
   phoneNumber: string;
-  checkoutRequestId: string | null;
-  merchantRequestId: string | null;
-  mpesaReceiptNumber: string | null;
+  gatewayRef: string;
+  gatewayTxnRef: string | null;
+  receiptNumber: string | null;
   failureReason: string | null;
   paidAt: string | null;
   createdAt: string;
   updatedAt: string;
-  appointment: {
-    id: string;
-    appointmentType: AppointmentType;
-    status: AppointmentStatus;
-    slot: { startsAt: string; endsAt: string };
-  };
   patient: { id: string; fullName: string; phone: string | null };
-  provider: { id: string; fullName: string };
+  provider: { id: string; fullName: string } | null;
   ledgerEntries: LedgerEntry[];
 }
 
@@ -620,66 +969,146 @@ export interface PaymentListResult {
 
 export type OrderStatus =
   | "pending"
+  | "awaiting_verification"
   | "paid"
   | "processing"
   | "dispatched"
   | "delivered"
-  | "cancelled";
+  | "cancelled"
+  | "refunded";
 
-export interface Product {
+// ── Drugs (canonical catalogue) & Listings (a vendor's offer) ───────────────
+
+export interface Drug {
   id: string;
   name: string;
   genericName: string | null;
   description: string | null;
   category: string;
+  form: string | null;
+  strength: string | null;
   imageUrl: string | null;
   images: string[];
-  priceKes: number;
-  stockQty: number;
   requiresPrescription: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface ProductListResult {
-  products: Product[];
+export interface DrugListResult {
+  drugs: Drug[];
   total: number;
   limit: number;
   offset: number;
 }
 
+export interface Listing {
+  id: string;
+  orgId: string;
+  drugId: string;
+  priceKes: number;
+  stockQty: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+  drug: Drug;
+}
+
+/** One row in the buyer-facing storefront — a drug plus its best/nearest offer. */
+export interface StorefrontDrug {
+  drugId: string;
+  name: string;
+  category: string;
+  imageUrl: string | null;
+  requiresPrescription: boolean;
+  bestPriceKes: number;
+  vendorCount: number;
+  /** The listing surfaced by nearestVendor — "Add to cart" adds this listing directly. */
+  listingId: string;
+  stockQty: number;
+  nearestVendor: {
+    orgId: string;
+    orgName: string;
+    branchName: string;
+    county: string;
+    distanceKm: number | null;
+  };
+}
+
+export interface StorefrontResult {
+  drugs: StorefrontDrug[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface DrugOffer {
+  listingId: string;
+  priceKes: number;
+  stockQty: number;
+  orgId: string;
+  orgName: string;
+  branchName: string;
+  county: string;
+  distanceKm: number | null;
+}
+
+export interface DrugOffersResult {
+  drug: Drug;
+  offers: DrugOffer[];
+}
+
+// ── Orders — a checkout, fanned out into one VendorOrder per pharmacy ───────
+
 export interface OrderItem {
   id: string;
-  orderId: string;
-  productId: string;
-  productName: string;
+  vendorOrderId: string;
+  listingId: string;
+  drugName: string;
   unitPriceKes: number;
   qty: number;
-  product: { id: string; name: string; imageUrl: string | null; category: string };
+  listing: { id: string; drug: { id: string; name: string; imageUrl: string | null; category: string } };
+}
+
+export interface VendorOrder {
+  id: string;
+  orderId: string;
+  orgId: string;
+  branchId: string | null;
+  status: OrderStatus;
+  subtotalKes: number;
+  deliveryFeeKes: number;
+  dispatchedAt: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  items: OrderItem[];
+  organization: { id: string; name: string; type: string };
+  /** Present only on vendor-side listings (GET /vendor/orders), not nested Order fetches. */
+  order?: { id: string; deliveryAddress: string; phoneNumber: string; patient: { fullName: string } };
+}
+
+export interface VendorOrderListResult {
+  vendorOrders: VendorOrder[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface Order {
   id: string;
   patientId: string;
   prescriptionId: string | null;
-  status: OrderStatus;
   totalKes: number;
   phoneNumber: string;
   deliveryAddress: string;
   deliveryNotes: string | null;
-  checkoutRequestId: string | null;
-  merchantRequestId: string | null;
-  mpesaReceiptNumber: string | null;
-  failureReason: string | null;
-  paidAt: string | null;
-  dispatchedAt: string | null;
-  deliveredAt: string | null;
   createdAt: string;
   updatedAt: string;
-  items: OrderItem[];
+  vendorOrders: VendorOrder[];
   patient: { id: string; fullName: string; phone: string | null };
   prescription: { id: string; issuedAt: string } | null;
+  payment: PaymentSummary | null;
 }
 
 export interface OrderListResult {
@@ -693,6 +1122,7 @@ export interface OrderListResult {
 
 export type HomeVisitStatus =
   | "pending"
+  | "awaiting_verification"
   | "assigned"
   | "paid"
   | "en_route"
@@ -721,10 +1151,6 @@ export interface HomeVisit {
   completedAt: string | null;
   cancelledAt: string | null;
   phoneNumber: string | null;
-  checkoutRequestId: string | null;
-  mpesaReceiptNumber: string | null;
-  paymentFailReason: string | null;
-  paidAt: string | null;
   createdAt: string;
   updatedAt: string;
   patient: { id: string; fullName: string; phone: string | null; avatarUrl: string | null };
@@ -734,10 +1160,195 @@ export interface HomeVisit {
     homeVisitFeeKes: number | null;
     user: { fullName: string; avatarUrl: string | null; phone: string | null };
   } | null;
+  payment: PaymentSummary | null;
 }
 
 export interface HomeVisitListResult {
   visits: HomeVisit[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── Ambulance ────────────────────────────────────────────────────────────────
+
+export type AmbulanceType = "basic" | "advanced_life_support" | "icu" | "neonatal" | "mortuary";
+export type AmbulanceRequestStatus =
+  | "requested" | "accepted" | "dispatched" | "en_route_pickup" | "arrived_pickup"
+  | "en_route_destination" | "completed" | "cancelled";
+
+export interface Ambulance {
+  id: string;
+  orgId: string;
+  branchId: string | null;
+  plateNumber: string;
+  type: AmbulanceType;
+  crewSize: number;
+  equipment: string[];
+  isActive: boolean;
+  isAvailable: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AmbulanceRequestEvent {
+  id: string;
+  requestId: string;
+  status: AmbulanceRequestStatus;
+  note: string | null;
+  actorId: string | null;
+  at: string;
+}
+
+export interface AmbulanceRequest {
+  id: string;
+  patientId: string;
+  requestedById: string;
+  orgId: string | null;
+  ambulanceId: string | null;
+  type: AmbulanceType;
+  urgency: VisitUrgency;
+  pickupAddress: string;
+  pickupCounty: string;
+  pickupLatitude: number;
+  pickupLongitude: number;
+  destinationName: string | null;
+  destinationAddress: string | null;
+  patientCondition: string;
+  contactPhone: string;
+  status: AmbulanceRequestStatus;
+  estimatedKes: number | null;
+  feeKes: number | null;
+  acceptedAt: string | null;
+  dispatchedAt: string | null;
+  arrivedPickupAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  cancelReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  patient: { id: string; fullName: string; phone: string | null };
+  organization: { id: string; name: string; contactPhone: string | null } | null;
+  ambulance: Ambulance | null;
+  events: AmbulanceRequestEvent[];
+  payment: PaymentSummary | null;
+}
+
+export interface AmbulanceRequestListResult {
+  requests: AmbulanceRequest[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+// ── Medical records (EMR) ────────────────────────────────────────────────────
+
+export type AllergySeverity = "mild" | "moderate" | "severe";
+export type ConditionStatus = "active" | "resolved" | "chronic";
+export type MedicalDocumentType = "lab_result" | "imaging" | "discharge_summary" | "referral" | "insurance" | "prescription" | "other";
+
+export interface Allergy {
+  id: string; patientId: string; substance: string; severity: AllergySeverity;
+  reaction: string | null; notedAt: string; isActive: boolean; createdAt: string;
+}
+
+export interface Condition {
+  id: string; patientId: string; name: string; icd10Code: string | null; status: ConditionStatus;
+  diagnosedAt: string | null; notes: string | null; createdAt: string; updatedAt: string;
+}
+
+export interface MedicationEntry {
+  id: string; patientId: string; prescriptionId: string | null; name: string;
+  dosage: string | null; frequency: string | null; startedAt: string | null;
+  endedAt: string | null; isActive: boolean; createdAt: string;
+}
+
+export interface VitalSign {
+  id: string; patientId: string; consultationId: string | null; type: string;
+  value: string; unit: string | null; recordedAt: string; recordedById: string | null;
+}
+
+export interface Immunization {
+  id: string; patientId: string; vaccine: string; doseNumber: number | null;
+  administeredAt: string; administeredBy: string | null; nextDueAt: string | null; createdAt: string;
+}
+
+export interface MedicalDocument {
+  id: string; patientId: string; type: MedicalDocumentType; title: string; fileUrl: string;
+  uploadedById: string; consultationId: string | null; createdAt: string;
+}
+
+export interface RecordAccessGrant {
+  id: string; patientId: string; granteeUserId: string | null; granteeOrgId: string | null;
+  scope: string[]; expiresAt: string | null; revokedAt: string | null; createdAt: string;
+  granteeUser?: { id: string; fullName: string; email: string; role: string };
+}
+
+export interface RecordAccessLogEntry {
+  id: string; patientId: string; actorId: string; action: "view" | "denied" | "break_glass";
+  reason: string | null; at: string;
+  actor: { id: string; fullName: string; role: string };
+}
+
+export interface PatientRecord {
+  allergies: Allergy[];
+  conditions: Condition[];
+  medications: MedicationEntry[];
+  vitals: VitalSign[];
+  immunizations: Immunization[];
+  documents: MedicalDocument[];
+  consultations: MedicalHistoryEntry[];
+}
+
+// ── Labs (diagnostic tests) ──────────────────────────────────────────────────
+
+export type LabOrderStatus = "requested" | "accepted" | "sample_collected" | "processing" | "resulted" | "cancelled";
+export type LabResultFlag = "normal" | "high" | "low" | "critical";
+
+export interface NearbyLab {
+  orgId: string; orgName: string; branchName: string; county: string; distanceKm: number | null;
+}
+
+export interface LabTest {
+  id: string; orgId: string; code: string | null; name: string; category: string;
+  priceKes: number; turnaroundHours: number | null; sampleType: string | null;
+  isActive: boolean; createdAt: string; updatedAt: string;
+}
+
+export interface LabResult {
+  id: string; labOrderItemId: string; value: string; unit: string | null;
+  referenceRange: string | null; flag: LabResultFlag | null; resultedAt: string;
+  verifiedById: string | null; documentId: string | null;
+}
+
+export interface LabOrderItem {
+  id: string; labOrderId: string; labTestId: string; testName: string; priceKes: number;
+  labTest: LabTest; result: LabResult | null;
+}
+
+export interface LabOrder {
+  id: string;
+  patientId: string;
+  orderedById: string;
+  consultationId: string | null;
+  orgId: string;
+  branchId: string | null;
+  status: LabOrderStatus;
+  collectionType: string;
+  scheduledAt: string | null;
+  address: string | null;
+  totalKes: number;
+  phoneNumber: string | null;
+  createdAt: string;
+  updatedAt: string;
+  patient: { id: string; fullName: string; phone: string | null };
+  organization: { id: string; name: string };
+  items: LabOrderItem[];
+  payment: PaymentSummary | null;
+}
+
+export interface LabOrderListResult {
+  orders: LabOrder[];
   total: number;
   limit: number;
   offset: number;

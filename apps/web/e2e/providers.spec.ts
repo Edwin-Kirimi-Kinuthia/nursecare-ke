@@ -37,26 +37,50 @@ test.describe("Provider directory", () => {
   });
 });
 
-test.describe("Pharmacy catalogue", () => {
-  test("GET /products returns product list", async ({ request }) => {
-    const res = await request.get("/api/v1/products");
+test.describe("Pharmacy marketplace (multi-vendor)", () => {
+  test("GET /storefront/drugs returns the drug catalogue with best price + nearest vendor", async ({ request }) => {
+    const res = await request.get("/api/v1/storefront/drugs");
     expect(res.status()).toBe(200);
     const { data } = await res.json();
-    expect(data.products.length).toBeGreaterThan(0);
-    expect(data.products[0]).toHaveProperty("priceKes");
+    expect(data.drugs.length).toBeGreaterThan(0);
+    expect(data.drugs[0]).toHaveProperty("bestPriceKes");
+    expect(data.drugs[0]).toHaveProperty("vendorCount");
   });
 
-  test("GET /products?requiresPrescription=false only returns OTC", async ({ request }) => {
-    const res = await request.get("/api/v1/products?requiresPrescription=false");
+  test("GET /storefront/drugs?requiresPrescription=false only returns OTC", async ({ request }) => {
+    const res = await request.get("/api/v1/storefront/drugs?requiresPrescription=false");
     expect(res.status()).toBe(200);
     const { data } = await res.json();
-    for (const p of data.products) {
-      expect(p.requiresPrescription).toBe(false);
+    for (const d of data.drugs) {
+      expect(d.requiresPrescription).toBe(false);
     }
   });
 
-  test("GET /products/:id for unknown id → 404", async ({ request }) => {
-    const res = await request.get("/api/v1/products/00000000-0000-0000-0000-000000000000");
+  test("GET /storefront/drugs ranks by distance when lat/lng given", async ({ request }) => {
+    // Nairobi CBD — seed data places vendors at varying distances from here.
+    const res = await request.get("/api/v1/storefront/drugs?lat=-1.2864&lng=36.8172");
+    expect(res.status()).toBe(200);
+    const { data } = await res.json();
+    const withDistance = data.drugs.filter((d: { nearestVendor?: { distanceKm?: number } }) => d.nearestVendor?.distanceKm != null);
+    expect(withDistance.length).toBeGreaterThan(0);
+  });
+
+  test("GET /storefront/drugs/:id for unknown id → 404", async ({ request }) => {
+    const res = await request.get("/api/v1/storefront/drugs/00000000-0000-0000-0000-000000000000");
     expect(res.status()).toBe(404);
+  });
+
+  test("GET /storefront/drugs/:id/offers lists every vendor's offer, ranked by distance then price", async ({ request }) => {
+    const listRes = await request.get("/api/v1/storefront/drugs");
+    const { data } = await listRes.json();
+    const drugId = data.drugs[0].drugId;
+
+    const res = await request.get(`/api/v1/storefront/drugs/${drugId}/offers?lat=-1.2864&lng=36.8172`);
+    expect(res.status()).toBe(200);
+    const offers = (await res.json()).data.offers;
+    expect(Array.isArray(offers)).toBe(true);
+    expect(offers.length).toBeGreaterThan(0);
+    expect(offers[0]).toHaveProperty("orgName");
+    expect(offers[0]).toHaveProperty("priceKes");
   });
 });

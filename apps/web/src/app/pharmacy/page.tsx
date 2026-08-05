@@ -1,39 +1,43 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle } from "lucide-react";
-import type { Product } from "@carebora/api-client";
+import { AlertCircle, LocateFixed, MapPin, Loader2 } from "lucide-react";
+import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
-import ProductCard from "@/components/ProductCard";
-import ProductDetailModal from "@/components/ProductDetailModal";
+import DrugCard from "@/components/DrugCard";
+import DrugDetailModal from "@/components/DrugDetailModal";
+import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
 
 export default function PharmacyPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
+  const [drugs, setDrugs] = useState<StorefrontDrug[]>([]);
   const [category, setCategory] = useState("");
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Product | null>(null);
+  const [selected, setSelected] = useState<string | null>(null);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   useEffect(() => {
     let active = true;
-    (async () => {
-      try {
-        const res = await api.listProducts({ limit: 50 });
-        if (active) setProducts(res.products);
-      } catch {
-        if (active) setError("Could not load products.");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
+    queueMicrotask(() => { if (active) setLoading(true); });
+    const query = {
+      limit: 50,
+      ...(category ? { category } : {}),
+      ...(search ? { search } : {}),
+      ...(lat != null && lng != null ? { lat, lng } : county ? { county } : {}),
+    };
+    api.searchDrugs(query)
+      .then((res) => { if (active) setDrugs(res.drugs); })
+      .catch(() => { if (active) setError("Could not load the pharmacy catalogue."); })
+      .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, []);
+  }, [category, search, lat, lng, county]);
 
   const categories = useMemo(
-    () => ["", ...Array.from(new Set(products.map((p) => p.category))).sort()],
-    [products],
+    () => ["", ...Array.from(new Set(drugs.map((d) => d.category))).sort()],
+    [drugs],
   );
-  const shown = category ? products.filter((p) => p.category === category) : products;
 
   return (
     <div>
@@ -41,8 +45,44 @@ export default function PharmacyPage() {
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Pharmacy</h1>
-          <p className="mt-2 text-slate-500">Medication and supplies, delivered across Kenya.</p>
-          <div className="mt-6 flex flex-wrap gap-2">
+          <p className="mt-2 text-slate-500">Medication and supplies from vendors near you, delivered across Kenya.</p>
+
+          <div className="mt-4 flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowLocationPicker((s) => !s)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-teal-400 hover:text-teal-700"
+            >
+              <MapPin className="h-3.5 w-3.5" /> {label}
+            </button>
+            {showLocationPicker && (
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={requestPreciseLocation}
+                  disabled={locating}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-teal-50 px-3 py-1.5 text-sm font-medium text-teal-700 hover:bg-teal-100 disabled:opacity-60"
+                >
+                  {locating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LocateFixed className="h-3.5 w-3.5" />} Use my location
+                </button>
+                <select
+                  value={county ?? ""}
+                  onChange={(e) => setCounty(e.target.value as (typeof KENYA_COUNTIES)[number])}
+                  className="rounded-full border border-slate-200 px-3 py-1.5 text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-teal-500"
+                >
+                  <option value="" disabled>Or pick a county…</option>
+                  {KENYA_COUNTIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+            )}
+          </div>
+
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search medication…"
+            className="mt-4 w-full max-w-md rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          />
+
+          <div className="mt-4 flex flex-wrap gap-2">
             {categories.map((c) => (
               <button
                 key={c || "all"}
@@ -70,14 +110,18 @@ export default function PharmacyPage() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-72 rounded-2xl skeleton" />)}
           </div>
+        ) : drugs.length === 0 ? (
+          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
+            No medication found. Try a different search, category, or location.
+          </div>
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {shown.map((p) => <ProductCard key={p.id} p={p} onOpen={() => setSelected(p)} />)}
+            {drugs.map((d) => <DrugCard key={d.drugId} d={d} onOpen={() => setSelected(d.drugId)} />)}
           </div>
         )}
       </section>
 
-      {selected && <ProductDetailModal product={selected} onClose={() => setSelected(null)} />}
+      {selected && <DrugDetailModal drugId={selected} onClose={() => setSelected(null)} />}
     </div>
   );
 }

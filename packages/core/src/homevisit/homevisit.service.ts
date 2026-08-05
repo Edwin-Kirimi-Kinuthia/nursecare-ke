@@ -5,11 +5,10 @@ import {
   type CreateHomeVisitInput,
   type HomeVisitStkInput,
   type HomeVisitsQuery,
-  type MpesaCallback,
   type PatchHomeVisitInput,
   type UserRole,
 } from "@carebora/shared";
-import { initiateStkPush, normaliseMpesaPhone } from "../payment/daraja";
+import { paymentService, toPaymentSummary } from "../payment/payment.service";
 import { notificationService } from "../notifications/notification.service";
 
 const VISIT_INCLUDE = {
@@ -29,6 +28,16 @@ function canView(visit: { patientId: string; providerId: string | null }, userId
   if (visit.patientId === userId) return true;
   if (visit.providerId === userId) return true;
   return false;
+}
+
+async function attachPayment<T extends { id: string }>(visit: T) {
+  const payment = await paymentService.getForSubject("home_visit", visit.id);
+  return { ...visit, payment };
+}
+
+async function attachPayments<T extends { id: string }>(visits: T[]) {
+  const payments = await paymentService.getForSubjects("home_visit", visits.map((v) => v.id));
+  return visits.map((v) => ({ ...v, payment: payments.get(v.id) ?? null }));
 }
 
 export const homeVisitService = {
@@ -71,14 +80,14 @@ export const homeVisitService = {
       }),
       db.homeVisit.count({ where }),
     ]);
-    return { visits, total, limit: query.limit, offset: query.offset };
+    return { visits: await attachPayments(visits), total, limit: query.limit, offset: query.offset };
   },
 
   async getById(visitId: string, userId: string, role: UserRole) {
     const visit = await db.homeVisit.findUnique({ where: { id: visitId }, include: VISIT_INCLUDE });
     if (!visit) throw ApiError.notFound("Home visit not found");
     if (!canView(visit, userId, role)) throw ApiError.forbidden();
-    return visit;
+    return attachPayment(visit);
   },
 
   /** Admin assigns a provider and sets the fee. Moves status to 'assigned'. */
@@ -116,7 +125,7 @@ export const homeVisitService = {
     return updated;
   },
 
-  /** Patient initiates M-Pesa payment after the visit has been assigned and priced. */
+  /** Patient initiates payment after the visit has been assigned and priced. */
   async initiateMpesa(visitId: string, patientId: string, input: HomeVisitStkInput) {
     const visit = await db.homeVisit.findUnique({ where: { id: visitId } });
     if (!visit) throw ApiError.notFound("Home visit not found");
@@ -126,52 +135,43 @@ export const homeVisitService = {
     }
     if (!visit.feeKes) throw ApiError.badRequest("Fee has not been set for this visit");
 
-    const phone = normaliseMpesaPhone(input.phoneNumber);
-    const push = await initiateStkPush({
-      amount: visit.feeKes,
-      phone,
-      accountRef: `HV-${visit.id.slice(0, 8).toUpperCase()}`,
+    const patient = await db.user.findUniqueOrThrow({ where: { id: patientId } });
+    const { payment } = await paymentService.initiate({
+      subjectType: "home_visit",
+      subjectId: visit.id,
+      patientId,
+      providerId: visit.providerId,
+      patientName: patient.fullName,
+      patientEmail: patient.email,
+      amountKes: visit.feeKes,
+      phoneNumber: input.phoneNumber,
       description: "CareBora home visit payment",
+      refPrefix: "HV",
     });
 
-    return db.homeVisit.update({
+    const updated = await db.homeVisit.update({
       where: { id: visitId },
-      data: {
-        phoneNumber: phone,
-        checkoutRequestId: push.checkoutRequestId,
-        merchantRequestId: push.merchantRequestId,
-      },
+      data: { phoneNumber: input.phoneNumber },
       include: VISIT_INCLUDE,
     });
+    return { ...updated, payment: toPaymentSummary(payment) };
   },
 
-  /** Daraja callback handler for home visit payments. Returns true if matched. */
-  async handleCallback(payload: MpesaCallback): Promise<boolean> {
-    const cb = payload.Body.stkCallback;
-    const visit = await db.homeVisit.findUnique({
-      where: { checkoutRequestId: cb.CheckoutRequestID },
-    });
-    if (!visit) return false;
-    if (visit.paidAt) return true; // already settled — ignore late/duplicate callbacks
+  /** Called by the settlement dispatcher once the visit's Payment is marked `completed`. */
+  async onPaymentSettled(visitId: string) {
+    const visit = await db.homeVisit.findUnique({ where: { id: visitId } });
+    if (!visit || visit.status !== "assigned") return;
+    await db.homeVisit.update({ where: { id: visitId }, data: { status: "paid" } });
+  },
 
-    if (cb.ResultCode === 0) {
-      const items = cb.CallbackMetadata?.Item ?? [];
-      const receipt = items.find((i) => i.Name === "MpesaReceiptNumber")?.Value as string | undefined;
-      await db.homeVisit.update({
-        where: { id: visit.id },
-        data: {
-          status: "paid",
-          mpesaReceiptNumber: receipt ?? null,
-          paidAt: new Date(),
-        },
-      });
-    } else {
-      await db.homeVisit.update({
-        where: { id: visit.id },
-        data: { paymentFailReason: cb.ResultDesc },
-      });
+  /** Admin decision on a Till home visit. Approve → paid (via settlement). Reject → back to assigned. */
+  async verifyTillReject(visitId: string) {
+    const visit = await db.homeVisit.findUnique({ where: { id: visitId } });
+    if (!visit) throw ApiError.notFound("Home visit not found");
+    if (visit.status !== "awaiting_verification") {
+      throw ApiError.badRequest("This visit is not awaiting verification");
     }
-    return true;
+    return db.homeVisit.update({ where: { id: visitId }, data: { status: "assigned" }, include: VISIT_INCLUDE });
   },
 
   /**
@@ -226,6 +226,7 @@ export const homeVisitService = {
 
     if (Object.keys(data).length === 0) throw ApiError.badRequest("Nothing to update");
 
-    return db.homeVisit.update({ where: { id: visitId }, data, include: VISIT_INCLUDE });
+    const updated = await db.homeVisit.update({ where: { id: visitId }, data, include: VISIT_INCLUDE });
+    return attachPayment(updated);
   },
 };

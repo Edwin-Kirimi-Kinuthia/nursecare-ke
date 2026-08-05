@@ -4,11 +4,13 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trash2, AlertCircle, CheckCircle2, ShieldCheck, Upload, Stethoscope, FileCheck2 } from "lucide-react";
-import type { Product } from "@carebora/api-client";
+import type { Listing } from "@carebora/api-client";
 import { ApiError } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
+import { IS_TILL_MODE } from "@/lib/payments";
+import { TillPayBox } from "@/components/TillPayBox";
 
 /** The cart + M-Pesa checkout. Self-contained — fetches product details for the
  *  items in the cart, so it works from anywhere (used inside the cart drawer). */
@@ -17,7 +19,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const router = useRouter();
   const { items, add, sub, remove, clear, closeCart } = useCart();
 
-  const [catalog, setCatalog] = useState<Record<string, Product>>({});
+  const [catalog, setCatalog] = useState<Record<string, Listing & { organization: { id: string; name: string } }>>({});
   const [phone, setPhone] = useState("0708374149");
   const [address, setAddress] = useState("");
   const [rxImage, setRxImage] = useState<string | null>(null);
@@ -25,20 +27,21 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const [placing, setPlacing] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
+  const [pendingAmount, setPendingAmount] = useState(0);
   const [simulating, setSimulating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Load product details for any cart items we don't yet know about.
+  // Load listing details for any cart items we don't yet know about.
   useEffect(() => {
     const missing = Object.keys(items).filter((id) => !catalog[id]);
     if (missing.length === 0) return;
     let active = true;
     (async () => {
-      const fetched = await Promise.all(missing.map((id) => api.getProduct(id).catch(() => null)));
+      const fetched = await Promise.all(missing.map((id) => api.getListing(id).catch(() => null)));
       if (!active) return;
       setCatalog((c) => {
         const next = { ...c };
-        fetched.forEach((p) => { if (p) next[p.id] = p; });
+        fetched.forEach((l) => { if (l) next[l.id] = l; });
         return next;
       });
     })();
@@ -47,7 +50,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
 
   const lines = Object.entries(items).filter(([id]) => catalog[id]);
   const total = lines.reduce((sum, [id, q]) => sum + (catalog[id]?.priceKes ?? 0) * q, 0);
-  const hasRx = lines.some(([id]) => catalog[id]?.requiresPrescription);
+  const hasRx = lines.some(([id]) => catalog[id]?.drug.requiresPrescription);
   const rxSatisfied = !hasRx || !!rxImage;
 
   function onUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -62,17 +65,33 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   async function checkout() {
     if (!user) { closeCart(); router.push("/login"); return; }
     setPlacing(true); setMsg(null); setPendingCheckoutId(null);
+    const orderTotal = total;
     try {
       const order = await api.createOrder({
-        items: lines.map(([productId, qty]) => ({ productId, qty })),
+        items: lines.map(([listingId, qty]) => ({ listingId, qty })),
         phoneNumber: phone,
         deliveryAddress: address,
         prescriptionImage: rxImage ?? undefined,
       });
-      setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
-      setPendingCheckoutId(order.checkoutRequestId ?? null);
       clear(); setRxImage(null); setRxName("");
       onOrdered?.();
+      if (order.redirect) {
+        // jenga_pgw: hand the browser off to Jenga's hosted checkout.
+        const form = document.createElement("form");
+        form.method = "POST";
+        form.action = order.redirect.actionUrl;
+        for (const [name, value] of Object.entries(order.redirect.fields)) {
+          const input = document.createElement("input");
+          input.type = "hidden"; input.name = name; input.value = value;
+          form.appendChild(input);
+        }
+        document.body.appendChild(form);
+        form.submit();
+        return;
+      }
+      if (!IS_TILL_MODE) setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
+      setPendingCheckoutId(order.payment?.gatewayRef ?? null);
+      setPendingAmount(orderTotal);
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Checkout failed" });
     } finally {
@@ -102,16 +121,16 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         <>
           <ul className="mt-1 space-y-3">
             {lines.map(([id, q]) => {
-              const p = catalog[id]!;
+              const l = catalog[id]!;
               return (
                 <li key={id} className="flex items-center gap-3">
                   <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-slate-50">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    {p.imageUrl && <img src={p.imageUrl} alt="" className="h-full w-full object-cover" />}
+                    {l.drug.imageUrl && <img src={l.drug.imageUrl} alt="" className="h-full w-full object-cover" />}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-slate-800">{p.name}</div>
-                    <div className="text-xs text-slate-400">{kes(p.priceKes)} each</div>
+                    <div className="truncate text-sm font-medium text-slate-800">{l.drug.name}</div>
+                    <div className="text-xs text-slate-400">{kes(l.priceKes)} each · {l.organization.name}</div>
                   </div>
                   <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-0.5 text-sm">
                     <button onClick={() => sub(id)} className="h-6 w-6 rounded text-slate-500 hover:bg-slate-100">−</button>
@@ -181,7 +200,18 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         </div>
       )}
 
-      {pendingCheckoutId && (
+      {pendingCheckoutId && IS_TILL_MODE && (
+        <div className="mt-4">
+          <TillPayBox
+            gatewayRef={pendingCheckoutId}
+            amountKes={pendingAmount}
+            noun="order"
+            onSubmitted={() => onOrdered?.()}
+          />
+        </div>
+      )}
+
+      {pendingCheckoutId && !IS_TILL_MODE && (
         <button
           onClick={simulate}
           disabled={simulating}

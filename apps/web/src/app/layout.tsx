@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import { CartProvider } from "@/components/CartProvider";
+import { LocationProvider } from "@/components/LocationProvider";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
@@ -43,12 +44,14 @@ export default function RootLayout({
     <html lang="en" className={inter.className}>
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased" suppressHydrationWarning>
         <AuthProvider>
-          <CartProvider>
-            <Nav />
-            <main className="min-h-[calc(100vh-4rem)]">{children}</main>
-            <Footer />
-            <CartDrawer />
-          </CartProvider>
+          <LocationProvider>
+            <CartProvider>
+              <Nav />
+              <main className="min-h-[calc(100vh-4rem)]">{children}</main>
+              <Footer />
+              <CartDrawer />
+            </CartProvider>
+          </LocationProvider>
         </AuthProvider>
       </body>
     </html>

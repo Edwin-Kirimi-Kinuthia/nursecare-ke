@@ -1,32 +1,94 @@
 import { z } from "zod";
+import { KENYA_COUNTIES } from "../geo";
 
 const kenyanPhone = z
   .string()
   .trim()
   .regex(/^(\+?254|0)[0-9]{9}$/, "Enter a valid Kenyan phone number (e.g. 0712345678)");
 
-// ── Products ──────────────────────────────────────────────────────────────────
+const imageSchema = z
+  .string()
+  .trim()
+  .max(3_000_000)
+  .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload");
 
-export const productsQuerySchema = z.object({
+// ── Drugs (canonical catalogue) ─────────────────────────────────────────────
+
+export const drugsQuerySchema = z.object({
   category: z.string().optional(),
   search: z.string().max(100).optional(),
   requiresPrescription: z
     .enum(["true", "false"])
     .transform((v) => v === "true")
     .optional(),
-  inStock: z
-    .enum(["true", "false"])
-    .transform((v) => v === "true")
-    .optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
-export type ProductsQuery = z.infer<typeof productsQuerySchema>;
+export type DrugsQuery = z.infer<typeof drugsQuerySchema>;
 
-// ── Orders ────────────────────────────────────────────────────────────────────
+export const createDrugSchema = z.object({
+  name: z.string().min(2).max(200),
+  genericName: z.string().max(200).optional(),
+  description: z.string().max(2000).optional(),
+  category: z.string().min(2).max(100),
+  form: z.string().max(60).optional(),
+  strength: z.string().max(60).optional(),
+  imageUrl: imageSchema.optional(),
+  images: z.array(imageSchema).max(6, "Up to 6 images").optional(),
+  requiresPrescription: z.boolean().default(false),
+});
+export type CreateDrugInput = z.infer<typeof createDrugSchema>;
+
+export const updateDrugSchema = createDrugSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+export type UpdateDrugInput = z.infer<typeof updateDrugSchema>;
+
+// ── Listings (a vendor org's offer of a Drug) ───────────────────────────────
+
+export const createListingSchema = z.object({
+  drugId: z.string().uuid().optional(),
+  /** Provide instead of drugId to add a brand-new drug to the shared catalogue and claim it in one step. */
+  drug: createDrugSchema.optional(),
+  priceKes: z.number().int().min(1),
+  stockQty: z.number().int().min(0).default(0),
+}).refine((d) => d.drugId || d.drug, { message: "Provide either drugId or drug" });
+export type CreateListingInput = z.infer<typeof createListingSchema>;
+
+export const patchListingSchema = z.object({
+  priceKes: z.number().int().min(1).optional(),
+  stockQty: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+}).refine((d) => Object.keys(d).length > 0, { message: "Nothing to update" });
+export type PatchListingInput = z.infer<typeof patchListingSchema>;
+
+// ── Storefront (public, proximity-ranked) ───────────────────────────────────
+
+export const storefrontQuerySchema = z.object({
+  category: z.string().optional(),
+  search: z.string().max(100).optional(),
+  requiresPrescription: z
+    .enum(["true", "false"])
+    .transform((v) => v === "true")
+    .optional(),
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+  county: z.enum(KENYA_COUNTIES).optional(),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+export type StorefrontQuery = z.infer<typeof storefrontQuerySchema>;
+
+export const offersQuerySchema = z.object({
+  lat: z.coerce.number().min(-90).max(90).optional(),
+  lng: z.coerce.number().min(-180).max(180).optional(),
+});
+export type OffersQuery = z.infer<typeof offersQuerySchema>;
+
+// ── Orders (cart may span multiple vendors) ─────────────────────────────────
 
 export const orderItemInputSchema = z.object({
-  productId: z.string().uuid("Invalid product ID"),
+  listingId: z.string().uuid("Invalid listing ID"),
   qty: z.number().int().min(1).max(100),
 });
 
@@ -43,50 +105,23 @@ export const createOrderSchema = z.object({
 });
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
-export const patchOrderSchema = z.object({
+/** Patches one vendor's slice of an order (fulfilment status). */
+export const patchVendorOrderSchema = z.object({
   status: z.enum(["processing", "dispatched", "delivered", "cancelled"]).optional(),
 });
-export type PatchOrderInput = z.infer<typeof patchOrderSchema>;
+export type PatchVendorOrderInput = z.infer<typeof patchVendorOrderSchema>;
 
 export const ordersQuerySchema = z.object({
-  status: z
-    .enum(["pending", "paid", "processing", "dispatched", "delivered", "cancelled", "refunded"])
-    .optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),
 });
 export type OrdersQuery = z.infer<typeof ordersQuerySchema>;
 
-// ── Admin product management ──────────────────────────────────────────────────
-
-export const createProductSchema = z.object({
-  name: z.string().min(2).max(200),
-  genericName: z.string().max(200).optional(),
-  description: z.string().max(2000).optional(),
-  category: z.string().min(2).max(100),
-  imageUrl: z
-    .string()
-    .trim()
-    .max(3_000_000)
-    .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload")
+export const vendorOrdersQuerySchema = z.object({
+  status: z
+    .enum(["pending", "awaiting_verification", "paid", "processing", "dispatched", "delivered", "cancelled", "refunded"])
     .optional(),
-  images: z
-    .array(
-      z
-        .string()
-        .trim()
-        .max(3_000_000)
-        .refine((v) => /^(https?:\/\/|\/|data:image\/)/.test(v), "Provide an image URL, path, or upload"),
-    )
-    .max(6, "Up to 6 images")
-    .optional(),
-  priceKes: z.number().int().min(1),
-  requiresPrescription: z.boolean().default(false),
-  stockQty: z.number().int().min(0).default(0),
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
 });
-export type CreateProductInput = z.infer<typeof createProductSchema>;
-
-export const updateProductSchema = createProductSchema.partial().extend({
-  isActive: z.boolean().optional(),
-});
-export type UpdateProductInput = z.infer<typeof updateProductSchema>;
+export type VendorOrdersQuery = z.infer<typeof vendorOrdersQuerySchema>;

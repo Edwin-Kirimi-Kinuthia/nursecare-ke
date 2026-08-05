@@ -9,9 +9,12 @@ import {
 import type { HomeVisit } from "@carebora/api-client";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { IS_TILL_MODE } from "@/lib/payments";
+import { TillPayBox } from "@/components/TillPayBox";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending:   { label: "Pending",   cls: "bg-amber-100 text-amber-700" },
+  awaiting_verification: { label: "Verifying payment", cls: "bg-orange-100 text-orange-700" },
   assigned:  { label: "Assigned",  cls: "bg-indigo-100 text-indigo-700" },
   paid:      { label: "Paid",      cls: "bg-blue-100 text-blue-700" },
   en_route:  { label: "En route",  cls: "bg-violet-100 text-violet-700" },
@@ -94,8 +97,8 @@ export default function HomeVisitsPage() {
     setSimCheckoutId(null);
     try {
       const updated = await api.payHomeVisit(payVisit.id, { phoneNumber: phone });
-      setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
-      setSimCheckoutId(updated.checkoutRequestId ?? null);
+      if (!IS_TILL_MODE) setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
+      setSimCheckoutId(updated.payment?.gatewayRef ?? null);
       await load();
     } catch (err: unknown) {
       setPayMsg(err instanceof Error ? err.message : "Payment failed.");
@@ -257,34 +260,49 @@ export default function HomeVisitsPage() {
             </div>
             <div className="mt-1 text-2xl font-extrabold text-teal-700">{kes(payVisit.feeKes)}</div>
 
-            <form onSubmit={payNow} className="mt-4 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">M-Pesa phone number</label>
-                <input value={phone} onChange={e => setPhone(e.target.value)} required
-                  placeholder="0712345678"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-              </div>
-              {payMsg && (
-                <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
-              )}
-              {simCheckoutId && (
-                <button type="button" onClick={simulatePay} disabled={simulating}
-                  className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
-                  {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
-                </button>
-              )}
-              <div className="flex gap-3">
-                <button type="submit" disabled={paying}
-                  className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                  {paying && <Loader2 className="h-4 w-4 animate-spin" />}
-                  Pay {kes(payVisit.feeKes)}
-                </button>
+            {IS_TILL_MODE && simCheckoutId ? (
+              <div className="mt-4 space-y-3">
+                <TillPayBox
+                  gatewayRef={simCheckoutId}
+                  amountKes={payVisit.feeKes ?? 0}
+                  noun="home visit"
+                  onSubmitted={load}
+                />
                 <button type="button" onClick={() => setPayVisit(null)}
-                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                  Cancel
+                  className="w-full rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                  Close
                 </button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={payNow} className="mt-4 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">M-Pesa phone number</label>
+                  <input value={phone} onChange={e => setPhone(e.target.value)} required
+                    placeholder="0712345678"
+                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                </div>
+                {payMsg && (
+                  <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
+                )}
+                {simCheckoutId && !IS_TILL_MODE && (
+                  <button type="button" onClick={simulatePay} disabled={simulating}
+                    className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
+                    {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
+                  </button>
+                )}
+                <div className="flex gap-3">
+                  <button type="submit" disabled={paying}
+                    className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                    {paying && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payVisit.feeKes)}`}
+                  </button>
+                  <button type="button" onClick={() => setPayVisit(null)}
+                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -335,9 +353,9 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </button>
       )}
 
-      {visit.mpesaReceiptNumber && (
+      {visit.payment?.receiptNumber && (
         <div className="mt-3 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          Receipt: <span className="font-mono font-semibold">{visit.mpesaReceiptNumber}</span>
+          Receipt: <span className="font-mono font-semibold">{visit.payment.receiptNumber}</span>
         </div>
       )}
 
@@ -347,9 +365,9 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </div>
       )}
 
-      {visit.status === "cancelled" && visit.paymentFailReason && (
+      {visit.status === "cancelled" && visit.payment?.failureReason && (
         <div className="mt-3 flex items-center gap-1.5 text-xs text-rose-600">
-          <XCircle className="h-3.5 w-3.5" /> {visit.paymentFailReason}
+          <XCircle className="h-3.5 w-3.5" /> {visit.payment.failureReason}
         </div>
       )}
     </div>

@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgis/postgis:16-3.4-alpine
         env:
           POSTGRES_USER: carebora
           POSTGRES_PASSWORD: carebora
@@ -47,6 +47,13 @@ jobs:
     env:
       DATABASE_URL: postgresql://carebora:carebora@localhost:5432/carebora?schema=public
       JWT_SECRET: ci-test-secret-not-for-production-0123456789abcdef
+      # No Daraja/Jenga sandbox creds are available in CI — Till mode lets
+      # checkout flows (orders, lab orders, ambulance, home visits) run
+      # end-to-end without calling a real payment gateway.
+      PAYMENTS_MODE: till
+      NEXT_PUBLIC_PAYMENTS_MODE: till
+      NEXT_PUBLIC_MPESA_TILL_NUMBER: "174379"
+      NEXT_PUBLIC_MPESA_TILL_NAME: CareBora (CI)
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -55,8 +62,11 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Apply database schema
-        run: npm run db:push
+      - name: Apply database migrations
+        # db:push only pushes the Prisma-visible schema — it skips the raw-SQL
+        # migrations that create the PostGIS geog-sync triggers, which would
+        # silently break every proximity query (storefront, ambulance dispatch).
+        run: npm run db:deploy
       - name: Seed demo data
         run: npm run db:seed
       - name: Build

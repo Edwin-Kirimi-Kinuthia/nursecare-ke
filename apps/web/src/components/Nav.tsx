@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill } from "lucide-react";
+import { ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Siren, Building2, FileText, FlaskConical } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import NotificationBell from "@/components/NotificationBell";
@@ -69,6 +69,30 @@ export default function Nav() {
                 <Home className="h-4 w-4" /> <span className="hidden sm:inline">Home visits</span>
               </Link>
               <Link
+                href="/ambulance"
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 transition ${
+                  isActive("/ambulance") ? "bg-rose-50 text-rose-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Siren className="h-4 w-4" /> <span className="hidden sm:inline">Ambulance</span>
+              </Link>
+              <Link
+                href="/labs"
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 transition ${
+                  isActive("/labs") ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <FlaskConical className="h-4 w-4" /> <span className="hidden sm:inline">Labs</span>
+              </Link>
+              <Link
+                href="/records"
+                className={`flex items-center gap-1.5 rounded-lg px-3 py-2 transition ${
+                  isActive("/records") ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <FileText className="h-4 w-4" /> <span className="hidden sm:inline">Records</span>
+              </Link>
+              <Link
                 href="/ai"
                 className={`flex items-center gap-1.5 rounded-lg px-3 py-2 transition ${
                   isActive("/ai") ? "bg-violet-50 text-violet-700" : "text-slate-600 hover:bg-slate-100"
@@ -77,6 +101,16 @@ export default function Nav() {
                 <Brain className="h-4 w-4" /> <span className="hidden sm:inline">AI Check</span>
               </Link>
             </>
+          )}
+          {user && user.role === "vendor" && (
+            <Link
+              href="/vendor"
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 transition ${
+                isActive("/vendor") ? "bg-teal-50 text-teal-700" : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Building2 className="h-4 w-4" /> <span className="hidden sm:inline">Vendor dashboard</span>
+            </Link>
           )}
           {user && user.role === "admin" && (
             <Link

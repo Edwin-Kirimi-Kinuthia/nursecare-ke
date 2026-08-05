@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts, type PDFFont, type PDFPage } from "pdf-lib";
+import { PDFDocument, rgb, StandardFonts, type PDFFont } from "pdf-lib";
 import { clinicalTemplateFor, type ClinicalRecord, type Medication } from "@carebora/shared";
 
 interface RxItem {

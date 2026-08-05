@@ -6,6 +6,7 @@ import {
   type PublicUser,
   type RegisterInput,
   type ProviderApplicationInput,
+  type VendorApplicationInput,
   type UserRole,
 } from "@carebora/shared";
 import { hashPassword, verifyPassword } from "./password";
@@ -14,6 +15,7 @@ import {
   hashRefreshToken,
   signAccessToken,
 } from "./tokens";
+import { generateUniqueOrgSlug } from "../org/org.service";
 
 const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 
@@ -125,6 +127,55 @@ export const authService = {
     }
 
     const tokens = await issueSession(user.id, role, meta);
+    return { user: toPublicUser(user), ...tokens };
+  },
+
+  /**
+   * Apply as a marketplace vendor (pharmacy/ambulance/lab) — creates the account
+   * with role `vendor` plus a `pending` Organization, an `owner` membership, and
+   * the first branch, in one transaction. Lands in the admin org-review queue.
+   */
+  async applyAsVendor(input: VendorApplicationInput, meta?: RequestMeta) {
+    const slug = await generateUniqueOrgSlug(input.orgName);
+
+    let user: User;
+    try {
+      user = await db.$transaction(async (tx) => {
+        const created = await tx.user.create({
+          data: {
+            email: input.email,
+            fullName: input.fullName,
+            phone: input.phone ?? null,
+            role: "vendor",
+            credentials: { create: { passwordHash: hashPassword(input.password) } },
+          },
+        });
+        const org = await tx.organization.create({
+          data: {
+            type: input.orgType,
+            name: input.orgName,
+            slug,
+            description: input.description ?? null,
+            licenceNumber: input.licenceNumber,
+            licenceBody: input.licenceBody ?? null,
+            kraPin: input.kraPin ?? null,
+            contactEmail: input.contactEmail ?? input.email,
+            contactPhone: input.contactPhone ?? input.phone ?? null,
+            status: "pending",
+          },
+        });
+        await tx.orgMember.create({ data: { orgId: org.id, userId: created.id, role: "owner" } });
+        await tx.orgBranch.create({ data: { orgId: org.id, ...input.branch } });
+        return created;
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw ApiError.conflict("An account with this email or phone already exists");
+      }
+      throw err;
+    }
+
+    const tokens = await issueSession(user.id, "vendor", meta);
     return { user: toPublicUser(user), ...tokens };
   },
 

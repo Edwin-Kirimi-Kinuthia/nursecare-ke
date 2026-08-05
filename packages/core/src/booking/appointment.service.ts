@@ -9,6 +9,7 @@ import {
 } from "@carebora/shared";
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
+import { paymentService } from "../payment/payment.service";
 
 const APPOINTMENT_INCLUDE = {
   slot: true,
@@ -23,8 +24,18 @@ const APPOINTMENT_INCLUDE = {
   },
   patient: { select: { id: true, fullName: true, avatarUrl: true, email: true, phone: true } },
   consultation: { select: { id: true, status: true } },
-  payment: { select: { status: true } },
 } satisfies Prisma.AppointmentInclude;
+
+// Payment is polymorphic (no direct Prisma relation) — attached manually.
+async function attachPayment<T extends { id: string }>(appointment: T) {
+  const payment = await paymentService.getForSubject("appointment", appointment.id);
+  return { ...appointment, payment };
+}
+
+async function attachPayments<T extends { id: string }>(appointments: T[]) {
+  const payments = await paymentService.getForSubjects("appointment", appointments.map((a) => a.id));
+  return appointments.map((a) => ({ ...a, payment: payments.get(a.id) ?? null }));
+}
 
 export const appointmentService = {
   /** Patient books a slot. Fails if the slot is already taken. */
@@ -75,7 +86,7 @@ export const appointmentService = {
         body: `${appointment.patient.fullName} requested a ${appointment.appointmentType === "teleconsult" ? "teleconsultation" : "home visit"}.`,
         link: "/appointments",
       });
-      return appointment;
+      return attachPayment(appointment);
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
@@ -104,7 +115,7 @@ export const appointmentService = {
       }),
       db.appointment.count({ where }),
     ]);
-    return { appointments, total, limit: query.limit, offset: query.offset };
+    return { appointments: await attachPayments(appointments), total, limit: query.limit, offset: query.offset };
   },
 
   /** Get a single appointment — accessible by the patient or the provider. */
@@ -121,7 +132,7 @@ export const appointmentService = {
       (!isProvider && appointment.patientId === userId);
     if (!owns) throw ApiError.forbidden();
 
-    return appointment;
+    return attachPayment(appointment);
   },
 
   /** Update appointment status or notes. RBAC: providers confirm/complete/no_show; patients cancel. */
@@ -185,6 +196,6 @@ export const appointmentService = {
       });
     }
 
-    return updated;
+    return attachPayment(updated);
   },
 };
