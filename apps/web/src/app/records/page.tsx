@@ -4,9 +4,9 @@ import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileText, ShieldAlert, Stethoscope, Pill, Activity, Syringe, Paperclip,
-  Plus, Loader2, Lock, Eye, Ban, X,
+  Plus, Loader2, Lock, Eye, Ban, X, Download,
 } from "lucide-react";
-import { ApiError, type CreateAllergyInput, type CreateConditionInput, type CreateMedicationEntryInput, type GrantAccessInput } from "@carebora/shared";
+import { ApiError, clinicalTemplateFor, type CreateAllergyInput, type CreateConditionInput, type CreateMedicationEntryInput, type GrantAccessInput } from "@carebora/shared";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useSection, SectionShell } from "@/components/dashboard/section";
@@ -336,23 +336,84 @@ function DocumentsTab({ patientId, documents, onChanged }: { patientId: string; 
   );
 }
 
+/**
+ * A patient's clinical documentation: the doctor's treatment sheet, the nurse's
+ * care plan / cardex, or the physio's assessment — rendered with the same
+ * labelled sections the clinician filled in, plus a PDF of the whole thing.
+ */
 function ConsultationsTab({ consultations }: { consultations: import("@carebora/api-client").MedicalHistoryEntry[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h2 className="font-bold text-slate-900">Consultations</h2>
-      {consultations.length === 0 ? <p className="mt-3 text-sm text-slate-400">No consultations yet.</p> : (
-        <div className="mt-3 space-y-3">
-          {consultations.map((c) => (
-            <div key={c.id} className="rounded-xl border border-slate-100 p-3 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="font-medium text-slate-800">{c.appointment.provider.user.fullName}</span>
-                <span className="text-xs text-slate-400">{when(c.appointment.slot?.startsAt ?? c.createdAt)}</span>
-              </div>
-              {c.clinicalNotes && <p className="mt-1.5 whitespace-pre-wrap text-slate-600">{c.clinicalNotes}</p>}
-            </div>
-          ))}
+    <div className="space-y-3">
+      {consultations.length === 0 ? (
+        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h2 className="font-bold text-slate-900">Consultations</h2>
+          <p className="mt-3 text-sm text-slate-400">No consultations yet.</p>
         </div>
-      )}
+      ) : consultations.map((c) => {
+        const template = clinicalTemplateFor(c.appointment.provider.user.role);
+        const record = c.clinicalRecord ?? {};
+        const filled = template.sections
+          .map((s) => ({ label: s.label, value: (record[s.key] ?? "").trim() }))
+          .filter((s) => s.value.length > 0);
+
+        return (
+          <div key={c.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div className="font-semibold text-slate-900">{c.appointment.provider.user.fullName}</div>
+                <div className="mt-0.5 text-xs text-slate-400">
+                  {template.title}
+                  {c.appointment.provider.specialty ? ` · ${c.appointment.provider.specialty}` : ""}
+                  {" · "}{when(c.appointment.slot?.startsAt ?? c.createdAt)}
+                </div>
+              </div>
+              {(filled.length > 0 || c.prescriptions.length > 0) && (
+                <a
+                  href={`/api/v1/consultations/${c.id}/pdf`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
+                >
+                  <Download className="h-3.5 w-3.5" /> PDF
+                </a>
+              )}
+            </div>
+
+            {filled.length > 0 ? (
+              <dl className="mt-4 space-y-3 border-t border-slate-100 pt-4">
+                {filled.map((s) => (
+                  <div key={s.label}>
+                    <dt className="text-xs font-semibold uppercase tracking-wide text-slate-400">{s.label}</dt>
+                    <dd className="mt-0.5 whitespace-pre-wrap text-sm text-slate-700">{s.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            ) : c.clinicalNotes ? (
+              <p className="mt-3 whitespace-pre-wrap border-t border-slate-100 pt-3 text-sm text-slate-600">{c.clinicalNotes}</p>
+            ) : (
+              <p className="mt-3 text-sm text-slate-400">Your clinician hasn&apos;t written this up yet.</p>
+            )}
+
+            {c.prescriptions.length > 0 && (
+              <div className="mt-4 border-t border-slate-100 pt-4">
+                <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Prescribed</div>
+                <ul className="mt-1.5 space-y-1 text-sm text-slate-700">
+                  {c.prescriptions.flatMap((rx) =>
+                    rx.medications.map((m, i) => (
+                      <li key={`${rx.id}-${i}`}>
+                        <span className="font-medium">{m.name}</span>
+                        {[m.dosage, m.frequency, m.duration].filter(Boolean).length > 0 && (
+                          <span className="text-slate-500"> — {[m.dosage, m.frequency, m.duration].filter(Boolean).join(", ")}</span>
+                        )}
+                      </li>
+                    )),
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

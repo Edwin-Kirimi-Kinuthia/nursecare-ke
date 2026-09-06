@@ -89,6 +89,10 @@ export const consultationService = {
         id: true,
         status: true,
         clinicalNotes: true,
+        // The structured record + the provider's role are what let the patient's
+        // record render the actual treatment sheet / nursing care plan with its
+        // labelled sections, rather than just the flat plain-text rendering.
+        clinicalRecord: true,
         startedAt: true,
         endedAt: true,
         createdAt: true,
@@ -98,7 +102,7 @@ export const consultationService = {
             appointmentType: true,
             slot: { select: { startsAt: true } },
             provider: {
-              select: { userId: true, specialty: true, user: { select: { fullName: true } } },
+              select: { userId: true, specialty: true, user: { select: { fullName: true, role: true } } },
             },
           },
         },
