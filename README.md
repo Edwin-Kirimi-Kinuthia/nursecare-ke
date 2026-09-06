@@ -55,8 +55,8 @@ Then open:
 
 ## Demo accounts
 
-After `npm run db:seed`, log in via `POST /api/v1/auth/login`. **Password for all:
-`Demo1234!`**
+After `npm run db:seed`, log in at `/login` or via `POST /api/v1/auth/login`.
+**Password for all: `Demo1234!`**
 
 | Email | Role | Notes |
 |-------|------|-------|
@@ -66,12 +66,24 @@ After `npm run db:seed`, log in via `POST /api/v1/auth/login`. **Password for al
 | `dr.faith@carebora.ke` | doctor | OB-GYN · Nairobi · verified |
 | `nurse.peter@carebora.ke` | nurse | Nairobi · verified |
 | `nurse.grace@carebora.ke` | nurse | Kisumu · in_review (verification queue demo) |
-| `alice@example.com` | patient | |
-| `bob@example.com` | patient | |
+| `physio.daniel@carebora.ke` | physio | Nairobi · verified · home sessions |
+| `owner.wellcare@example.com` | vendor | Wellcare Pharmacy · Nairobi CBD |
+| `owner.medipoint@example.com` | vendor | MediPoint Pharmacy · Westlands |
+| `owner.coastmeds@example.com` | vendor | Coast Meds Pharmacy · Mombasa |
+| `owner.rapidresponse@example.com` | vendor | Rapid Response Ambulance · Nairobi |
+| `owner.precisionlab@example.com` | vendor | Precision Diagnostics Lab · Nairobi |
+| `alice@example.com` | patient | Has past consultations — use for records demos |
+| `bob@example.com` | patient | No relationship to Alice — use for access-denial demos |
 | `carol@example.com` | patient | |
 
-The seed also loads 15 pharmacy products (8 OTC + 7 prescription-only) and 30 days
-of teleconsult slots for each doctor.
+The seed also loads a 15-drug catalogue (8 OTC + 7 prescription-only) listed at
+varying prices across the three pharmacies, an ambulance operator with two
+vehicles, a diagnostic lab with six tests, and 30 days of teleconsult slots per
+doctor.
+
+**See [ACCOUNTS.md](./ACCOUNTS.md)** for the full list — including ten further
+review-author patients — plus which account to use for which flow, the records
+access-control matrix, and how to complete a payment in each `PAYMENTS_MODE`.
 
 ## Scripts (run from repo root)
 
@@ -85,6 +97,7 @@ of teleconsult slots for each doctor.
 | `npm run db:migrate` | Create + apply a migration (dev) |
 | `npm run db:generate` | Regenerate the Prisma client from schema |
 | `npm run db:seed` | Load demo data |
+| `npm run db:cleanup` | Remove E2E test users/orgs, restoring a clean demo state |
 | `npm run db:studio` | Open Prisma Studio |
 
 ### End-to-end tests (Playwright)

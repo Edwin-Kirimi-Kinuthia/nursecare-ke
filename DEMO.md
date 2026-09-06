@@ -2,7 +2,7 @@
 
 > **Live URL:** https://nursecare-ke-five.vercel.app
 > **Duration:** ~12–15 minutes
-> **Demo accounts (password: `Demo1234!`):**
+> **Demo accounts (password: `Demo1234!`)** — full list in [ACCOUNTS.md](./ACCOUNTS.md):
 >
 > | Account | Role |
 > |---|---|
@@ -11,6 +11,11 @@
 > | `nurse.peter@carebora.ke` | Nurse (home care) |
 > | `physio.daniel@carebora.ke` | Physiotherapist (home sessions) |
 > | `admin@carebora.ke` | Admin |
+> | `owner.wellcare@example.com` | Vendor — Wellcare Pharmacy (Nairobi CBD) |
+> | `owner.medipoint@example.com` | Vendor — MediPoint Pharmacy (Westlands) |
+> | `owner.coastmeds@example.com` | Vendor — Coast Meds Pharmacy (Mombasa) |
+> | `owner.rapidresponse@example.com` | Vendor — Rapid Response Ambulance |
+> | `owner.precisionlab@example.com` | Vendor — Precision Diagnostics Lab |
 >
 > **M-Pesa sandbox test number:** `0708374149` — the sandbox accepts the STK push but sends **no real phone prompt**, so each pay screen has a **"Simulate M-Pesa payment (sandbox)"** button that completes the payment for the demo.
 
