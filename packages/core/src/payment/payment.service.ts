@@ -289,14 +289,50 @@ export const paymentService = {
       throw ApiError.badRequest("Only completed payments can be refunded");
     }
 
+    // Claim the refund atomically. Checking `status` above and then writing is a
+    // check-then-act race: concurrent refunds all read "completed" before any of
+    // them writes, and each goes on to post its own set of reversal entries,
+    // driving the vendor's payout balance far negative. Letting the database
+    // decide the winner with a status-guarded updateMany is what actually makes
+    // this safe — same pattern as first-operator-wins on ambulance accept.
+    const claimed = await db.payment.updateMany({
+      where: { id: paymentId, status: "completed" },
+      data: { status: "refunded", refundedKes: payment.amountKes },
+    });
+    if (claimed.count === 0) {
+      throw ApiError.badRequest("Only completed payments can be refunded");
+    }
+
+    // Reverse the split, not just the gross. Writing only a negative gross_sale
+    // leaves the platform_fee and vendor/provider payout entries standing, so a
+    // refunded sale would still count toward platform revenue and would still
+    // pay the vendor out. Mirror whatever entries the settlement actually wrote
+    // — a multi-vendor order has one pair per vendor, each carrying its own
+    // orgId — rather than recomputing from the payment total.
+    const splits = await db.ledgerEntry.findMany({
+      where: {
+        paymentId,
+        type: { in: ["platform_fee", "vendor_payout", "provider_payout", "delivery_fee"] },
+        amountKes: { gt: 0 },
+      },
+    });
+
     await db.$transaction([
-      db.payment.update({
-        where: { id: paymentId },
-        data: { status: "refunded", refundedKes: payment.amountKes },
-      }),
       db.ledgerEntry.create({
         data: { paymentId, type: "refund", amountKes: -payment.amountKes, description: "Refund issued" },
       }),
+      ...splits.map((s) =>
+        db.ledgerEntry.create({
+          data: {
+            paymentId,
+            type: s.type,
+            orgId: s.orgId,
+            providerId: s.providerId,
+            amountKes: -s.amountKes,
+            description: `Reversed on refund — ${s.description ?? s.type}`,
+          },
+        }),
+      ),
     ]);
 
     return db.payment.findUnique({ where: { id: paymentId }, include: PAYMENT_INCLUDE });
