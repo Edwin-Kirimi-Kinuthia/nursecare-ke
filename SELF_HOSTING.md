@@ -99,12 +99,15 @@ PAYMENTS_MODE=mpesa_daraja        # mpesa_daraja | jenga | till
 NEXT_PUBLIC_PAYMENTS_MODE=mpesa_daraja
 PLATFORM_FEE_PERCENT=10
 
-# M-Pesa Daraja (primary) — start on sandbox, flip MPESA_ENV to go live
+# M-Pesa Daraja (primary) — start on sandbox, flip MPESA_ENV to go live.
+# The Daraja portal shows "N/A" for a sandbox app's Shortcode and Passkey — they
+# aren't issued per app; every sandbox app uses the published test pair below.
+# Only the test MSISDN 254708374149 accepts a push, and no money actually moves.
 MPESA_ENV=sandbox
 MPESA_CONSUMER_KEY=...
 MPESA_CONSUMER_SECRET=...
 MPESA_SHORTCODE=174379
-MPESA_PASSKEY=...
+MPESA_PASSKEY=bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919
 MPESA_CALLBACK_URL=https://app.carebora.co.ke/api/v1/payments/mpesa/callback
 
 # Jenga (Equity/Finserve) — only if PAYMENTS_MODE=jenga
