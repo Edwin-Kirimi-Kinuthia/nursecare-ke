@@ -27,6 +27,25 @@ async function attachPayment<T extends { id: string }>(order: T) {
   return { ...order, payment };
 }
 
+/**
+ * Runs `work`, cancelling the already-created Payment if it throws.
+ *
+ * Checkout has to call the gateway before the order row exists (the gateway
+ * reference is needed to create it), so a later failure would otherwise leave a
+ * pending charge with no order behind it.
+ */
+async function runOrRollBackPayment<T>(paymentId: string, work: () => Promise<T>): Promise<T> {
+  try {
+    return await work();
+  } catch (err) {
+    // Best-effort: never let cleanup mask the original failure.
+    await db.payment
+      .updateMany({ where: { id: paymentId, status: "pending" }, data: { status: "cancelled" } })
+      .catch(() => undefined);
+    throw err;
+  }
+}
+
 async function attachPayments<T extends { id: string }>(orders: T[]) {
   const payments = await paymentService.getForSubjects("order", orders.map((o) => o.id));
   return orders.map((o) => ({ ...o, payment: payments.get(o.id) ?? null }));
@@ -101,7 +120,13 @@ export const orderService = {
     });
 
     // 5. Create order + one VendorOrder per org + decrement stock, in one transaction.
-    const order = await db.$transaction(async (tx) => {
+    //    The Payment already exists at this point, so if the transaction rolls
+    //    back — most plausibly because someone else took the last of the stock
+    //    between the check above and the reservation below — that payment would
+    //    otherwise sit `pending` forever, cluttering the Till verification queue
+    //    and the reconciliation sweep with a charge for an order that was never
+    //    created. Cancel it before rethrowing.
+    const order = await runOrRollBackPayment(payment.id, () => db.$transaction(async (tx) => {
       const created = await tx.order.create({
         data: {
           id: orderId,
@@ -122,11 +147,25 @@ export const orderService = {
         },
         include: ORDER_INCLUDE,
       });
+      // Reserve stock conditionally. The `stockQty < qty` check above happens
+      // before the transaction, so on its own it's check-then-act: concurrent
+      // carts all read the same stock, all pass, and all decrement — overselling
+      // the vendor into negative stock and committing them to orders they can't
+      // fill after the customer has already paid. Guarding the decrement on the
+      // quantity still being available makes the database arbitrate, and a
+      // no-op update means someone else took the last units first.
       for (const item of input.items) {
-        await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { decrement: item.qty } } });
+        const reserved = await tx.listing.updateMany({
+          where: { id: item.listingId, stockQty: { gte: item.qty } },
+          data: { stockQty: { decrement: item.qty } },
+        });
+        if (reserved.count === 0) {
+          const name = listingMap.get(item.listingId)?.drug.name ?? "an item";
+          throw ApiError.conflict(`"${name}" just went out of stock — please adjust your cart`);
+        }
       }
       return created;
-    });
+    }));
 
     return { ...order, payment: toPaymentSummary(payment), redirect };
   },
