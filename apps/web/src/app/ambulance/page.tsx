@@ -11,6 +11,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
+import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -152,6 +153,23 @@ export default function AmbulancePage() {
           </button>
         )}
       </div>
+
+      {/* Calling is always the fastest path in a real emergency — offered before
+          the request form, and on every view, so it's never more than one tap away. */}
+      <a
+        href={`tel:${EMERGENCY_PHONE}`}
+        className="mt-5 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 transition hover:bg-rose-100"
+      >
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-500/25">
+          <Phone className="h-5 w-5" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-bold text-rose-900">Life-threatening? Call now</span>
+          <span className="block text-sm text-rose-700">
+            Speak to our dispatch team on {EMERGENCY_PHONE_DISPLAY} — faster than filling the form below.
+          </span>
+        </span>
+      </a>
 
       {view === "request" ? (
         <form onSubmit={submitRequest} className="mt-6 space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

@@ -94,11 +94,12 @@ LIVEKIT_API_KEY=...
 LIVEKIT_API_SECRET=...
 
 # ── Payments — pick ONE gateway family ──
-PAYMENTS_MODE=mpesa_daraja        # jenga | till | mpesa_daraja
+# mpesa_daraja is the default. `jenga` is the fallback, `till` needs no creds.
+PAYMENTS_MODE=mpesa_daraja        # mpesa_daraja | jenga | till
 NEXT_PUBLIC_PAYMENTS_MODE=mpesa_daraja
 PLATFORM_FEE_PERCENT=10
 
-# M-Pesa Daraja
+# M-Pesa Daraja (primary) — start on sandbox, flip MPESA_ENV to go live
 MPESA_ENV=sandbox
 MPESA_CONSUMER_KEY=...
 MPESA_CONSUMER_SECRET=...
@@ -216,8 +217,9 @@ gunzip -c ~/carebora-YYYY-MM-DD.sql.gz | \
 
 ## Notes
 
-- **Going live with M-Pesa:** set `MPESA_ENV=production` and swap in your production Daraja credentials + a real Paybill/Till, then `docker compose -f docker-compose.prod.yml up -d web`.
-- **Going live with Jenga:** set `PAYMENTS_MODE=jenga`, `JENGA_ENV=production`, and swap in your production Jenga credentials (API key, merchant code, RSA private key, PGW token) from developer.jengahq.io, then `docker compose -f docker-compose.prod.yml up -d web`. No Till/Daraja creds are needed in this mode.
+- **Going live with M-Pesa (sandbox → production):** this is an env-only change — no code edit, no redeploy of anything but the web container. Set `MPESA_ENV=production`, swap `MPESA_CONSUMER_KEY` / `MPESA_CONSUMER_SECRET` / `MPESA_PASSKEY` for your production Daraja app's values, set `MPESA_SHORTCODE` to your real paybill/till (instead of the sandbox `174379`), point `MPESA_CALLBACK_URL` at your public HTTPS callback, then `docker compose -f docker-compose.prod.yml up -d web`. Verify with one small real payment and check the ledger entries.
+- **Falling back to Jenga:** if Daraja go-live stalls, set `PAYMENTS_MODE=jenga` + `NEXT_PUBLIC_PAYMENTS_MODE=jenga`, `JENGA_ENV=production`, and fill in the Jenga credentials (API key, merchant code, consumer secret, RSA private key, PGW token) from developer.jengahq.io, then `docker compose -f docker-compose.prod.yml up -d web`. No Daraja or Till creds are needed in this mode. Payments already taken through Daraja are unaffected — each `Payment` row records the gateway that processed it.
+- **Emergency stopgap:** `PAYMENTS_MODE=till` needs no gateway credentials at all — patients enter the M-Pesa code from a normal Buy Goods payment and an admin verifies it in the dashboard.
 - **Prefer a managed DB?** Skip the `db` service and point `DATABASE_URL` at your free Neon connection string instead — the app doesn't care.
 - **Memory:** 4 GB is comfortable. If you ever downsize to 2 GB, add swap: `sudo fallocate -l 2G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile` (and add it to `/etc/fstab`).
 - **Cost:** ~€5/mo for the CX22 (no EU VAT for Kenyan customers) + your domain. Everything else runs on free tiers at low volume; SMS is pay-as-you-go.

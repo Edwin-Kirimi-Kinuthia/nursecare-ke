@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
+import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
 
 export default function Footer() {
   const pathname = usePathname();
@@ -46,8 +47,8 @@ export default function Footer() {
         {/* Contact */}
         <div className="space-y-3 text-sm sm:col-span-2">
           <div className="font-semibold text-slate-700">Contact</div>
-          <a href="tel:+254791390915" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
-            <Phone className="h-4 w-4 shrink-0" /> +254 791 390 915
+          <a href={`tel:${EMERGENCY_PHONE}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <Phone className="h-4 w-4 shrink-0" /> {EMERGENCY_PHONE_DISPLAY}
           </a>
           <a href="tel:+254757963762" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
             <Phone className="h-4 w-4 shrink-0" /> +254 757 963 762

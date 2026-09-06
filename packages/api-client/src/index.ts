@@ -879,6 +879,8 @@ export interface MedicalHistoryEntry {
   id: string;
   status: ConsultationStatus;
   clinicalNotes: string | null;
+  /** Structured clinical documentation, keyed by section (see clinicalTemplateFor). */
+  clinicalRecord: Record<string, string> | null;
   startedAt: string | null;
   endedAt: string | null;
   createdAt: string;
@@ -886,7 +888,7 @@ export interface MedicalHistoryEntry {
     id: string;
     appointmentType: AppointmentType;
     slot: { startsAt: string } | null;
-    provider: { userId: string; specialty: string | null; user: { fullName: string } };
+    provider: { userId: string; specialty: string | null; user: { fullName: string; role: string } };
   };
   prescriptions: Array<{
     id: string;

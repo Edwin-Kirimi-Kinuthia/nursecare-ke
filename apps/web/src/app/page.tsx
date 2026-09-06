@@ -1,19 +1,22 @@
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
-  ArrowRight, Star, FileText, Baby, ClipboardCheck,
+  ArrowRight, Star, FileText, Baby, Plane, Stamp, Siren, Phone,
 } from "lucide-react";
+import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
 
 const FEATURES = [
   { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/providers" },
+  { Icon: Siren, title: "Emergency ambulance", desc: "An ambulance ready when you need one — call us directly or request dispatch in-app, and we send the nearest crew.", href: "/ambulance" },
+  { Icon: Plane, title: "Travel & vaccination certificates", desc: "Yellow fever certificates required for travel, plus fitness-to-fly and other clearances asked for at airports and embassies.", href: "/providers" },
+  { Icon: Stamp, title: "Medical forms filled & stamped", desc: "School admission, employment and insurance forms completed, signed and stamped by verified clinicians.", href: "/providers" },
   { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", href: "/providers" },
-  { Icon: ClipboardCheck, title: "Official medical reports & certificates", desc: "Medical reports, fitness-to-fly, and clearance certificates requested by schools, airports, employers, and embassies — issued by verified providers.", href: "/providers" },
   { Icon: Baby, title: "Pregnancy crisis management", desc: "Urgent OB-GYN support and pregnancy crisis management, any time — from bleeding to severe symptoms.", href: "/providers" },
-  { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication and supplies, delivered to your door.", href: "/pharmacy" },
+  { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", href: "/pharmacy" },
   { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/home-visits" },
   { Icon: Users, title: "Verified providers", desc: "Browse clinicians vetted against Kenyan licensing bodies.", href: "/providers" },
   { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", href: "/pharmacy" },
-  { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", href: "/providers" },
+  { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", href: "/records" },
 ];
 
 const STEPS = [
@@ -74,6 +77,36 @@ export default function HomePage() {
                 <div className="mt-1 text-xs text-teal-200">{s.v}</div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Emergency ambulance — deliberately the first thing after the hero, since
+          someone arriving mid-emergency shouldn't have to scroll or sign in. */}
+      <section className="mx-auto max-w-6xl px-4 pt-10">
+        <div className="flex flex-col items-start gap-4 rounded-2xl border border-rose-200 bg-rose-50 p-6 sm:flex-row sm:items-center">
+          <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-500/25">
+            <Siren className="h-6 w-6" />
+          </span>
+          <div className="flex-1">
+            <h2 className="font-bold text-rose-900">Medical emergency? An ambulance is ready.</h2>
+            <p className="mt-1 text-sm text-rose-700">
+              Call us now and we&apos;ll dispatch the nearest crew — or request one in-app and track it to your door.
+            </p>
+          </div>
+          <div className="flex w-full shrink-0 gap-2 sm:w-auto">
+            <a
+              href={`tel:${EMERGENCY_PHONE}`}
+              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700 sm:flex-none"
+            >
+              <Phone className="h-4 w-4" /> Call {EMERGENCY_PHONE_DISPLAY}
+            </a>
+            <Link
+              href="/ambulance"
+              className="flex flex-1 items-center justify-center rounded-xl border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 sm:flex-none"
+            >
+              Request
+            </Link>
           </div>
         </div>
       </section>
