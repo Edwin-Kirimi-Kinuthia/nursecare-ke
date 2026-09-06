@@ -1,9 +1,16 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
   ArrowRight, Star, FileText, Baby, Plane, Stamp, Siren, Phone,
 } from "lucide-react";
 import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
+import { JsonLd } from "@/components/JsonLd";
+import { organizationSchema, websiteSchema, faqSchema } from "@/lib/structured-data";
+
+// Title and description come from the root layout's defaults, which are written
+// for the homepage; this just pins its canonical.
+export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 const FEATURES = [
   { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/providers" },
@@ -34,6 +41,12 @@ const REVIEWS = [
 export default function HomePage() {
   return (
     <div>
+      {/* Tells search engines what this business is, where it operates and what
+          it offers — the basis for rich results and health/local-intent matching. */}
+      <JsonLd data={organizationSchema()} />
+      <JsonLd data={websiteSchema()} />
+      <JsonLd data={faqSchema()} />
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-teal-950 via-teal-900 to-emerald-900">
         <div className="pointer-events-none absolute inset-0">
