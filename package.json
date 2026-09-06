@@ -2,7 +2,7 @@
   "name": "carebora",
   "version": "0.0.0",
   "private": true,
-  "description": "CareBora — API-first telehealth platform for Kenya",
+  "description": "CareBora \u2014 API-first telehealth platform for Kenya",
   "workspaces": [
     "apps/*",
     "packages/*"
@@ -17,7 +17,8 @@
     "db:deploy": "npm run db:deploy -w @carebora/db",
     "db:push": "npm run db:push -w @carebora/db",
     "db:studio": "npm run db:studio -w @carebora/db",
-    "db:seed": "npm run db:seed -w @carebora/db"
+    "db:seed": "npm run db:seed -w @carebora/db",
+    "db:cleanup": "npm run db:cleanup -w @carebora/db"
   },
   "devDependencies": {
     "prettier": "^3.4.2",
