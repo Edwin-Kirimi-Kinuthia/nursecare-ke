@@ -7,6 +7,7 @@ import { LocationProvider } from "@/components/LocationProvider";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
+import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
@@ -72,6 +73,7 @@ export default function RootLayout({
           <LocationProvider>
             <CartProvider>
               <Nav />
+              <EmailVerifyBanner />
               <main className="min-h-[calc(100vh-4rem)]">{children}</main>
               <Footer />
               <CartDrawer />

@@ -4,11 +4,12 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2, Download,
+  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2, Download, KeyRound,
 } from "lucide-react";
 import type {
   PatientProfile, ProviderProfile, MedicalHistoryEntry,
 } from "@carebora/api-client";
+import { ApiError } from "@carebora/shared";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 
@@ -54,16 +55,55 @@ export default function ProfilePage() {
           <Link href="/admin" className="mt-4 inline-block rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">Open dashboard</Link>
         </div>
       )}
+
+      <ChangePasswordCard />
+    </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setBusy(true); setDone(false);
+    try {
+      await api.changePassword({ currentPassword, newPassword });
+      setCurrentPassword(""); setNewPassword(""); setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
+      <div className="flex items-center gap-2 font-bold text-slate-900"><KeyRound className="h-5 w-5 text-teal-600" /> Change password</div>
+      <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <Field label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" />
+        <Field label="New password" type="password" value={newPassword} onChange={setNewPassword} placeholder="At least 8 characters" />
+        {error && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        {done && <p className="sm:col-span-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Password updated.</p>}
+        <button type="submit" disabled={busy || !currentPassword || newPassword.length < 8}
+          className="sm:col-span-2 w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+          {busy ? "Updating…" : "Update password"}
+        </button>
+      </form>
     </div>
   );
 }
 
 /* ── shared field ─────────────────────────────────────────────────────────── */
-function Field({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <input value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
         className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
     </label>
   );

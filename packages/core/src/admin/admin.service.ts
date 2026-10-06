@@ -2,14 +2,17 @@ import { db, Prisma } from "@carebora/db";
 import {
   ApiError,
   type AdminPatchUserInput,
+  type AdminCreateProviderInput,
   type AdminUsersQuery,
   type AppointmentsQuery,
   type AuditLogsQuery,
   type ReviewVerificationInput,
   type VerificationsQuery,
   type TillContext,
+  type UserRole,
 } from "@carebora/shared";
 import { settlementService } from "../payment/settlement.service";
+import { toPublicUser, issuePasswordInvite } from "../auth/auth.service";
 
 async function writeAuditLog(
   actorId: string,
@@ -98,6 +101,92 @@ export const adminService = {
 
     await writeAuditLog(actorId, "admin_patch_user", "user", targetId, input as Record<string, unknown>);
     return updated;
+  },
+
+  /**
+   * Recruit a provider directly, skipping the public apply-and-review queue —
+   * for when the admin has already vetted them outside the app. Creates the
+   * account pre-verified and emails an invite link to set a password.
+   */
+  async createProviderAccount(actorId: string, input: AdminCreateProviderInput) {
+    const role = input.role as UserRole;
+    let user;
+    try {
+      user = await db.user.create({
+        data: {
+          email: input.email,
+          fullName: input.fullName,
+          phone: input.phone ?? null,
+          role,
+          providerProfile: {
+            create: {
+              specialty: input.specialty ?? null,
+              licenceNumber: input.licenceNumber ?? null,
+              verificationStatus: "verified",
+            },
+          },
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw ApiError.conflict("An account with this email or phone already exists");
+      }
+      throw err;
+    }
+
+    await writeAuditLog(actorId, "admin_create_provider", "user", user.id, { role });
+    await issuePasswordInvite(user);
+    return toPublicUser(user);
+  },
+
+  // ── Launch reset (one-time: clear seed/demo data before real signups) ──────
+
+  /** Counts of everything `performLaunchReset` would delete — call before showing the confirm step. */
+  async previewLaunchReset() {
+    const [nonAdminUsers, organizations, appointments, orders, payments, homeVisits, labOrders, ambulanceRequests, reviews] =
+      await Promise.all([
+        db.user.count({ where: { role: { not: "admin" } } }),
+        db.organization.count(),
+        db.appointment.count(),
+        db.order.count(),
+        db.payment.count(),
+        db.homeVisit.count(),
+        db.labOrder.count(),
+        db.ambulanceRequest.count(),
+        db.review.count(),
+      ]);
+    return { nonAdminUsers, organizations, appointments, orders, payments, homeVisits, labOrders, ambulanceRequests, reviews };
+  },
+
+  /**
+   * Deletes every non-admin user and organization, and everything that hangs
+   * off them (appointments, consultations, payments, orders, lab/ambulance
+   * requests, reviews, audit history, ...) — a one-time reset so real
+   * signups start from zero instead of alongside seeded demo data. Admin
+   * accounts, and the shared drug catalogue, are left untouched.
+   *
+   * Deletion order follows the live FK graph: tables with a RESTRICT
+   * constraint back to users/organizations have to go before their parent,
+   * everything else (ledger entries, order items, messages, prescriptions, …)
+   * cascades automatically.
+   */
+  async performLaunchReset(actorId: string) {
+    await db.review.deleteMany({});
+    await db.consultation.deleteMany({});
+    await db.appointment.deleteMany({});
+    await db.homeVisit.deleteMany({});
+    await db.payment.deleteMany({});
+    await db.order.deleteMany({});
+    await db.recordAccessLog.deleteMany({});
+    await db.medicalDocument.deleteMany({});
+    await db.labOrder.deleteMany({});
+    await db.ambulanceRequest.deleteMany({});
+    await db.auditLog.deleteMany({});
+    await db.organization.deleteMany({});
+    const deletedUsers = await db.user.deleteMany({ where: { role: { not: "admin" } } });
+
+    await writeAuditLog(actorId, "admin_launch_reset", "platform", "all", { deletedUsers: deletedUsers.count });
+    return { deletedUsers: deletedUsers.count };
   },
 
   // ── Provider verification ─────────────────────────────────────────────────

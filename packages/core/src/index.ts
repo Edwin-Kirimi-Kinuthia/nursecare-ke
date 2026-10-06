@@ -32,13 +32,14 @@ export const health = {
   },
 };
 
-export { authService } from "./auth/auth.service";
+export { authService, issuePasswordInvite } from "./auth/auth.service";
 export type { RequestMeta } from "./auth/auth.service";
 export {
   verifyAccessToken,
   signAccessToken,
   type AccessClaims,
 } from "./auth/tokens";
+export { oauthService, getAuthorizeUrl, generateOAuthState } from "./auth/oauth.service";
 export { profileService } from "./profile/profile.service";
 export { providerService } from "./booking/provider.service";
 export { availabilityService } from "./booking/availability.service";

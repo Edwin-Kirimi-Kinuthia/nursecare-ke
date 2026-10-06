@@ -53,6 +53,47 @@ export const refreshSchema = z.object({
 });
 export type RefreshInput = z.infer<typeof refreshSchema>;
 
+export const verifyEmailSchema = z.object({
+  code: z.string().trim().regex(/^[0-9]{6}$/, "Enter the 6-digit code"),
+});
+export type VerifyEmailInput = z.infer<typeof verifyEmailSchema>;
+
+/** Social login providers wired up for "Continue with ...". */
+export const OAUTH_PROVIDERS = ["google", "facebook"] as const;
+export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+
+/** Admin recruits a provider directly — skips the public apply-and-review queue. */
+export const adminCreateProviderSchema = z.object({
+  fullName: z.string().trim().min(2, "Name is too short").max(120),
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  phone: phoneSchema.optional(),
+  role: z.enum(["doctor", "nurse", "physio", "pharmacy"]),
+  specialty: z.string().trim().max(100).optional(),
+  licenceNumber: z.string().trim().max(60).optional(),
+});
+export type AdminCreateProviderInput = z.infer<typeof adminCreateProviderSchema>;
+
+/** Consume an emailed invite/reset link: set a password and sign in. */
+export const setPasswordSchema = z.object({
+  token: z.string().min(10),
+  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+});
+export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
+
+/** Rotate your own password — requires proving you know the current one. */
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Current password is required"),
+  newPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
+});
+export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+
+/** Confirmation phrase required to run the one-time launch reset. */
+export const LAUNCH_RESET_CONFIRM_PHRASE = "RESET TO LAUNCH";
+export const launchResetSchema = z.object({
+  confirm: z.literal(LAUNCH_RESET_CONFIRM_PHRASE),
+});
+export type LaunchResetInput = z.infer<typeof launchResetSchema>;
+
 /** Shape returned for the authenticated user across the API. */
 export interface PublicUser {
   id: string;

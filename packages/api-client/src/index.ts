@@ -34,6 +34,12 @@ import type {
   ProvidersQuery,
   PublicUser,
   RegisterInput,
+  VerifyEmailInput,
+  SetPasswordInput,
+  ChangePasswordInput,
+  LaunchResetPreview,
+  AdminCreateProviderInput,
+  OAuthProvider,
   ProviderApplicationInput,
   ReviewVerificationInput,
   SendMessageInput,
@@ -79,7 +85,7 @@ import type {
   LabOrdersQuery,
   EnterLabResultInput,
 } from "@carebora/shared";
-import { ApiError, ErrorCode } from "@carebora/shared";
+import { ApiError, ErrorCode, LAUNCH_RESET_CONFIRM_PHRASE } from "@carebora/shared";
 
 /**
  * Typed CareBora API client. The web app and the future mobile app both import
@@ -152,6 +158,26 @@ export class CareBoraClient {
   }
   me() {
     return this.request<PublicUser>("/auth/me");
+  }
+  /** Confirm the 6-digit code emailed at signup. */
+  verifyEmail(input: VerifyEmailInput) {
+    return this.post<PublicUser>("/auth/verify-email", input);
+  }
+  /** Send a fresh email verification code to the signed-in user. */
+  resendVerification() {
+    return this.post<{ sent: boolean }>("/auth/resend-verification", {});
+  }
+  /** Consume an emailed invite/reset link: set a password and sign in. */
+  setPassword(input: SetPasswordInput) {
+    return this.post<AuthResult>("/auth/set-password", input);
+  }
+  /** Rotate your own password — requires the current one. */
+  changePassword(input: ChangePasswordInput) {
+    return this.post<{ changed: boolean }>("/auth/change-password", input);
+  }
+  /** URL to redirect the browser to for "Continue with <provider>" — not a fetch call. */
+  oauthStartUrl(provider: OAuthProvider) {
+    return `${this.opts.baseUrl}/auth/oauth/${provider}/start`;
   }
   /** Web: pass no arg (uses httpOnly cookie). Mobile: pass the stored refresh token. */
   refresh(refreshToken?: string) {
@@ -481,6 +507,20 @@ export class CareBoraClient {
   }
   adminPatchUser(userId: string, input: AdminPatchUserInput) {
     return this.patch<AdminUserSummary>(`/admin/users/${userId}`, input);
+  }
+  /** Recruit a provider directly, skipping the public apply-and-review queue. */
+  adminCreateProvider(input: AdminCreateProviderInput) {
+    return this.post<PublicUser>("/admin/users", input);
+  }
+
+  // ── Admin — Launch reset (one-time: clear seed/demo data) ──
+  /** Counts of what a reset would delete. Call before showing the confirm step. */
+  adminPreviewLaunchReset() {
+    return this.request<LaunchResetPreview>("/admin/maintenance/launch-reset");
+  }
+  /** Irreversible: deletes every non-admin user/org and everything that hangs off them. */
+  adminPerformLaunchReset() {
+    return this.post<{ deletedUsers: number }>("/admin/maintenance/launch-reset", { confirm: LAUNCH_RESET_CONFIRM_PHRASE });
   }
 
   // ── Admin — Verifications (M7) ──

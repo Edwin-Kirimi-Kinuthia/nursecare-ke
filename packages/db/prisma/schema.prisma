@@ -158,6 +158,7 @@ model User {
   credentials                Credentials?
   sessions                   Session[]
   verificationCodes          VerificationCode[]
+  oauthAccounts              OAuthAccount[]
   patientProfile             PatientProfile?
   providerProfile            ProviderProfile?
   verificationDocuments      VerificationDocument[] @relation("DocumentOwner")
@@ -206,6 +207,23 @@ model Credentials {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("credentials")
+}
+
+/// A social login linked to a user — "Continue with Google/Facebook/Apple".
+/// One user can link several providers; one provider account links to one user.
+model OAuthAccount {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @map("user_id") @db.Uuid
+  provider          String // "google" | "facebook" | "apple"
+  providerAccountId String   @map("provider_account_id")
+  email             String?
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 /// Refresh-token sessions (revocable). Access tokens stay stateless JWTs.

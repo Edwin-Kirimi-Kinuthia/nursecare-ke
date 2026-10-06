@@ -6,13 +6,14 @@ import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
   Loader2, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
-  Upload, ImageIcon, X, Building2, Ban,
+  Upload, ImageIcon, X, Building2, Ban, AlertTriangle,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
   Appointment, Drug, Order, ProviderPublicProfile, Organization, OrgBranch,
 } from "@carebora/api-client";
-import type { CreateDrugInput, TillVerificationItem } from "@carebora/shared";
+import type { CreateDrugInput, TillVerificationItem, AdminCreateProviderInput, LaunchResetPreview } from "@carebora/shared";
+import { LAUNCH_RESET_CONFIRM_PHRASE } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
@@ -174,6 +175,8 @@ function UsersTab() {
   const { data, loading, error, reload } = useSection(fetcher);
   const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number]>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
 
   async function toggleActive(u: AdminUserSummary) {
@@ -185,14 +188,20 @@ function UsersTab() {
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={(data ?? []).length === 0} emptyText="No users yet.">
-      <div className="mb-3 flex flex-wrap gap-1">
-        {ROLE_FILTERS.map((r) => (
-          <button key={r} onClick={() => setRoleFilter(r)}
-            className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${roleFilter === r ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-            {r}
-          </button>
-        ))}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap gap-1">
+          {ROLE_FILTERS.map((r) => (
+            <button key={r} onClick={() => setRoleFilter(r)}
+              className={`rounded-full px-3 py-1 text-xs font-medium capitalize transition ${roleFilter === r ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+              {r}
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+          <Plus className="h-4 w-4" /> Create provider account
+        </button>
       </div>
+      {notice && <p className="mb-3 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-700">{notice}</p>}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -222,7 +231,74 @@ function UsersTab() {
           </tbody>
         </table>
       </div>
+      {creating && (
+        <CreateProviderModal
+          onClose={() => setCreating(false)}
+          onCreated={async (email) => {
+            setCreating(false);
+            setNotice(`Account created — an invite to set a password was emailed to ${email}.`);
+            await reload();
+          }}
+        />
+      )}
     </SectionShell>
+  );
+}
+
+const PROVIDER_ROLE_OPTIONS = ["doctor", "nurse", "physio", "pharmacy"] as const;
+const EMPTY_PROVIDER: AdminCreateProviderInput = { fullName: "", email: "", role: "doctor" };
+
+function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCreated: (email: string) => void }) {
+  const [form, setForm] = useState<AdminCreateProviderInput>({ ...EMPTY_PROVIDER });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const set = <K extends keyof AdminCreateProviderInput>(k: K, v: AdminCreateProviderInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setErr(null); setBusy(true);
+    try {
+      await api.adminCreateProvider(form);
+      onCreated(form.email);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Failed to create account"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+        <h2 className="text-lg font-bold text-slate-900">Create provider account</h2>
+        <p className="mt-1 text-xs text-slate-400">
+          Skips the public apply-and-review queue — use this once you've already vetted them yourself.
+          They'll get an email to set their own password.
+        </p>
+        <form onSubmit={submit} className="mt-4 space-y-3">
+          <input required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Full name"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value || undefined)} placeholder="Phone (optional)"
+            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <select value={form.role} onChange={(e) => set("role", e.target.value as AdminCreateProviderInput["role"])}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-teal-500">
+            {PROVIDER_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <input value={form.specialty ?? ""} onChange={(e) => set("specialty", e.target.value || undefined)} placeholder="Specialty (optional)"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+            <input value={form.licenceNumber ?? ""} onChange={(e) => set("licenceNumber", e.target.value || undefined)} placeholder="Licence number (optional)"
+              className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          </div>
+          {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+              {busy ? "Creating…" : "Create & send invite"}
+            </button>
+            <button type="button" onClick={onClose} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
   );
 }
 
@@ -610,7 +686,9 @@ function AuditTab() {
   const { data, loading, error, reload } = useSection(fetcher);
   const logs = data ?? [];
   return (
-    <SectionShell loading={loading} error={error} onRetry={reload} empty={logs.length === 0} emptyText="No audit entries yet.">
+    <div>
+      <LaunchResetPanel />
+      <SectionShell loading={loading} error={error} onRetry={reload} empty={logs.length === 0} emptyText="No audit entries yet.">
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -628,7 +706,95 @@ function AuditTab() {
           </tbody>
         </table>
       </div>
-    </SectionShell>
+      </SectionShell>
+    </div>
+  );
+}
+
+const RESET_PREVIEW_ROWS: { key: keyof LaunchResetPreview; label: string }[] = [
+  { key: "nonAdminUsers", label: "Non-admin users" },
+  { key: "organizations", label: "Organizations (vendors)" },
+  { key: "appointments", label: "Appointments" },
+  { key: "orders", label: "Orders" },
+  { key: "payments", label: "Payments" },
+  { key: "homeVisits", label: "Home visits" },
+  { key: "labOrders", label: "Lab orders" },
+  { key: "ambulanceRequests", label: "Ambulance requests" },
+  { key: "reviews", label: "Reviews" },
+];
+
+/** One-time control to clear seed/demo data before real signups start. Admin accounts and the drug catalogue are untouched. */
+function LaunchResetPanel() {
+  const [open, setOpen] = useState(false);
+  const [preview, setPreview] = useState<LaunchResetPreview | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [result, setResult] = useState<number | null>(null);
+
+  async function loadPreview() {
+    setErr(null); setBusy(true);
+    try { setPreview(await api.adminPreviewLaunchReset()); setOpen(true); }
+    catch (e) { setErr(e instanceof Error ? e.message : "Failed to load preview"); }
+    finally { setBusy(false); }
+  }
+
+  async function run() {
+    if (confirmText !== LAUNCH_RESET_CONFIRM_PHRASE) return;
+    if (!confirm("This permanently deletes every non-admin user and organization, and everything linked to them. This cannot be undone. Continue?")) return;
+    setErr(null); setBusy(true);
+    try {
+      const { deletedUsers } = await api.adminPerformLaunchReset();
+      setResult(deletedUsers);
+      setOpen(false); setPreview(null); setConfirmText("");
+    } catch (e) { setErr(e instanceof Error ? e.message : "Reset failed"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="mb-4 rounded-2xl border border-rose-200 bg-rose-50 p-5">
+      <div className="flex items-center gap-2 font-bold text-rose-900"><AlertTriangle className="h-5 w-5" /> Danger zone — launch reset</div>
+      <p className="mt-1 text-sm text-rose-700">
+        Permanently deletes every seeded/demo user and organization (and their appointments, orders, payments, reviews, …)
+        so real signups start from zero. Admin accounts and the shared drug catalogue are kept.
+      </p>
+
+      {result !== null && (
+        <p className="mt-3 rounded-xl bg-emerald-100 px-3 py-2 text-sm text-emerald-800">Done — removed {result} user(s) and everything linked to them.</p>
+      )}
+      {err && <p className="mt-3 rounded-xl bg-white px-3 py-2 text-sm text-rose-700">{err}</p>}
+
+      {!open ? (
+        <button onClick={loadPreview} disabled={busy} className="mt-3 rounded-xl border border-rose-300 bg-white px-4 py-2 text-sm font-semibold text-rose-700 hover:bg-rose-100 disabled:opacity-60">
+          {busy ? "Loading…" : "Preview what would be deleted"}
+        </button>
+      ) : preview && (
+        <div className="mt-3 space-y-3">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {RESET_PREVIEW_ROWS.map(({ key, label }) => (
+              <div key={key} className="rounded-xl bg-white px-3 py-2">
+                <div className="text-lg font-extrabold text-slate-900">{preview[key]}</div>
+                <div className="text-xs text-slate-500">{label}</div>
+              </div>
+            ))}
+          </div>
+          <label className="block text-sm text-rose-800">
+            Type <code className="rounded bg-white px-1.5 py-0.5 font-mono">{LAUNCH_RESET_CONFIRM_PHRASE}</code> to confirm:
+            <input value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
+              className="mt-1 w-full max-w-xs rounded-xl border border-rose-300 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-rose-200" />
+          </label>
+          <div className="flex gap-2">
+            <button onClick={run} disabled={busy || confirmText !== LAUNCH_RESET_CONFIRM_PHRASE}
+              className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-50">
+              {busy ? "Deleting…" : "Delete everything above"}
+            </button>
+            <button onClick={() => { setOpen(false); setPreview(null); setConfirmText(""); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 

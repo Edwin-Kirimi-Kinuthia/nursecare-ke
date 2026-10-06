@@ -10,7 +10,7 @@ const IS_PROD = process.env.NODE_ENV === "production";
 const ACCESS_TTL = Number(process.env.JWT_ACCESS_TTL ?? "900");
 const REFRESH_TTL = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 
-function readCookie(req: Request, name: string): string | null {
+export function readCookie(req: Request, name: string): string | null {
   const header = req.headers.get("cookie");
   if (!header) return null;
   for (const part of header.split(";")) {

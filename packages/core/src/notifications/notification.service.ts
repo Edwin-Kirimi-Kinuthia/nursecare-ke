@@ -38,6 +38,28 @@ async function sendSms(to: string | null | undefined, message: string) {
 }
 
 export const notificationService = {
+  async emailVerificationCode(opts: { email: string; fullName: string; code: string }) {
+    await sendEmail(opts.email, "Verify your email — CareBora", `
+      <h2>Welcome to CareBora, ${opts.fullName}!</h2>
+      <p>Thanks for signing up. Enter this code in the app to verify your email address:</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
+      <p>This code expires in 15 minutes. If you didn't create a CareBora account, you can ignore this email.</p>
+      <p>— The CareBora Team</p>
+    `);
+  },
+
+  async accountInvite(opts: { email: string; fullName: string; token: string }) {
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const url = `${base}/set-password?token=${opts.token}`;
+    await sendEmail(opts.email, "You're invited to CareBora", `
+      <h2>Hi ${opts.fullName},</h2>
+      <p>An admin has created a CareBora account for you. Set your password to activate it:</p>
+      <p><a href="${url}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Set your password</a></p>
+      <p>This link expires in 7 days.</p>
+      <p>— The CareBora Team</p>
+    `);
+  },
+
   async appointmentBooked(opts: {
     patientEmail: string;
     patientPhone?: string | null;
