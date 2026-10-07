@@ -53,6 +53,13 @@ import type {
   CreateReviewInput,
   ModerateReviewInput,
   ReviewsQuery,
+  CreateSupportTicketInput,
+  ReplySupportTicketInput,
+  PatchSupportTicketInput,
+  SupportTicketsQuery,
+  SupportCategory,
+  SupportDocumentType,
+  SupportStatus,
   SymptomCheckInput,
   CreateDrugInput,
   UpdateDrugInput,
@@ -583,6 +590,29 @@ export class CareBoraClient {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<ReviewListResult>(`/admin/reviews?${params}`);
   }
+  // ── Support: client messages & document requests ──
+  /** Open a support thread. Works signed-out — the ticket carries the contact details. */
+  createSupportTicket(input: CreateSupportTicketInput) {
+    return this.post<SupportTicket>("/support/tickets", input);
+  }
+  listMySupportTickets(query?: Partial<SupportTicketsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<SupportTicketListResult>(`/support/tickets?${params}`);
+  }
+  getSupportTicket(ticketId: string) {
+    return this.request<SupportTicket>(`/support/tickets/${ticketId}`);
+  }
+  replySupportTicket(ticketId: string, input: ReplySupportTicketInput) {
+    return this.post<SupportMessage>(`/support/tickets/${ticketId}/reply`, input);
+  }
+  adminListSupportTickets(query?: Partial<SupportTicketsQuery>) {
+    const params = new URLSearchParams(query as Record<string, string>);
+    return this.request<AdminSupportTicketListResult>(`/admin/support/tickets?${params}`);
+  }
+  adminPatchSupportTicket(ticketId: string, input: PatchSupportTicketInput) {
+    return this.patch<SupportTicket>(`/admin/support/tickets/${ticketId}`, input);
+  }
+
   adminModerateReview(reviewId: string, input: ModerateReviewInput) {
     return this.patch<Review>(`/admin/reviews/${reviewId}`, input);
   }
@@ -1549,6 +1579,50 @@ export interface ReviewListResult {
   total: number;
   limit: number;
   offset: number;
+}
+
+// ── Support ─────────────────────────────────────────────────────────────────
+
+export interface SupportMessage {
+  id: string;
+  ticketId: string;
+  senderId: string | null;
+  fromStaff: boolean;
+  body: string;
+  createdAt: string;
+  sender?: { id: string; fullName: string; avatarUrl: string | null; role: string } | null;
+}
+
+export interface SupportTicket {
+  id: string;
+  userId: string | null;
+  category: SupportCategory;
+  documentType: SupportDocumentType | null;
+  subject: string;
+  status: SupportStatus;
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string | null;
+  assignedToId: string | null;
+  lastReplyAt: string;
+  resolvedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  messages: SupportMessage[];
+  user?: { id: string; fullName: string; email: string; role: string } | null;
+  assignedTo?: { id: string; fullName: string } | null;
+}
+
+export interface SupportTicketListResult {
+  tickets: SupportTicket[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminSupportTicketListResult extends SupportTicketListResult {
+  /** Threads still needing attention — drives the admin tab badge. */
+  openCount: number;
 }
 
 // ── M9: AI ──────────────────────────────────────────────────────────────────

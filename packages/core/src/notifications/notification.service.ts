@@ -290,4 +290,74 @@ export const notificationService = {
       button: { label: "See your profile", url: `${appBase()}/providers` },
     }));
   },
+  // ── Support: client messages and document requests ────────────────────────
+
+  /** Acknowledge a new ticket to the client, so they know it landed. */
+  async supportTicketReceived(opts: {
+    email: string; name: string; subject: string; what: string; reference: string;
+  }) {
+    await sendEmail(opts.email, "We've got your message — CareBora", renderEmail({
+      preheader: "Our team will get back to you shortly.",
+      heading: "We've got your message",
+      body:
+        p(`Hi ${firstName(opts.name)}, thanks for writing to Care Bora. Our team has your message and will reply by email.`)
+        + rows([
+          ["Subject", esc(opts.subject)],
+          ["About", esc(opts.what)],
+          ["Reference", `<span style="font-family:monospace;font-size:13px">${opts.reference.slice(0, 8).toUpperCase()}</span>`],
+        ])
+        + p("You can follow the conversation and reply in the app at any time."),
+      button: { label: "View your messages", url: `${appBase()}/contact` },
+      footnote: "For a medical emergency, call our 24/7 ambulance line on +254 717 231 721 — don't wait for an email reply.",
+    }));
+  },
+
+  /** Tell the team a ticket needs attention. */
+  async supportTicketForStaff(opts: {
+    subject: string; what: string; message: string;
+    contactName: string; contactEmail: string; contactPhone: string | null;
+    ticketId: string; isRegistered: boolean;
+  }) {
+    const to = process.env.SUPPORT_INBOX_EMAIL ?? "customercare@carebora.co.ke";
+    await sendEmail(to, `[Support] ${opts.subject}`, renderEmail({
+      preheader: `${opts.what} — from ${opts.contactName}`,
+      heading: "New client message",
+      body:
+        rows([
+          ["About", esc(opts.what)],
+          ["From", `${esc(opts.contactName)}${opts.isRegistered ? "" : ' <span style="font-weight:400;color:#64748b">(no account)</span>'}`],
+          ["Email", esc(opts.contactEmail)],
+          ...(opts.contactPhone ? ([["Phone", esc(opts.contactPhone)]] as [string, string][]) : []),
+          ["Reference", `<span style="font-family:monospace;font-size:13px">${opts.ticketId.slice(0, 8).toUpperCase()}</span>`],
+        ])
+        + panel(esc(opts.message).replace(/\n/g, "<br>")),
+      button: { label: "Open in the admin inbox", url: `${appBase()}/admin` },
+    }));
+  },
+
+  /** A staff reply, delivered to the client's inbox as well as the app. */
+  async supportTicketReplied(opts: {
+    email: string; name: string; subject: string; body: string; ticketId: string;
+  }) {
+    await sendEmail(opts.email, `Re: ${opts.subject} — CareBora`, renderEmail({
+      preheader: opts.body.slice(0, 120),
+      heading: "Care Bora replied to your message",
+      body:
+        p(`Hi ${firstName(opts.name)}, our team has replied about <strong>${esc(opts.subject)}</strong>:`)
+        + panel(esc(opts.body).replace(/\n/g, "<br>"))
+        + p("Reply in the app and we'll pick it up from there."),
+      button: { label: "Reply in the app", url: `${appBase()}/contact` },
+    }));
+  },
+
+  async supportTicketResolved(opts: { email: string; name: string; subject: string; ticketId: string }) {
+    await sendEmail(opts.email, `Resolved: ${opts.subject} — CareBora`, renderEmail({
+      preheader: "We've marked your request as resolved.",
+      heading: "Your request is resolved",
+      body:
+        p(`Hi ${firstName(opts.name)}, we've marked <strong>${esc(opts.subject)}</strong> as resolved.`)
+        + p("If there's anything still outstanding, reply on the thread and it reopens automatically."),
+      button: { label: "View the conversation", url: `${appBase()}/contact` },
+    }));
+  },
 };

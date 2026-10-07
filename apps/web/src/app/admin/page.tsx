@@ -6,14 +6,18 @@ import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
   Loader2, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
-  Upload, ImageIcon, X, Building2, Ban, AlertTriangle, ChevronLeft, ChevronRight,
+  Upload, ImageIcon, X, Building2, Ban, AlertTriangle, ChevronLeft, ChevronRight, Send,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
-  Appointment, Drug, Order, ProviderPublicProfile, Organization, OrgBranch,
+  Appointment, Drug, Order, ProviderPublicProfile, Organization, OrgBranch, SupportTicket,
 } from "@carebora/api-client";
 import type { CreateDrugInput, TillVerificationItem, AdminCreateProviderInput, LaunchResetPreview } from "@carebora/shared";
-import { LAUNCH_RESET_CONFIRM_PHRASE } from "@carebora/shared";
+import {
+  LAUNCH_RESET_CONFIRM_PHRASE,
+  SUPPORT_CATEGORY_LABELS, SUPPORT_DOCUMENT_LABELS, SUPPORT_STATUS_LABELS,
+  type SupportStatus,
+} from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
@@ -22,7 +26,7 @@ import { fileToDataUrl } from "@/lib/files";
 import { PhoneField } from "@/components/PhoneField";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
-type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
+type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify";
 
 const TONES: Record<string, string> = {
   teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
@@ -61,6 +65,7 @@ export default function AdminPage() {
     { id: "pharmacy", label: "Pharmacy", Icon: Pill },
     { id: "orders", label: "Orders", Icon: ShoppingBag },
     { id: "home-visits", label: "Home visits", Icon: HomeIcon },
+    { id: "support", label: "Messages", Icon: MessageSquare },
     ...(IS_TILL_MODE ? [{ id: "pay-verify" as Tab, label: "Verify payments", Icon: Wallet }] : []),
     { id: "reviews", label: "Reviews", Icon: Star },
     { id: "audit", label: "Audit log", Icon: ScrollText },
@@ -124,6 +129,7 @@ export default function AdminPage() {
           {tab === "orders" && <OrdersTab />}
           {tab === "home-visits" && <HomeVisitsTab />}
           {tab === "pay-verify" && <PayVerifyTab />}
+          {tab === "support" && <SupportTab />}
           {tab === "reviews" && <ReviewsTab />}
           {tab === "audit" && <AuditTab />}
         </div>
@@ -1109,5 +1115,194 @@ function OrdersTab() {
         })}
       </div>
     </SectionShell>
+  );
+}
+
+/* ── Support inbox ────────────────────────────────────────────────────────── */
+const SUPPORT_STATUS_STYLE: Record<string, string> = {
+  open: "bg-sky-100 text-sky-700",
+  in_progress: "bg-amber-100 text-amber-700",
+  awaiting_client: "bg-violet-100 text-violet-700",
+  resolved: "bg-emerald-100 text-emerald-700",
+  closed: "bg-slate-100 text-slate-600",
+};
+
+function SupportTab() {
+  const [filter, setFilter] = useState<SupportStatus | "all">("all");
+  const fetcher = useCallback(
+    () => api.adminListSupportTickets({ limit: 100, ...(filter === "all" ? {} : { status: filter }) }),
+    [filter],
+  );
+  const { data, loading, error, reload } = useSection(fetcher);
+  const tickets = data?.tickets ?? [];
+  const [openId, setOpenId] = useState<string | null>(null);
+
+  const FILTERS: (SupportStatus | "all")[] = ["all", "open", "in_progress", "awaiting_client", "resolved", "closed"];
+
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {FILTERS.map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
+              filter === f ? "bg-teal-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+            }`}
+          >
+            {f === "all" ? "All" : SUPPORT_STATUS_LABELS[f]}
+            {f === "all" && data?.openCount ? (
+              <span className="ml-1.5 rounded-full bg-white/25 px-1.5 text-xs">{data.openCount} open</span>
+            ) : null}
+          </button>
+        ))}
+      </div>
+
+      <SectionShell
+        loading={loading}
+        error={error}
+        onRetry={reload}
+        empty={tickets.length === 0}
+        emptyText="No messages here."
+      >
+        <div className="space-y-2">
+          {tickets.map((t: SupportTicket) => (
+            <AdminTicket
+              key={t.id}
+              ticket={t}
+              open={openId === t.id}
+              onToggle={() => setOpenId(openId === t.id ? null : t.id)}
+              onChanged={reload}
+            />
+          ))}
+        </div>
+      </SectionShell>
+    </div>
+  );
+}
+
+function AdminTicket({
+  ticket, open, onToggle, onChanged,
+}: {
+  ticket: SupportTicket;
+  open: boolean;
+  onToggle: () => void;
+  onChanged: () => void;
+}) {
+  const [reply, setReply] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function send(e: React.FormEvent) {
+    e.preventDefault();
+    if (!reply.trim()) return;
+    setBusy(true);
+    try {
+      await api.replySupportTicket(ticket.id, { body: reply.trim() });
+      setReply("");
+      onChanged();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not send reply");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setStatus(status: SupportStatus) {
+    setBusy(true);
+    try {
+      await api.adminPatchSupportTicket(ticket.id, { status });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Could not update status");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const unanswered = !ticket.messages[ticket.messages.length - 1]?.fromStaff;
+
+  return (
+    <div className={`overflow-hidden rounded-2xl border bg-white ${unanswered ? "border-teal-300" : "border-slate-200"}`}>
+      <button onClick={onToggle} aria-expanded={open} className="flex w-full items-center gap-3 p-4 text-left transition hover:bg-slate-50">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="truncate font-semibold text-slate-900">{ticket.subject}</span>
+            {unanswered && <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[11px] font-bold text-teal-700">Needs reply</span>}
+          </div>
+          <div className="mt-0.5 truncate text-xs text-slate-500">
+            {SUPPORT_CATEGORY_LABELS[ticket.category]}
+            {ticket.documentType ? ` · ${SUPPORT_DOCUMENT_LABELS[ticket.documentType]}` : ""}
+            {" · "}{ticket.contactName}
+            {!ticket.userId && <span className="text-slate-400"> (no account)</span>}
+            {" · "}{when(ticket.lastReplyAt)}
+          </div>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${SUPPORT_STATUS_STYLE[ticket.status] ?? "bg-slate-100 text-slate-600"}`}>
+          {SUPPORT_STATUS_LABELS[ticket.status]}
+        </span>
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 bg-slate-50/60 p-4">
+          <div className="mb-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+            <a href={`mailto:${ticket.contactEmail}`} className="hover:text-teal-700">{ticket.contactEmail}</a>
+            {ticket.contactPhone && <a href={`tel:${ticket.contactPhone}`} className="hover:text-teal-700">{ticket.contactPhone}</a>}
+            <span className="font-mono">Ref {ticket.id.slice(0, 8).toUpperCase()}</span>
+          </div>
+
+          <ul className="space-y-3">
+            {ticket.messages.map((m) => (
+              <li key={m.id} className={`flex ${m.fromStaff ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm ${
+                  m.fromStaff ? "rounded-tr-sm bg-teal-600 text-white" : "rounded-tl-sm bg-white text-slate-700 ring-1 ring-slate-200"
+                }`}>
+                  <div className={`mb-0.5 text-[11px] font-semibold ${m.fromStaff ? "text-teal-50" : "text-slate-500"}`}>
+                    {m.fromStaff ? (m.sender?.fullName ?? "Care Bora") : ticket.contactName}
+                  </div>
+                  <p className="whitespace-pre-wrap leading-relaxed">{m.body}</p>
+                  <div className={`mt-1 text-[10px] ${m.fromStaff ? "text-teal-100" : "text-slate-400"}`}>{when(m.createdAt)}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+
+          {ticket.status !== "closed" && (
+            <form onSubmit={send} className="mt-4 flex items-end gap-2">
+              <textarea
+                value={reply}
+                onChange={(e) => setReply(e.target.value)}
+                rows={2}
+                maxLength={4000}
+                placeholder="Reply to the client…"
+                className="flex-1 resize-none rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              />
+              <button
+                type="submit"
+                disabled={busy || !reply.trim()}
+                aria-label="Send reply"
+                className="grid h-[42px] w-[42px] shrink-0 place-items-center rounded-xl bg-teal-600 text-white transition hover:bg-teal-700 disabled:opacity-50"
+              >
+                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+              </button>
+            </form>
+          )}
+
+          <div className="mt-3 flex flex-wrap gap-2">
+            {(["in_progress", "resolved", "closed", "open"] as SupportStatus[])
+              .filter((s) => s !== ticket.status)
+              .map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStatus(s)}
+                  disabled={busy}
+                  className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:opacity-60"
+                >
+                  Mark {SUPPORT_STATUS_LABELS[s].toLowerCase()}
+                </button>
+              ))}
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

@@ -192,6 +192,9 @@ model User {
   patientLabOrders           LabOrder[]             @relation("PatientLabOrders")
   orderedLabOrders           LabOrder[]             @relation("OrderedLabOrders")
   verifiedLabResults         LabResult[]            @relation("VerifiedLabResults")
+  clientSupportTickets       SupportTicket[]        @relation("ClientSupportTickets")
+  assignedSupportTickets     SupportTicket[]        @relation("AssignedSupportTickets")
+  sentSupportMessages        SupportMessage[]       @relation("SentSupportMessages")
 
   @@index([role])
   @@map("users")
@@ -734,29 +737,29 @@ model OrderItem {
 /// it up via paymentService.getForSubject("home_visit", visit.id) rather than a
 /// column here.
 model HomeVisit {
-  id          String          @id @default(uuid()) @db.Uuid
-  patientId   String          @map("patient_id") @db.Uuid
-  providerId  String?         @map("provider_id") @db.Uuid
-  specialty   String // "nurse" | "physio" | "doctor"
-  urgency     VisitUrgency    @default(routine)
-  description String // patient's chief complaint
-  address     String
-  county      String
-  scheduledAt DateTime?       @map("scheduled_at") @db.Timestamptz(6)
-  status      HomeVisitStatus @default(pending)
-  feeKes      Int?            @map("fee_kes")
-  visitNotes  String?         @map("visit_notes")
-  assignedAt  DateTime?       @map("assigned_at") @db.Timestamptz(6)
-  enRouteAt   DateTime?       @map("en_route_at") @db.Timestamptz(6)
-  arrivedAt   DateTime?       @map("arrived_at") @db.Timestamptz(6)
-  completedAt DateTime?       @map("completed_at") @db.Timestamptz(6)
-  cancelledAt DateTime?       @map("cancelled_at") @db.Timestamptz(6)
+  id           String          @id @default(uuid()) @db.Uuid
+  patientId    String          @map("patient_id") @db.Uuid
+  providerId   String?         @map("provider_id") @db.Uuid
+  specialty    String // "nurse" | "physio" | "doctor"
+  urgency      VisitUrgency    @default(routine)
+  description  String // patient's chief complaint
+  address      String
+  county       String
+  scheduledAt  DateTime?       @map("scheduled_at") @db.Timestamptz(6)
+  status       HomeVisitStatus @default(pending)
+  feeKes       Int?            @map("fee_kes")
+  visitNotes   String?         @map("visit_notes")
+  assignedAt   DateTime?       @map("assigned_at") @db.Timestamptz(6)
+  enRouteAt    DateTime?       @map("en_route_at") @db.Timestamptz(6)
+  arrivedAt    DateTime?       @map("arrived_at") @db.Timestamptz(6)
+  completedAt  DateTime?       @map("completed_at") @db.Timestamptz(6)
+  cancelledAt  DateTime?       @map("cancelled_at") @db.Timestamptz(6)
   /// The number that paid (set at payment time) — kept separate from `contactPhone`.
-  phoneNumber String?         @map("phone_number")
+  phoneNumber  String?         @map("phone_number")
   /// How the visiting clinician reaches the patient, captured when the visit is requested.
-  contactPhone String?        @map("contact_phone")
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contactPhone String?         @map("contact_phone")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   patient  User             @relation("PatientHomeVisits", fields: [patientId], references: [id])
   provider ProviderProfile? @relation(fields: [providerId], references: [userId])
@@ -1318,4 +1321,87 @@ model LabResult {
   document     MedicalDocument? @relation(fields: [documentId], references: [id], onDelete: SetNull)
 
   @@map("lab_results")
+}
+
+// ─── Support: client-initiated messages and document requests ────────────────
+
+enum SupportCategory {
+  general_enquiry
+  document_request
+  appointment_help
+  payment_issue
+  technical_issue
+  complaint
+}
+
+/// The paperwork clients ask for most. `other` carries a free-text description.
+enum SupportDocumentType {
+  sick_off
+  medical_report
+  fit_to_work
+  school_medical_form
+  insurance_form
+  travel_certificate
+  other
+}
+
+enum SupportStatus {
+  open
+  awaiting_client
+  in_progress
+  resolved
+  closed
+}
+
+/// A conversation between a client and the Care Bora team.
+///
+/// `userId` is nullable so a visitor who hasn't signed up can still reach
+/// support from the public contact page; the contact* fields hold what they
+/// typed either way, so a reply is always possible even if the account is
+/// later deleted.
+model SupportTicket {
+  id           String               @id @default(uuid()) @db.Uuid
+  userId       String?              @map("user_id") @db.Uuid
+  category     SupportCategory
+  /// Only meaningful when category is document_request.
+  documentType SupportDocumentType? @map("document_type")
+  subject      String
+  status       SupportStatus        @default(open)
+  contactName  String               @map("contact_name")
+  contactEmail String               @map("contact_email")
+  contactPhone String?              @map("contact_phone")
+  /// Set when an admin takes the ticket, for a simple "who's on this" view.
+  assignedToId String?              @map("assigned_to") @db.Uuid
+  lastReplyAt  DateTime             @default(now()) @map("last_reply_at") @db.Timestamptz(6)
+  resolvedAt   DateTime?            @map("resolved_at") @db.Timestamptz(6)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user       User?            @relation("ClientSupportTickets", fields: [userId], references: [id], onDelete: SetNull)
+  assignedTo User?            @relation("AssignedSupportTickets", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages   SupportMessage[]
+
+  @@index([status, lastReplyAt])
+  @@index([userId, createdAt])
+  @@map("support_tickets")
+}
+
+/// One message in a support thread. The opening message from the client is a
+/// row here too, so the thread has a single uniform shape.
+model SupportMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  ticketId  String   @map("ticket_id") @db.Uuid
+  /// Null for a message from a visitor with no account.
+  senderId  String?  @map("sender_id") @db.Uuid
+  /// Whether this came from the Care Bora team, so the thread can be rendered
+  /// without resolving every sender's role.
+  fromStaff Boolean  @default(false) @map("from_staff")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  sender User?         @relation("SentSupportMessages", fields: [senderId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId, createdAt])
+  @@map("support_messages")
 }

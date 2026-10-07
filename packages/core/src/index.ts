@@ -62,6 +62,7 @@ export { ambulanceService } from "./ambulance/ambulance.service";
 export { recordsService } from "./records/records.service";
 export { assertCanRead } from "./records/access";
 export { labService } from "./lab/lab.service";
+export { supportService } from "./support/support.service";
 export { getEnv, type Env } from "./config/env";
 export { putFile, STORAGE_LIMITS, type StorageKind, type StoredFile } from "./storage/storage";
 export { aiService } from "./ai/ai.service";

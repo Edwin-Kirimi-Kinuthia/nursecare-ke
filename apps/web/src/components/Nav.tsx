@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill,
-  Siren, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope,
+  Siren, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
@@ -24,23 +24,23 @@ interface NavLink {
 const PUBLIC_LINKS: NavLink[] = [
   { href: "/providers", label: "Find providers", Icon: Users },
   { href: "/pharmacy", label: "Pharmacy", Icon: Pill },
+  { href: "/contact", label: "Contact us", Icon: MessageSquare },
 ];
 
 function careLinksFor(user: PublicUser | null): NavLink[] {
   if (!user) return [];
-  const links: NavLink[] = [];
-  if (["patient", "doctor", "nurse", "physio"].includes(user.role)) {
-    links.push({ href: "/appointments", label: "Appointments", Icon: CalendarDays });
-  }
-  if (user.role === "patient") {
-    links.push(
-      { href: "/home-visits", label: "Home visits", Icon: Home },
-      { href: "/ambulance", label: "Ambulance", Icon: Siren, tone: "rose" },
-      { href: "/labs", label: "Lab tests", Icon: FlaskConical },
-      { href: "/records", label: "My records", Icon: FileText },
-      { href: "/ai", label: "Symptom checker", Icon: Brain, tone: "violet" },
-    );
-  }
+  // Receiving care is open to every account, so these are not gated on role —
+  // a doctor or an admin booking a consultation for themselves needs the same
+  // links as a patient, and the API now allows exactly that.
+  const links: NavLink[] = [
+    { href: "/appointments", label: "Appointments", Icon: CalendarDays },
+    { href: "/home-visits", label: "Home visits", Icon: Home },
+    { href: "/ambulance", label: "Ambulance", Icon: Siren, tone: "rose" },
+    { href: "/labs", label: "Lab tests", Icon: FlaskConical },
+    { href: "/records", label: "My records", Icon: FileText },
+    { href: "/ai", label: "Symptom checker", Icon: Brain, tone: "violet" },
+  ];
+  // Role still decides the extra powers an account has.
   if (user.role === "vendor") links.push({ href: "/vendor", label: "Vendor dashboard", Icon: Building2 });
   if (user.role === "admin") links.push({ href: "/admin", label: "Admin dashboard", Icon: LayoutDashboard });
   return links;
