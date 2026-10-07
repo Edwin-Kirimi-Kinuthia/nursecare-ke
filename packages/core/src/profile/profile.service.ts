@@ -26,9 +26,12 @@ export const profileService = {
     if (!profile) throw ApiError.notFound("Provider profile not found");
     const updated = await db.providerProfile.update({ where: { userId }, data });
 
-    // Flipping the availability switch is what opens or closes their calendar —
-    // providers never touch slots directly.
-    if (data.isAvailable !== undefined && data.isAvailable !== profile.isAvailable) {
+    // The availability switch is what opens or closes their calendar — providers
+    // never touch slots directly. Reconciled on every save rather than only on a
+    // change of value: both directions are idempotent, and an account already
+    // marked available but holding no slots (as every provider was before this
+    // existed) heals itself on the next save instead of staying unbookable.
+    if (data.isAvailable !== undefined) {
       await availabilityService.setAvailability(userId, data.isAvailable);
     }
     return updated;
