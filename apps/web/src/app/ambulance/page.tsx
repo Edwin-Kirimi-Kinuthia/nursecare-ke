@@ -10,7 +10,7 @@ import { KENYA_COUNTIES } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
-import { IS_TILL_MODE } from "@/lib/payments";
+import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
 import { PhoneField } from "@/components/PhoneField";
@@ -311,7 +311,7 @@ export default function AmbulancePage() {
               <form onSubmit={payNow} className="mt-4 space-y-4">
                 <PhoneField label="M-Pesa phone number" value={payPhone} onChange={setPayPhone} required lockedToKenya />
                 {payMsg && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>}
-                {simGatewayRef && !IS_TILL_MODE && (
+                {simGatewayRef && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
                   <button type="button" onClick={simulatePay} disabled={simulating}
                     className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
                     {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}

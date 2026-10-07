@@ -9,7 +9,7 @@ import { ApiError } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
-import { IS_TILL_MODE } from "@/lib/payments";
+import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import { PhoneField } from "@/components/PhoneField";
 
@@ -211,7 +211,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         </div>
       )}
 
-      {pendingCheckoutId && !IS_TILL_MODE && (
+      {pendingCheckoutId && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
         <button
           onClick={simulate}
           disabled={simulating}

@@ -1,5 +1,6 @@
 import { db } from "@carebora/db";
 import { ApiError, PROVIDER_ROLES, type PatchPatientProfileInput, type PatchProviderProfileInput, type UserRole } from "@carebora/shared";
+import { availabilityService } from "../booking/availability.service";
 
 export const profileService = {
   async getPatient(userId: string) {
@@ -23,7 +24,14 @@ export const profileService = {
   async patchProvider(userId: string, data: PatchProviderProfileInput) {
     const profile = await db.providerProfile.findUnique({ where: { userId } });
     if (!profile) throw ApiError.notFound("Provider profile not found");
-    return db.providerProfile.update({ where: { userId }, data });
+    const updated = await db.providerProfile.update({ where: { userId }, data });
+
+    // Flipping the availability switch is what opens or closes their calendar —
+    // providers never touch slots directly.
+    if (data.isAvailable !== undefined && data.isAvailable !== profile.isAvailable) {
+      await availabilityService.setAvailability(userId, data.isAvailable);
+    }
+    return updated;
   },
 
   /** Guard: confirm a user has a provider role before accessing provider endpoints. */

@@ -9,7 +9,7 @@ import {
 import type { HomeVisit } from "@carebora/api-client";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
-import { IS_TILL_MODE } from "@/lib/payments";
+import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import { PhoneField } from "@/components/PhoneField";
 
@@ -290,7 +290,7 @@ export default function HomeVisitsPage() {
                 {payMsg && (
                   <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
                 )}
-                {simCheckoutId && !IS_TILL_MODE && (
+                {simCheckoutId && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
                   <button type="button" onClick={simulatePay} disabled={simulating}
                     className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
                     {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}

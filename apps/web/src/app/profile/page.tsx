@@ -379,10 +379,33 @@ function ProviderSection() {
         <textarea value={p.bio ?? ""} onChange={(e) => set("bio", e.target.value)} rows={3}
           className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
       </label>
-      <label className="mt-4 flex items-center gap-2">
-        <input type="checkbox" checked={p.isAvailable} onChange={(e) => set("isAvailable", e.target.checked)} className="h-4 w-4 rounded accent-teal-600" />
-        <span className="text-sm text-slate-700">Available for new bookings</span>
-      </label>
+      <div className={`mt-5 rounded-2xl border p-4 transition ${p.isAvailable ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"}`}>
+        <label className="flex cursor-pointer items-start justify-between gap-4">
+          <span className="min-w-0">
+            <span className="block font-semibold text-slate-900">
+              {p.isAvailable ? "Accepting bookings" : "Not accepting bookings"}
+            </span>
+            <span className="mt-0.5 block text-sm text-slate-500">
+              {p.isAvailable
+                ? "Patients can book you Mon–Sat, 8am–6pm, in 30-minute consultations. Turn this off to close your calendar — already-booked appointments are kept."
+                : "Turn this on to appear in search and open your calendar for the next 60 days."}
+            </span>
+          </span>
+          {/* Switch rather than a checkbox — this is the one control that decides
+              whether a provider is bookable at all. */}
+          <span className="relative mt-0.5 inline-flex shrink-0">
+            <input
+              type="checkbox"
+              checked={p.isAvailable}
+              onChange={(e) => set("isAvailable", e.target.checked)}
+              className="peer sr-only"
+            />
+            <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-teal-600" />
+            <span className="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+          </span>
+        </label>
+        <p className="mt-2 text-xs text-slate-400">Takes effect when you save.</p>
+      </div>
       <button onClick={save} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
         <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
       </button>

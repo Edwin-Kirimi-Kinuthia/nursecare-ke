@@ -8,7 +8,7 @@ import { ApiError } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
-import { IS_TILL_MODE } from "@/lib/payments";
+import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import { PhoneField } from "@/components/PhoneField";
 
@@ -161,7 +161,7 @@ export default function LabsPage() {
               {pendingGatewayRef && IS_TILL_MODE && (
                 <div className="mt-4"><TillPayBox gatewayRef={pendingGatewayRef} amountKes={pendingAmount} noun="lab order" onSubmitted={loadOrders} /></div>
               )}
-              {pendingGatewayRef && !IS_TILL_MODE && (
+              {pendingGatewayRef && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
                 <button onClick={simulatePay} disabled={simulating}
                   className="mt-3 w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
                   {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}

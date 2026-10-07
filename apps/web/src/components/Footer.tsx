@@ -23,13 +23,14 @@ export default function Footer() {
           <p className="mt-2 max-w-xs text-sm text-slate-500">
             Kenya&apos;s telehealth platform — verified care, home visits, pharmacy delivery, and M-Pesa payments.
           </p>
+          {/* Each platform keeps its own brand colour so it's recognisable at a glance. */}
           <div className="mt-4 flex gap-2">
             <a href="https://www.facebook.com/share/1GneyXiB15/" target="_blank" rel="noreferrer" aria-label="Facebook"
-              className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-600 hover:text-white">
+              className="grid h-9 w-9 place-items-center rounded-full bg-[#1877F2] text-white shadow-sm transition hover:brightness-110">
               <Facebook className="h-4 w-4" />
             </a>
             <a href="https://www.instagram.com/carebora_ke/" target="_blank" rel="noreferrer" aria-label="Instagram"
-              className="grid h-9 w-9 place-items-center rounded-full bg-slate-100 text-slate-600 transition hover:bg-teal-600 hover:text-white">
+              className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white shadow-sm transition hover:brightness-110">
               <Instagram className="h-4 w-4" />
             </a>
           </div>

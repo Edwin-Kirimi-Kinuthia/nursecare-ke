@@ -2,7 +2,60 @@ import { db } from "@carebora/db";
 import { ApiError, type CreateAvailabilityInput, type CreateSlotInput, type SlotsQuery } from "@carebora/shared";
 import { addDays, startOfDay } from "./date-utils";
 
+/**
+ * Default clinic hours applied when a provider simply flips themselves
+ * "available", instead of making them hand-build a weekly schedule.
+ * Mon–Sat, 08:00–18:00, in 30-minute teleconsult slots.
+ */
+const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
+const DEFAULT_START_MINUTE = 8 * 60;
+const DEFAULT_END_MINUTE = 18 * 60;
+const DEFAULT_SLOT_DURATION = 30;
+const SLOT_HORIZON_DAYS = 60;
+
 export const availabilityService = {
+  /**
+   * The whole of a provider's scheduling UX: one switch.
+   *
+   * On — make sure their default weekly rules exist and are active, then fill
+   * the next two months with bookable slots.
+   * Off — deactivate the rules and clear future slots nobody has booked yet.
+   * Already-booked slots are never touched; those appointments still stand.
+   */
+  async setAvailability(providerId: string, available: boolean) {
+    if (!available) {
+      await db.availability.updateMany({ where: { providerId }, data: { isActive: false } });
+      const { count } = await db.slot.deleteMany({
+        where: { providerId, isBooked: false, startsAt: { gt: new Date() } },
+      });
+      return { available, slotsRemoved: count };
+    }
+
+    for (const dayOfWeek of DEFAULT_WORKING_DAYS) {
+      const existing = await db.availability.findFirst({
+        where: { providerId, appointmentType: "teleconsult", dayOfWeek },
+      });
+      const rule = existing
+        ? await db.availability.update({ where: { id: existing.id }, data: { isActive: true } })
+        : await db.availability.create({
+            data: {
+              providerId,
+              appointmentType: "teleconsult",
+              dayOfWeek,
+              startMinute: DEFAULT_START_MINUTE,
+              endMinute: DEFAULT_END_MINUTE,
+              slotDuration: DEFAULT_SLOT_DURATION,
+            },
+          });
+      await generateSlotsForRule(rule, SLOT_HORIZON_DAYS);
+    }
+
+    const slotsOpen = await db.slot.count({
+      where: { providerId, isBooked: false, startsAt: { gt: new Date() } },
+    });
+    return { available, slotsOpen };
+  },
+
   /** List a provider's recurring schedule rules. */
   async listAvailabilities(providerId: string) {
     return db.availability.findMany({

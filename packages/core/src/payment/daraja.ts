@@ -14,10 +14,10 @@ function timestamp(): string {
     .slice(0, 14);
 }
 
-function stkPassword(ts: string): string {
-  const shortcode = process.env.MPESA_SHORTCODE ?? "";
+/** Safaricom hashes the *BusinessShortCode* (store number for Buy Goods), not the till. */
+function stkPassword(businessShortCode: string, ts: string): string {
   const passkey = process.env.MPESA_PASSKEY ?? "";
-  return Buffer.from(`${shortcode}${passkey}${ts}`).toString("base64");
+  return Buffer.from(`${businessShortCode}${passkey}${ts}`).toString("base64");
 }
 
 /** Normalise a Kenyan phone number to 254XXXXXXXXX (12 digits). */
@@ -66,11 +66,22 @@ export async function stkPush(params: {
   const token = await getOAuthToken();
   const ts = timestamp();
 
+  // Paybill and Buy Goods (Till) shortcodes need different transaction types.
+  // Sending the wrong one is accepted at request time and then fails in the
+  // callback with ResultCode 2029 ("unresolved reason type") before the push
+  // ever reaches the phone — so it must match how Safaricom issued the code.
+  const isTill = process.env.MPESA_SHORTCODE_TYPE === "till";
+  // For Buy Goods, BusinessShortCode is the store/head-office number while
+  // PartyB stays the till. They're the same for Paybill.
+  const storeNumber = process.env.MPESA_STORE_NUMBER || shortcode;
+
+  const businessShortCode = isTill ? storeNumber : shortcode;
+
   const body = {
-    BusinessShortCode: shortcode,
-    Password: stkPassword(ts),
+    BusinessShortCode: businessShortCode,
+    Password: stkPassword(businessShortCode, ts),
     Timestamp: ts,
-    TransactionType: "CustomerPayBillOnline",
+    TransactionType: isTill ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline",
     Amount: params.amount,
     PartyA: params.phone,
     PartyB: shortcode,
