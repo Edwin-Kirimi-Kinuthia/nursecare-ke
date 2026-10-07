@@ -8,6 +8,7 @@ import { ApiError } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import Stars from "@/components/Stars";
+import ProviderReviews from "@/components/ProviderReviews";
 
 function groupByDay(slots: Slot[]) {
   const map = new Map<string, Slot[]>();
@@ -162,6 +163,12 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
           </div>
         )}
       </div>
+
+      <ProviderReviews
+        providerId={id}
+        ratingAvg={provider.ratingAvg}
+        ratingCount={provider.ratingCount}
+      />
     </div>
   );
 }

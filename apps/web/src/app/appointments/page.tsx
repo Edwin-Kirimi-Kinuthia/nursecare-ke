@@ -3,13 +3,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2 } from "lucide-react";
+import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2, Star } from "lucide-react";
 import type { Appointment } from "@carebora/api-client";
 import { ApiError } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import Stars from "@/components/Stars";
+import ReviewModal from "@/components/ReviewModal";
 import { PhoneField } from "@/components/PhoneField";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -34,6 +36,7 @@ export default function AppointmentsPage() {
   const [payMsg, setPayMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
+  const [reviewAppt, setReviewAppt] = useState<Appointment | null>(null);
 
   /**
    * Which side of a given appointment the viewer is on.
@@ -159,6 +162,36 @@ export default function AppointmentsPage() {
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
                 </div>
 
+                {/* Rate a finished appointment — the patient's side only. */}
+                {a.status === "completed" && !isProvider && (
+                  <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                    {a.review ? (
+                      <div className="mr-auto flex items-center gap-2 text-sm text-slate-500">
+                        <span>You rated this visit</span>
+                        <Stars value={a.review.rating} />
+                      </div>
+                    ) : (
+                      <>
+                        <span className="mr-auto text-sm text-slate-500">How was your visit?</span>
+                        <button
+                          onClick={() => setReviewAppt(a)}
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700 transition hover:bg-amber-100"
+                        >
+                          <Star className="h-4 w-4" /> Rate your visit
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {/* A provider sees the rating they were given. */}
+                {a.status === "completed" && isProvider && a.review && (
+                  <div className="flex w-full items-center gap-2 border-t border-slate-100 pt-3 text-sm text-slate-500">
+                    <span>Patient rating</span>
+                    <Stars value={a.review.rating} />
+                    {a.review.comment && <span className="truncate italic">“{a.review.comment}”</span>}
+                  </div>
+                )}
+
                 {a.appointmentType === "teleconsult" && (a.status === "requested" || a.status === "confirmed") && (
                   <div className="flex w-full items-center justify-end gap-2 border-t border-slate-100 pt-3">
                     {/* Doctor confirms a requested teleconsult */}
@@ -218,6 +251,25 @@ export default function AppointmentsPage() {
             );
           })}
         </div>
+      )}
+
+      {reviewAppt && (
+        <ReviewModal
+          appointment={reviewAppt}
+          onClose={() => setReviewAppt(null)}
+          onDone={(review) => {
+            // Patch it in locally so the card flips to "You rated this visit"
+            // without a full reload.
+            setAppts((prev) =>
+              prev.map((a) =>
+                a.id === reviewAppt.id
+                  ? { ...a, review: { id: review.id, rating: review.rating, comment: review.comment } }
+                  : a,
+              ),
+            );
+            setReviewAppt(null);
+          }}
+        />
       )}
 
       {/* Pay modal */}

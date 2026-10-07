@@ -24,6 +24,9 @@ const APPOINTMENT_INCLUDE = {
   },
   patient: { select: { id: true, fullName: true, avatarUrl: true, email: true, phone: true } },
   consultation: { select: { id: true, status: true } },
+  // So the card can offer "Rate your visit" or show the rating already left,
+  // without a second request per appointment.
+  review: { select: { id: true, rating: true, comment: true } },
 } satisfies Prisma.AppointmentInclude;
 
 // Payment is polymorphic (no direct Prisma relation) — attached manually.

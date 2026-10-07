@@ -867,6 +867,8 @@ export interface Appointment {
   patient: { id: string; fullName: string; avatarUrl: string | null };
   consultation?: Consultation | null;
   payment?: PaymentSummary | null;
+  /** Present once the patient has rated this appointment. */
+  review?: { id: string; rating: number; comment: string | null } | null;
 }
 
 export interface AppointmentListResult {
