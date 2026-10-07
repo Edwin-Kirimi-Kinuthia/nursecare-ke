@@ -70,6 +70,18 @@ export const notificationService = {
     `);
   },
 
+  async passwordResetRequested(opts: { email: string; fullName: string; token: string }) {
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const url = `${base}/set-password?token=${opts.token}`;
+    await sendEmail(opts.email, "Reset your CareBora password", `
+      <h2>Hi ${opts.fullName},</h2>
+      <p>We received a request to reset your CareBora password. Click below to set a new one:</p>
+      <p><a href="${url}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Reset password</a></p>
+      <p>This link expires in 7 days. If you didn't request this, you can safely ignore this email — your password won't change.</p>
+      <p>— The CareBora Team</p>
+    `);
+  },
+
   async appointmentBooked(opts: {
     patientEmail: string;
     patientPhone?: string | null;

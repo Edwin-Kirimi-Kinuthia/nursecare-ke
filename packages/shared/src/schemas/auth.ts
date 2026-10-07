@@ -87,6 +87,12 @@ export const changePasswordSchema = z.object({
 });
 export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
 
+/** Request a password-reset email. Always succeeds from the caller's view — doesn't reveal whether the address is registered. */
+export const forgotPasswordSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+});
+export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
+
 /** Confirmation phrase required to run the one-time launch reset. */
 export const LAUNCH_RESET_CONFIRM_PHRASE = "RESET TO LAUNCH";
 export const launchResetSchema = z.object({

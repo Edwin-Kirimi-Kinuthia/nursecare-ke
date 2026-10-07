@@ -53,8 +53,8 @@ function SetPasswordForm() {
         </div>
 
         <div className="rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-xl shadow-slate-200/50 backdrop-blur">
-          <h1 className="text-center text-2xl font-extrabold text-slate-900">Welcome to CareBora</h1>
-          <p className="mt-1 text-center text-sm text-slate-500">Set a password to activate your account.</p>
+          <h1 className="text-center text-2xl font-extrabold text-slate-900">Set your password</h1>
+          <p className="mt-1 text-center text-sm text-slate-500">Choose a new password to continue to CareBora.</p>
 
           <form onSubmit={submit} className="mt-6 space-y-3.5">
             <label className="block">

@@ -37,6 +37,7 @@ import type {
   VerifyEmailInput,
   SetPasswordInput,
   ChangePasswordInput,
+  ForgotPasswordInput,
   LaunchResetPreview,
   AdminCreateProviderInput,
   OAuthProvider,
@@ -174,6 +175,10 @@ export class CareBoraClient {
   /** Rotate your own password — requires the current one. */
   changePassword(input: ChangePasswordInput) {
     return this.post<{ changed: boolean }>("/auth/change-password", input);
+  }
+  /** Request a password-reset email. Always resolves — doesn't reveal whether the address is registered. */
+  forgotPassword(input: ForgotPasswordInput) {
+    return this.post<{ sent: boolean }>("/auth/forgot-password", input);
   }
   /** URL to redirect the browser to for "Continue with <provider>" — not a fetch call. */
   oauthStartUrl(provider: OAuthProvider) {

@@ -3,10 +3,12 @@
 import { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { CountryCodeSelect } from "@/components/CountryCodeSelect";
+import { COUNTRIES } from "@/lib/countries";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   unsupported_provider: "That sign-in method isn't available.",
@@ -26,9 +28,11 @@ function LoginForm() {
   const { refresh } = useAuth();
   const oauthError = useSearchParams().get("oauthError");
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [step, setStep] = useState<"form" | "verify">("form");
+  const [step, setStep] = useState<"form" | "verify" | "forgot">("form");
   const [form, setForm] = useState({ fullName: "", email: "", password: "", phone: "" });
+  const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0].iso2);
   const [code, setCode] = useState("");
+  const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -46,9 +50,11 @@ function LoginForm() {
         router.push("/providers");
         router.refresh();
       } else {
+        const dialCode = COUNTRIES.find((c) => c.iso2 === phoneCountry)?.dialCode ?? "";
+        const digits = form.phone.replace(/\D/g, "").replace(/^0+/, "");
         await api.register({
           fullName: form.fullName, email: form.email, password: form.password,
-          phone: form.phone || undefined, role: "patient",
+          phone: digits ? `${dialCode}${digits}` : undefined, role: "patient",
         });
         await refresh();
         setStep("verify");
@@ -94,6 +100,21 @@ function LoginForm() {
     }
   }
 
+  async function requestReset(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      await api.forgotPassword({ email: forgotEmail });
+      setNotice("If an account exists for that email, we've sent a password reset link.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-4 py-14">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-slate-50">
@@ -108,7 +129,38 @@ function LoginForm() {
         </div>
 
         <div className="rounded-[28px] border border-slate-200/80 bg-white/90 p-8 shadow-2xl shadow-slate-300/30 backdrop-blur-xl sm:p-10">
-          {step === "verify" ? (
+          {step === "forgot" ? (
+            <>
+              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
+                <KeyRound className="h-6 w-6 text-teal-600" />
+              </div>
+              <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">Reset your password</h1>
+              <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
+                Enter your email and we&apos;ll send you a link to set a new password.
+              </p>
+
+              <form onSubmit={requestReset} className="mt-7 space-y-4">
+                <Field label="Email" type="email" value={forgotEmail} onChange={setForgotEmail} required />
+
+                {error && <Alert tone="error">{error}</Alert>}
+                {notice && <Alert tone="success">{notice}</Alert>}
+
+                <button
+                  type="submit" disabled={busy}
+                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busy ? "Sending…" : "Send reset link"}
+                </button>
+              </form>
+
+              <button
+                onClick={() => { setStep("form"); setError(null); setNotice(null); }}
+                className="mt-5 flex items-center gap-1.5 text-sm font-semibold text-slate-500 transition hover:text-slate-700"
+              >
+                <ArrowLeft className="h-3.5 w-3.5" /> Back to log in
+              </button>
+            </>
+          ) : step === "verify" ? (
             <>
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
                 <ShieldCheck className="h-6 w-6 text-teal-600" />
@@ -177,8 +229,32 @@ function LoginForm() {
               <form onSubmit={submit} className="space-y-4">
                 {mode === "register" && <Field label="Full name" value={form.fullName} onChange={(v) => set("fullName", v)} required />}
                 <Field label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} required />
-                <Field label="Password" type="password" revealable value={form.password} onChange={(v) => set("password", v)} required />
-                {mode === "register" && <Field label="Phone (optional)" value={form.phone} onChange={(v) => set("phone", v)} placeholder="0712345678" />}
+                <div>
+                  <Field label="Password" type="password" revealable value={form.password} onChange={(v) => set("password", v)} required />
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      onClick={() => { setStep("forgot"); setForgotEmail(form.email); setError(null); setNotice(null); }}
+                      className="mt-1.5 text-xs font-semibold text-teal-700 transition hover:text-teal-800"
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+                {mode === "register" && (
+                  <label className="block">
+                    <span className="text-sm font-medium text-slate-700">Phone (optional)</span>
+                    <div className="mt-1.5 flex">
+                      <CountryCodeSelect iso2={phoneCountry} onChange={(c) => setPhoneCountry(c.iso2)} />
+                      <input
+                        value={form.phone}
+                        onChange={(e) => set("phone", e.target.value.replace(/[^\d]/g, ""))}
+                        placeholder="712345678"
+                        className="w-full rounded-r-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+                      />
+                    </div>
+                  </label>
+                )}
 
                 {error && <Alert tone="error">{error}</Alert>}
 

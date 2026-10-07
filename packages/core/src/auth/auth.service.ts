@@ -45,22 +45,30 @@ async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullNam
   });
 }
 
-/** Generate an invite/reset token, store its hash, and email the set-password link. */
-export async function issuePasswordInvite(user: Pick<User, "id" | "email" | "fullName">) {
+/** Generate an invite/reset token and store its hash. Shared by admin invites and self-service password resets. */
+async function createInviteToken(userId: string): Promise<string> {
   const token = randomBytes(32).toString("hex");
   await db.verificationCode.create({
     data: {
-      userId: user.id,
+      userId,
       channel: "invite",
       codeHash: hashCode(token),
       expiresAt: new Date(Date.now() + INVITE_TTL_MS),
     },
   });
-  await notificationService.accountInvite({
-    email: user.email,
-    fullName: user.fullName,
-    token,
-  });
+  return token;
+}
+
+/** Admin-recruited account: email a set-password link. */
+export async function issuePasswordInvite(user: Pick<User, "id" | "email" | "fullName">) {
+  const token = await createInviteToken(user.id);
+  await notificationService.accountInvite({ email: user.email, fullName: user.fullName, token });
+}
+
+/** Self-service "forgot password": email a reset link. */
+async function issuePasswordReset(user: Pick<User, "id" | "email" | "fullName">) {
+  const token = await createInviteToken(user.id);
+  await notificationService.passwordResetRequested({ email: user.email, fullName: user.fullName, token });
 }
 
 export interface RequestMeta {
@@ -199,6 +207,19 @@ export const authService = {
     }
     await db.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } });
     return { changed: true };
+  },
+
+  /**
+   * Request a password-reset email. Always reports success regardless of
+   * whether the address is registered — telling the caller either way would
+   * let anyone enumerate which emails have a CareBora account.
+   */
+  async forgotPassword(email: string) {
+    const user = await db.user.findUnique({ where: { email } });
+    if (user) {
+      await issuePasswordReset(user);
+    }
+    return { sent: true };
   },
 
   /**
