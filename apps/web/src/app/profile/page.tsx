@@ -185,6 +185,8 @@ function Saved({ show }: { show: boolean }) {
 function PatientSection() {
   const [p, setP] = useState<PatientProfile | null>(null);
   const [history, setHistory] = useState<MedicalHistoryEntry[]>([]);
+  const [allergiesText, setAllergiesText] = useState("");
+  const [conditionsText, setConditionsText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -193,7 +195,11 @@ function PatientSection() {
     (async () => {
       try {
         const [prof, hist] = await Promise.all([api.getPatientProfile(), api.getMedicalHistory()]);
-        if (active) { setP(prof); setHistory(hist.consultations); }
+        if (active) {
+          setP(prof); setHistory(hist.consultations);
+          setAllergiesText(prof.allergies.join(", "));
+          setConditionsText(prof.chronicConditions.join(", "));
+        }
       } catch { /* ignore */ }
     })();
     return () => { active = false; };
@@ -209,12 +215,14 @@ function PatientSection() {
         town: p.town ?? undefined,
         addressLine: p.addressLine ?? undefined,
         bloodGroup: p.bloodGroup ?? undefined,
-        allergies: p.allergies,
-        chronicConditions: p.chronicConditions,
+        allergies: list(allergiesText),
+        chronicConditions: list(conditionsText),
         emergencyContactName: p.emergencyContactName ?? undefined,
         emergencyContactPhone: p.emergencyContactPhone ?? undefined,
       });
       setP(updated);
+      setAllergiesText(updated.allergies.join(", "));
+      setConditionsText(updated.chronicConditions.join(", "));
       setSaved(true);
     } finally { setSaving(false); }
   }
@@ -238,8 +246,8 @@ function PatientSection() {
           <Field label="County" value={p.county ?? ""} onChange={(v) => set("county", v)} />
           <Field label="Town" value={p.town ?? ""} onChange={(v) => set("town", v)} />
           <Field label="Address" value={p.addressLine ?? ""} onChange={(v) => set("addressLine", v)} />
-          <Field label="Allergies (comma-separated)" value={p.allergies.join(", ")} onChange={(v) => set("allergies", list(v))} />
-          <Field label="Chronic conditions (comma-separated)" value={p.chronicConditions.join(", ")} onChange={(v) => set("chronicConditions", list(v))} />
+          <Field label="Allergies (comma-separated)" value={allergiesText} onChange={setAllergiesText} />
+          <Field label="Chronic conditions (comma-separated)" value={conditionsText} onChange={setConditionsText} />
           <Field label="Emergency contact name" value={p.emergencyContactName ?? ""} onChange={(v) => set("emergencyContactName", v)} />
           <Field label="Emergency contact phone" value={p.emergencyContactPhone ?? ""} onChange={(v) => set("emergencyContactPhone", v)} />
         </div>
@@ -300,12 +308,23 @@ function PatientSection() {
 /* ── provider ─────────────────────────────────────────────────────────────── */
 function ProviderSection() {
   const [p, setP] = useState<ProviderProfile | null>(null);
+  const [languagesText, setLanguagesText] = useState("");
+  const [servicesText, setServicesText] = useState("");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     let active = true;
-    (async () => { try { const prof = await api.getProviderProfile(); if (active) setP(prof); } catch { /* ignore */ } })();
+    (async () => {
+      try {
+        const prof = await api.getProviderProfile();
+        if (active) {
+          setP(prof);
+          setLanguagesText(prof.languages.join(", "));
+          setServicesText(prof.services.join(", "));
+        }
+      } catch { /* ignore */ }
+    })();
     return () => { active = false; };
   }, []);
 
@@ -318,13 +337,16 @@ function ProviderSection() {
         bio: p.bio ?? undefined,
         county: p.county ?? undefined,
         town: p.town ?? undefined,
-        languages: p.languages,
-        services: p.services,
+        languages: list(languagesText),
+        services: list(servicesText),
         consultationFeeKes: p.consultationFeeKes ?? undefined,
         homeVisitFeeKes: p.homeVisitFeeKes ?? undefined,
         isAvailable: p.isAvailable,
       });
-      setP(updated); setSaved(true);
+      setP(updated);
+      setLanguagesText(updated.languages.join(", "));
+      setServicesText(updated.services.join(", "));
+      setSaved(true);
     } finally { setSaving(false); }
   }
 
@@ -345,8 +367,8 @@ function ProviderSection() {
         <Field label="Town" value={p.town ?? ""} onChange={(v) => set("town", v)} />
         <Field label="Consultation fee (KES)" value={String(p.consultationFeeKes ?? "")} onChange={(v) => set("consultationFeeKes", v ? Number(v) : null)} />
         <Field label="Home visit fee (KES)" value={String(p.homeVisitFeeKes ?? "")} onChange={(v) => set("homeVisitFeeKes", v ? Number(v) : null)} />
-        <Field label="Languages (comma-separated)" value={p.languages.join(", ")} onChange={(v) => set("languages", list(v))} />
-        <Field label="Services (comma-separated)" value={p.services.join(", ")} onChange={(v) => set("services", list(v))} />
+        <Field label="Languages (comma-separated)" value={languagesText} onChange={setLanguagesText} />
+        <Field label="Services (comma-separated)" value={servicesText} onChange={setServicesText} />
       </div>
       <label className="mt-4 block">
         <span className="text-sm font-medium text-slate-700">Bio</span>

@@ -38,8 +38,11 @@ export function NameFields({
         <input required value={value.firstName} onChange={(e) => set("firstName", e.target.value)} placeholder="Jane" className={inputClassName} />
       </div>
       <div>
-        <label className={labelClassName}>Middle name (optional)</label>
-        <input value={value.middleName} onChange={(e) => set("middleName", e.target.value)} placeholder="Wanjiru" className={inputClassName} />
+        {/* "(optional)" deliberately lives in the placeholder, not the label — at narrow widths
+            (e.g. the admin modal) that extra text wraps to a second line while "Surname" and
+            "First name" don't, so the three inputs end up visually misaligned. */}
+        <label className={labelClassName}>Middle name</label>
+        <input value={value.middleName} onChange={(e) => set("middleName", e.target.value)} placeholder="Wanjiru (optional)" className={inputClassName} />
       </div>
     </div>
   );
