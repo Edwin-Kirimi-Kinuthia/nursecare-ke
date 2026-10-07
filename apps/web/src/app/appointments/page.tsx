@@ -12,6 +12,7 @@ import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import Stars from "@/components/Stars";
 import ReviewModal from "@/components/ReviewModal";
+import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
@@ -37,6 +38,7 @@ export default function AppointmentsPage() {
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
   const [reviewAppt, setReviewAppt] = useState<Appointment | null>(null);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
 
   /**
    * Which side of a given appointment the viewer is on.
@@ -83,15 +85,18 @@ export default function AppointmentsPage() {
   }
 
   function openPay(appt: Appointment) {
-    setPayAppt(appt); setPayMsg(null); setSimCheckoutId(null); setPayPhone(user?.phone ?? "");
+    setPayAppt(appt); setPayMsg(null); setSimCheckoutId(null); setPendingPaymentId(null); setPayPhone(user?.phone ?? "");
   }
 
   async function payAppointment() {
     if (!payAppt) return;
-    setPaying(true); setPayMsg(null); setSimCheckoutId(null);
+    setPaying(true); setPayMsg(null); setSimCheckoutId(null); setPendingPaymentId(null);
     try {
       const payment = await api.initiateMpesaPayment({ appointmentId: payAppt.id, phoneNumber: payPhone });
-      if (!IS_TILL_MODE) setPayMsg({ kind: "ok", text: "STK push sent! Check your phone and enter your M-Pesa PIN." });
+      // MpesaPrompt takes over from here: it polls the payment and reports the
+      // real outcome, rather than telling the patient to go and look at their
+      // phone and leaving them to guess whether it worked.
+      if (!IS_TILL_MODE) setPendingPaymentId(payment.id);
       setSimCheckoutId(payment.gatewayRef ?? null);
       await load();
     } catch (err) {
@@ -297,7 +302,17 @@ export default function AppointmentsPage() {
                 </>
               ) : (
                 <>
-                  <PhoneField label="M-Pesa phone" value={payPhone} onChange={setPayPhone} required lockedToKenya />
+                  {pendingPaymentId ? (
+                    <MpesaPrompt
+                      paymentId={pendingPaymentId}
+                      amountKes={payAppt.feeKes}
+                      phone={payPhone}
+                      onPaid={load}
+                      onClose={() => { setPendingPaymentId(null); setPayAppt(null); }}
+                    />
+                  ) : (
+                    <PhoneField label="M-Pesa phone" value={payPhone} onChange={setPayPhone} required lockedToKenya />
+                  )}
                   {payMsg && (
                     <p className={`rounded-xl px-4 py-3 text-sm ${payMsg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{payMsg.text}</p>
                   )}
@@ -307,16 +322,18 @@ export default function AppointmentsPage() {
                       {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
                     </button>
                   )}
-                  <div className="flex gap-3">
-                    <button onClick={payAppointment} disabled={paying}
-                      className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                      {paying && <Loader2 className="h-4 w-4 animate-spin" />} {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payAppt.feeKes)}`}
-                    </button>
-                    <button onClick={() => setPayAppt(null)}
-                      className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                      Cancel
-                    </button>
-                  </div>
+                  {!pendingPaymentId && (
+                    <div className="flex gap-3">
+                      <button onClick={payAppointment} disabled={paying}
+                        className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                        {paying && <Loader2 className="h-4 w-4 animate-spin" />} {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payAppt.feeKes)}`}
+                      </button>
+                      <button onClick={() => setPayAppt(null)}
+                        className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </>
               )}
             </div>

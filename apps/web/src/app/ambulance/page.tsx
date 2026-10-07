@@ -2,9 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import {
-  Siren, MapPin, Phone, Clock, CheckCircle2, XCircle, AlertCircle, LocateFixed, Loader2, Ambulance as AmbulanceIcon,
-} from "lucide-react";
+import { Siren, MapPin, Phone, Clock, CheckCircle2, XCircle, LocateFixed, Loader2, Ambulance as AmbulanceIcon } from "lucide-react";
 import type { AmbulanceRequest, AmbulanceType } from "@carebora/api-client";
 import { KENYA_COUNTIES } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
@@ -13,6 +11,7 @@ import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
+import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -56,6 +55,7 @@ export default function AmbulancePage() {
   const [payPhone, setPayPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<string | null>(null);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
   const [simGatewayRef, setSimGatewayRef] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
 
@@ -103,10 +103,11 @@ export default function AmbulancePage() {
   async function payNow(e: React.FormEvent) {
     e.preventDefault();
     if (!payReq) return;
-    setPayMsg(null); setPaying(true); setSimGatewayRef(null);
+    setPayMsg(null); setPaying(true); setSimGatewayRef(null); setPendingPaymentId(null);
     try {
       const payment = await api.payAmbulanceRequest(payReq.id, payPhone);
-      if (!IS_TILL_MODE) setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
+      // MpesaPrompt polls from here and reports the real outcome.
+      if (!IS_TILL_MODE) setPendingPaymentId(payment.id);
       setSimGatewayRef(payment.gatewayRef ?? null);
       await load();
     } catch (err: unknown) {
@@ -309,24 +310,33 @@ export default function AmbulancePage() {
               </div>
             ) : (
               <form onSubmit={payNow} className="mt-4 space-y-4">
-                <PhoneField label="M-Pesa phone number" value={payPhone} onChange={setPayPhone} required lockedToKenya />
-                {payMsg && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>}
+                {pendingPaymentId ? (
+                  <MpesaPrompt
+                    paymentId={pendingPaymentId}
+                    amountKes={payReq.feeKes ?? 0}
+                    phone={payPhone}
+                    onPaid={load}
+                    onClose={() => { setPendingPaymentId(null); setPayReq(null); }}
+                  />
+                ) : (
+                  <PhoneField label="M-Pesa phone number" value={payPhone} onChange={setPayPhone} required lockedToKenya />
+                )}
+                {payMsg && <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{payMsg}</p>}
                 {simGatewayRef && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
                   <button type="button" onClick={simulatePay} disabled={simulating}
                     className="w-full rounded-xl border border-dashed border-teal-300 bg-teal-50/60 px-4 py-2.5 text-sm font-semibold text-teal-700 hover:bg-teal-100 disabled:opacity-60">
                     {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
                   </button>
                 )}
-                <div className="flex gap-3">
-                  <button type="submit" disabled={paying} className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                    {paying && <Loader2 className="h-4 w-4 animate-spin" />} Pay
-                  </button>
-                  <button type="button" onClick={() => setPayReq(null)} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
-                </div>
+                {!pendingPaymentId && (
+                  <div className="flex gap-3">
+                    <button type="submit" disabled={paying} className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                      {paying && <Loader2 className="h-4 w-4 animate-spin" />} Pay {kes(payReq.feeKes ?? 0)}
+                    </button>
+                    <button type="button" onClick={() => setPayReq(null)} className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
+                  </div>
+                )}
               </form>
-            )}
-            {!IS_TILL_MODE && !simGatewayRef && (
-              <p className="mt-2 flex items-center gap-1 text-xs text-slate-400"><AlertCircle className="h-3 w-3" /> STK push, once sent, will show a sandbox-simulate button.</p>
             )}
           </div>
         </div>

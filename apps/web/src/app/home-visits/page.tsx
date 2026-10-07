@@ -11,6 +11,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
@@ -49,6 +50,7 @@ export default function HomeVisitsPage() {
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<string | null>(null);
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
@@ -98,9 +100,11 @@ export default function HomeVisitsPage() {
     setPayMsg(null);
     setPaying(true);
     setSimCheckoutId(null);
+    setPendingPaymentId(null);
     try {
       const updated = await api.payHomeVisit(payVisit.id, { phoneNumber: phone });
-      if (!IS_TILL_MODE) setPayMsg("STK push sent! Check your phone and enter your M-Pesa PIN.");
+      // MpesaPrompt polls from here and reports the real outcome.
+      if (!IS_TILL_MODE) setPendingPaymentId(updated.payment?.id ?? null);
       setSimCheckoutId(updated.payment?.gatewayRef ?? null);
       await load();
     } catch (err: unknown) {
@@ -286,9 +290,19 @@ export default function HomeVisitsPage() {
               </div>
             ) : (
               <form onSubmit={payNow} className="mt-4 space-y-4">
-                <PhoneField label="M-Pesa phone number" value={phone} onChange={setPhone} required lockedToKenya />
+                {pendingPaymentId ? (
+                  <MpesaPrompt
+                    paymentId={pendingPaymentId}
+                    amountKes={payVisit.feeKes ?? 0}
+                    phone={phone}
+                    onPaid={load}
+                    onClose={() => { setPendingPaymentId(null); setPayVisit(null); }}
+                  />
+                ) : (
+                  <PhoneField label="M-Pesa phone number" value={phone} onChange={setPhone} required lockedToKenya />
+                )}
                 {payMsg && (
-                  <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
+                  <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{payMsg}</p>
                 )}
                 {simCheckoutId && !IS_TILL_MODE && IS_MPESA_SANDBOX && (
                   <button type="button" onClick={simulatePay} disabled={simulating}
@@ -296,17 +310,19 @@ export default function HomeVisitsPage() {
                     {simulating ? "Completing…" : "Simulate M-Pesa payment (sandbox)"}
                   </button>
                 )}
-                <div className="flex gap-3">
-                  <button type="submit" disabled={paying}
-                    className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                    {paying && <Loader2 className="h-4 w-4 animate-spin" />}
-                    {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payVisit.feeKes)}`}
-                  </button>
-                  <button type="button" onClick={() => setPayVisit(null)}
-                    className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
-                    Cancel
-                  </button>
-                </div>
+                {!pendingPaymentId && (
+                  <div className="flex gap-3">
+                    <button type="submit" disabled={paying}
+                      className="flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                      {paying && <Loader2 className="h-4 w-4 animate-spin" />}
+                      {IS_TILL_MODE ? "Continue to pay" : `Pay ${kes(payVisit.feeKes)}`}
+                    </button>
+                    <button type="button" onClick={() => setPayVisit(null)}
+                      className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+                      Cancel
+                    </button>
+                  </div>
+                )}
               </form>
             )}
           </div>

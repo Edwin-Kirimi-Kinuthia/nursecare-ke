@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 
 /** The cart + M-Pesa checkout. Self-contained — fetches product details for the
@@ -29,6 +30,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pendingCheckoutId, setPendingCheckoutId] = useState<string | null>(null);
   const [pendingAmount, setPendingAmount] = useState(0);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -90,7 +92,8 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         form.submit();
         return;
       }
-      if (!IS_TILL_MODE) setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
+      // MpesaPrompt polls from here and reports the real outcome.
+      if (!IS_TILL_MODE) setPendingPaymentId(order.payment?.id ?? null);
       setPendingCheckoutId(order.payment?.gatewayRef ?? null);
       setPendingAmount(orderTotal);
     } catch (err) {
@@ -197,6 +200,18 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         <div className={`mt-4 flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
           {msg.kind === "ok" ? <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" /> : <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />}
           {msg.text}
+        </div>
+      )}
+
+      {pendingPaymentId && !IS_TILL_MODE && (
+        <div className="mt-4">
+          <MpesaPrompt
+            paymentId={pendingPaymentId}
+            amountKes={pendingAmount}
+            phone={phone}
+            onPaid={() => onOrdered?.()}
+            onClose={() => { setPendingPaymentId(null); setPendingCheckoutId(null); }}
+          />
         </div>
       )}
 

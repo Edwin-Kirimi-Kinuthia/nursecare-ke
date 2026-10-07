@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 
 export default function LabsPage() {
@@ -30,6 +31,7 @@ export default function LabsPage() {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pendingGatewayRef, setPendingGatewayRef] = useState<string | null>(null);
   const [pendingAmount, setPendingAmount] = useState(0);
+  const [pendingPaymentId, setPendingPaymentId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
 
   useEffect(() => {
@@ -66,10 +68,11 @@ export default function LabsPage() {
 
   async function checkout() {
     if (!selectedLab || selectedTestIds.length === 0) return;
-    setCheckingOut(true); setMsg(null); setPendingGatewayRef(null);
+    setCheckingOut(true); setMsg(null); setPendingGatewayRef(null); setPendingPaymentId(null);
     try {
       const order = await api.createLabOrder({ orgId: selectedLab.orgId, testIds: selectedTestIds, phoneNumber, collectionType: "walk_in" });
-      if (!IS_TILL_MODE) setMsg({ kind: "ok", text: "Order placed — check your phone for the M-Pesa prompt." });
+      // MpesaPrompt polls from here and reports the real outcome.
+      if (!IS_TILL_MODE) setPendingPaymentId(order.payment?.id ?? null);
       setPendingGatewayRef(order.payment?.gatewayRef ?? null);
       setPendingAmount(total);
       await loadOrders();
@@ -156,6 +159,18 @@ export default function LabsPage() {
                 <p className={`mt-3 flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
                   {msg.kind === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />} {msg.text}
                 </p>
+              )}
+
+              {pendingPaymentId && !IS_TILL_MODE && (
+                <div className="mt-4">
+                  <MpesaPrompt
+                    paymentId={pendingPaymentId}
+                    amountKes={pendingAmount}
+                    phone={phoneNumber}
+                    onPaid={loadOrders}
+                    onClose={() => { setPendingPaymentId(null); setPendingGatewayRef(null); setSelectedLab(null); }}
+                  />
+                </div>
               )}
 
               {pendingGatewayRef && IS_TILL_MODE && (
