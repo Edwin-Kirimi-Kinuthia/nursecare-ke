@@ -14,7 +14,11 @@ function timestamp(): string {
     .slice(0, 14);
 }
 
-/** Safaricom hashes the *BusinessShortCode* (store number for Buy Goods), not the till. */
+/**
+ * Safaricom hashes the shortcode the passkey was issued against — for a Buy
+ * Goods till that is the store / head-office number, not the customer-facing
+ * till. Both live in env; see shortcodes() below.
+ */
 function stkPassword(businessShortCode: string, ts: string): string {
   const passkey = process.env.MPESA_PASSKEY ?? "";
   return Buffer.from(`${businessShortCode}${passkey}${ts}`).toString("base64");
@@ -45,6 +49,38 @@ async function getOAuthToken(): Promise<string> {
   return json.access_token;
 }
 
+/**
+ * Resolve the three shortcode fields an STK push needs. Safaricom issues these
+ * differently per product, and a mismatch is not rejected up front: Daraja
+ * accepts the request, returns a CheckoutRequestID, and only then fails in the
+ * callback with ResultCode 2029 ("Failed due to an unresolved reason type")
+ * without ever prompting the phone.
+ *
+ *   paybill — one number does everything.
+ *   till    — two numbers. MPESA_SHORTCODE is the store / head-office number
+ *             Safaricom issued the API credentials and passkey against, and it
+ *             is what BusinessShortCode and the password hash must use.
+ *             MPESA_TILL_NUMBER is the customer-facing till that receives the
+ *             funds, and belongs in PartyB.
+ */
+function shortcodes() {
+  const shortcode = process.env.MPESA_SHORTCODE;
+  if (!shortcode) throw new Error("MPESA_SHORTCODE not set");
+
+  if (process.env.MPESA_SHORTCODE_TYPE !== "till") {
+    return {
+      businessShortCode: shortcode,
+      partyB: shortcode,
+      transactionType: "CustomerPayBillOnline" as const,
+    };
+  }
+  return {
+    businessShortCode: shortcode,
+    partyB: process.env.MPESA_TILL_NUMBER || shortcode,
+    transactionType: "CustomerBuyGoodsOnline" as const,
+  };
+}
+
 export interface StkPushResult {
   merchantRequestId: string;
   checkoutRequestId: string;
@@ -57,34 +93,21 @@ export async function stkPush(params: {
   accountRef: string;
   description: string;
 }): Promise<StkPushResult> {
-  const shortcode = process.env.MPESA_SHORTCODE;
+  const { businessShortCode, partyB, transactionType } = shortcodes();
   const callbackUrl = process.env.MPESA_CALLBACK_URL;
-  if (!shortcode || !callbackUrl) {
-    throw new Error("MPESA_SHORTCODE / MPESA_CALLBACK_URL not set");
-  }
+  if (!callbackUrl) throw new Error("MPESA_CALLBACK_URL not set");
 
   const token = await getOAuthToken();
   const ts = timestamp();
-
-  // Paybill and Buy Goods (Till) shortcodes need different transaction types.
-  // Sending the wrong one is accepted at request time and then fails in the
-  // callback with ResultCode 2029 ("unresolved reason type") before the push
-  // ever reaches the phone — so it must match how Safaricom issued the code.
-  const isTill = process.env.MPESA_SHORTCODE_TYPE === "till";
-  // For Buy Goods, BusinessShortCode is the store/head-office number while
-  // PartyB stays the till. They're the same for Paybill.
-  const storeNumber = process.env.MPESA_STORE_NUMBER || shortcode;
-
-  const businessShortCode = isTill ? storeNumber : shortcode;
 
   const body = {
     BusinessShortCode: businessShortCode,
     Password: stkPassword(businessShortCode, ts),
     Timestamp: ts,
-    TransactionType: isTill ? "CustomerBuyGoodsOnline" : "CustomerPayBillOnline",
+    TransactionType: transactionType,
     Amount: params.amount,
     PartyA: params.phone,
-    PartyB: shortcode,
+    PartyB: partyB,
     PhoneNumber: params.phone,
     CallBackURL: callbackUrl,
     AccountReference: params.accountRef,
