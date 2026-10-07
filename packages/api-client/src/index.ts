@@ -15,6 +15,9 @@ import type {
   HomeVisitStkInput,
   HomeVisitsQuery,
   LoginInput,
+  LoginChallengeResult,
+  LoginVerifyOtpInput,
+  LoginResendOtpInput,
   MpesaStkInput,
   OrdersQuery,
   VendorOrdersQuery,
@@ -36,7 +39,8 @@ import type {
   RegisterInput,
   VerifyEmailInput,
   SetPasswordInput,
-  ChangePasswordInput,
+  RequestChangePasswordInput,
+  ConfirmChangePasswordInput,
   ForgotPasswordInput,
   LaunchResetPreview,
   AdminCreateProviderInput,
@@ -154,8 +158,17 @@ export class CareBoraClient {
   applyAsVendor(input: VendorApplicationInput) {
     return this.post<AuthResult>("/vendors/apply", input);
   }
+  /** Step 1 of login: verify credentials. Doesn't sign in — a 6-digit code is emailed next. */
   login(input: LoginInput) {
-    return this.post<AuthResult>("/auth/login", input);
+    return this.post<LoginChallengeResult>("/auth/login", input);
+  }
+  /** Step 2 of login: confirm the emailed code and start the session. */
+  verifyLoginOtp(input: LoginVerifyOtpInput) {
+    return this.post<AuthResult>("/auth/login/verify-otp", input);
+  }
+  /** Resend the login code — only works while a login attempt is actually in progress. */
+  resendLoginOtp(input: LoginResendOtpInput) {
+    return this.post<{ sent: boolean }>("/auth/login/resend-otp", input);
   }
   me() {
     return this.request<PublicUser>("/auth/me");
@@ -172,9 +185,13 @@ export class CareBoraClient {
   setPassword(input: SetPasswordInput) {
     return this.post<AuthResult>("/auth/set-password", input);
   }
-  /** Rotate your own password — requires the current one. */
-  changePassword(input: ChangePasswordInput) {
-    return this.post<{ changed: boolean }>("/auth/change-password", input);
+  /** Step 1 of rotating your own password: verify the current one, a code is emailed next. */
+  requestChangePassword(input: RequestChangePasswordInput) {
+    return this.post<{ sent: boolean }>("/auth/change-password", input);
+  }
+  /** Step 2: confirm the emailed code and set the new password. */
+  confirmChangePassword(input: ConfirmChangePasswordInput) {
+    return this.post<{ changed: boolean }>("/auth/change-password/confirm", input);
   }
   /** Request a password-reset email. Always resolves — doesn't reveal whether the address is registered. */
   forgotPassword(input: ForgotPasswordInput) {

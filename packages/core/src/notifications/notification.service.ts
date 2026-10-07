@@ -58,6 +58,26 @@ export const notificationService = {
     `);
   },
 
+  async loginOtpCode(opts: { email: string; fullName: string; code: string }) {
+    await sendEmail(opts.email, "Your CareBora login code", `
+      <h2>Hi ${opts.fullName},</h2>
+      <p>Enter this code to finish signing in:</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
+      <p>This code expires in 10 minutes. If this wasn't you, your password may be compromised — change it as soon as you can.</p>
+      <p>— The CareBora Team</p>
+    `);
+  },
+
+  async changePasswordOtp(opts: { email: string; fullName: string; code: string }) {
+    await sendEmail(opts.email, "Confirm your CareBora password change", `
+      <h2>Hi ${opts.fullName},</h2>
+      <p>Enter this code to confirm changing your password:</p>
+      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
+      <p>This code expires in 10 minutes. If you didn't request this, you can ignore this email — your password won't change.</p>
+      <p>— The CareBora Team</p>
+    `);
+  },
+
   async accountInvite(opts: { email: string; fullName: string; token: string }) {
     const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
     const url = `${base}/set-password?token=${opts.token}`;

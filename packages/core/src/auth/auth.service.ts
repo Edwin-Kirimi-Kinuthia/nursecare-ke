@@ -4,6 +4,7 @@ import {
   ApiError,
   PROVIDER_ROLES,
   type LoginInput,
+  type LoginChallengeResult,
   type PublicUser,
   type RegisterInput,
   type ProviderApplicationInput,
@@ -22,14 +23,20 @@ import { notificationService } from "../notifications/notification.service";
 const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const LOGIN_OTP_TTL_MINUTES = 10;
+const CHANGE_PASSWORD_OTP_TTL_MINUTES = 10;
 
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+function generateOtp(): string {
+  return String(randomInt(0, 1_000_000)).padStart(6, "0");
+}
+
 /** Generate a 6-digit email verification code, store its hash, and email it. */
 async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullName">) {
-  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  const code = generateOtp();
   await db.verificationCode.create({
     data: {
       userId: user.id,
@@ -43,6 +50,34 @@ async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullNam
     fullName: user.fullName,
     code,
   });
+}
+
+/** Second factor on every password login: a 6-digit code emailed after the password checks out. */
+async function issueLoginOtp(user: Pick<User, "id" | "email" | "fullName">) {
+  const code = generateOtp();
+  await db.verificationCode.create({
+    data: {
+      userId: user.id,
+      channel: "login_otp",
+      codeHash: hashCode(code),
+      expiresAt: new Date(Date.now() + LOGIN_OTP_TTL_MINUTES * 60 * 1000),
+    },
+  });
+  await notificationService.loginOtpCode({ email: user.email, fullName: user.fullName, code });
+}
+
+/** Second factor on changing your own password while logged in: a 6-digit code emailed after the current password checks out. */
+async function issueChangePasswordOtp(user: Pick<User, "id" | "email" | "fullName">) {
+  const code = generateOtp();
+  await db.verificationCode.create({
+    data: {
+      userId: user.id,
+      channel: "change_password_otp",
+      codeHash: hashCode(code),
+      expiresAt: new Date(Date.now() + CHANGE_PASSWORD_OTP_TTL_MINUTES * 60 * 1000),
+    },
+  });
+  await notificationService.changePasswordOtp({ email: user.email, fullName: user.fullName, code });
 }
 
 /** Generate an invite/reset token and store its hash. Shared by admin invites and self-service password resets. */
@@ -199,13 +234,34 @@ export const authService = {
     return { user: toPublicUser(user), ...tokens };
   },
 
-  /** Rotate your own password — requires the current one. Use when it's been compromised or just leaked publicly. */
-  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+  /**
+   * Step 1 of rotating your own password: prove you know the current one,
+   * then email a 6-digit code — a second factor on top of an already
+   * authenticated action, since a leaked/compromised password is often
+   * exactly the scenario this gets used in.
+   */
+  async requestChangePasswordOtp(userId: string, currentPassword: string) {
     const user = await db.user.findUnique({ where: { id: userId }, include: { credentials: true } });
     if (!user || !user.credentials || !verifyPassword(currentPassword, user.credentials.passwordHash)) {
       throw ApiError.unauthorized("Current password is incorrect");
     }
-    await db.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } });
+    await issueChangePasswordOtp(user);
+    return { sent: true };
+  },
+
+  /** Step 2: confirm the emailed code and set the new password. */
+  async confirmChangePassword(userId: string, code: string, newPassword: string) {
+    const record = await db.verificationCode.findFirst({
+      where: { userId, channel: "change_password_otp", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record || record.expiresAt < new Date() || record.codeHash !== hashCode(code)) {
+      throw ApiError.badRequest("Invalid or expired code");
+    }
+    await db.$transaction([
+      db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
+      db.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } }),
+    ]);
     return { changed: true };
   },
 
@@ -313,8 +369,11 @@ export const authService = {
     return { user: toPublicUser(user), ...tokens };
   },
 
-  /** Verify credentials and start a new session. */
-  async login(input: LoginInput, meta?: RequestMeta) {
+  /**
+   * Step 1 of login: verify credentials, then email a 6-digit code instead of
+   * signing in directly — every password login gets this second factor.
+   */
+  async login(input: LoginInput): Promise<LoginChallengeResult> {
     const user = await db.user.findUnique({
       where: { email: input.email },
       include: { credentials: true },
@@ -328,8 +387,41 @@ export const authService = {
     }
     if (!user.isActive) throw ApiError.forbidden("This account is disabled");
 
+    await issueLoginOtp(user);
+    return { requiresOtp: true, email: user.email };
+  },
+
+  /** Step 2 of login: confirm the emailed code and start the session. */
+  async verifyLoginOtp(email: string, code: string, meta?: RequestMeta) {
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) throw ApiError.unauthorized("Invalid or expired code");
+
+    const record = await db.verificationCode.findFirst({
+      where: { userId: user.id, channel: "login_otp", consumedAt: null },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!record || record.expiresAt < new Date() || record.codeHash !== hashCode(code)) {
+      throw ApiError.unauthorized("Invalid or expired code");
+    }
+    await db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } });
+
     const tokens = await issueSession(user.id, user.role as UserRole, meta);
     return { user: toPublicUser(user), ...tokens };
+  },
+
+  /** Resend the login code — only while a login attempt (a correct password) is actually in progress. */
+  async resendLoginOtp(email: string) {
+    const user = await db.user.findUnique({ where: { email } });
+    if (!user) return { sent: false };
+
+    const pending = await db.verificationCode.findFirst({
+      where: { userId: user.id, channel: "login_otp", consumedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!pending) return { sent: false };
+
+    await issueLoginOtp(user);
+    return { sent: true };
   },
 
   /** Fetch the authenticated user plus their role-specific profile. */

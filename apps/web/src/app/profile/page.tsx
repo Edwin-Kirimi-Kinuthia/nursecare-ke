@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2, Download, KeyRound,
+  User as UserIcon, Stethoscope, FileText, Pill, ShieldCheck, Save, CheckCircle2, Download, KeyRound, Eye, EyeOff, ArrowLeft,
 } from "lucide-react";
 import type {
   PatientProfile, ProviderProfile, MedicalHistoryEntry,
@@ -62,18 +62,47 @@ export default function ProfilePage() {
 }
 
 function ChangePasswordCard() {
+  const [step, setStep] = useState<"form" | "otp">("form");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  async function requestCode(e: React.FormEvent) {
     e.preventDefault();
     setError(null); setBusy(true); setDone(false);
     try {
-      await api.changePassword({ currentPassword, newPassword });
-      setCurrentPassword(""); setNewPassword(""); setDone(true);
+      await api.requestChangePassword({ currentPassword });
+      setStep("otp");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null); setBusy(true);
+    try {
+      await api.confirmChangePassword({ code, newPassword });
+      setCurrentPassword(""); setNewPassword(""); setCode("");
+      setStep("form"); setDone(true);
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resend() {
+    setError(null); setNotice(null); setBusy(true);
+    try {
+      await api.requestChangePassword({ currentPassword });
+      setNotice("Code resent — check your inbox.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
@@ -84,27 +113,65 @@ function ChangePasswordCard() {
   return (
     <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">
       <div className="flex items-center gap-2 font-bold text-slate-900"><KeyRound className="h-5 w-5 text-teal-600" /> Change password</div>
-      <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2">
-        <Field label="Current password" type="password" value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" />
-        <Field label="New password" type="password" value={newPassword} onChange={setNewPassword} placeholder="At least 8 characters" />
-        {error && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
-        {done && <p className="sm:col-span-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Password updated.</p>}
-        <button type="submit" disabled={busy || !currentPassword || newPassword.length < 8}
-          className="sm:col-span-2 w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-          {busy ? "Updating…" : "Update password"}
-        </button>
-      </form>
+
+      {step === "form" ? (
+        <form onSubmit={requestCode} className="mt-4 grid gap-3 sm:grid-cols-2">
+          <Field label="Current password" type="password" revealable value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" />
+          <Field label="New password" type="password" revealable value={newPassword} onChange={setNewPassword} placeholder="At least 8 characters" />
+          {error && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {done && <p className="sm:col-span-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Password updated.</p>}
+          <button type="submit" disabled={busy || !currentPassword || newPassword.length < 8}
+            className="sm:col-span-2 w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+            {busy ? "Sending code…" : "Send confirmation code"}
+          </button>
+        </form>
+      ) : (
+        <form onSubmit={confirm} className="mt-4 max-w-xs space-y-3">
+          <p className="text-sm text-slate-500">We emailed you a 6-digit code to confirm this change. Enter it below.</p>
+          <Field
+            label="Confirmation code" value={code}
+            onChange={(v) => setCode(v.replace(/\D/g, "").slice(0, 6))}
+            placeholder="123456"
+          />
+          {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {notice && <p className="rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-700">{notice}</p>}
+          <button type="submit" disabled={busy || code.length !== 6}
+            className="w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+            {busy ? "Confirming…" : "Confirm password change"}
+          </button>
+          <div className="flex items-center gap-4 pt-1 text-sm">
+            <button type="button" onClick={resend} disabled={busy} className="font-semibold text-teal-700 hover:underline disabled:opacity-60">Resend code</button>
+            <button type="button" onClick={() => { setStep("form"); setError(null); setNotice(null); }} className="flex items-center gap-1 text-slate-500 hover:text-slate-700">
+              <ArrowLeft className="h-3.5 w-3.5" /> Back
+            </button>
+          </div>
+        </form>
+      )}
     </div>
   );
 }
 
 /* ── shared field ─────────────────────────────────────────────────────────── */
-function Field({ label, value, onChange, placeholder, type = "text" }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string }) {
+function Field({
+  label, value, onChange, placeholder, type = "text", revealable,
+}: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; revealable?: boolean;
+}) {
+  const [reveal, setReveal] = useState(false);
+  const resolvedType = revealable ? (reveal ? "text" : "password") : type;
   return (
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
-      <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
-        className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+      <div className="relative mt-1">
+        <input type={resolvedType} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+          className={`w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${revealable ? "pr-10" : ""}`} />
+        {revealable && (
+          <button type="button" tabIndex={-1} onClick={() => setReveal((r) => !r)} aria-label={reveal ? "Hide password" : "Show password"}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-slate-400 transition hover:text-slate-600">
+            {reveal ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+          </button>
+        )}
+      </div>
     </label>
   );
 }

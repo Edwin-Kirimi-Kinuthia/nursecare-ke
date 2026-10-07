@@ -28,10 +28,11 @@ function LoginForm() {
   const { refresh } = useAuth();
   const oauthError = useSearchParams().get("oauthError");
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [step, setStep] = useState<"form" | "verify" | "forgot">("form");
-  const [form, setForm] = useState({ fullName: "", email: "", password: "", phone: "" });
+  const [step, setStep] = useState<"form" | "verify" | "forgot" | "login-otp">("form");
+  const [form, setForm] = useState({ firstName: "", otherName: "", surname: "", email: "", password: "", phone: "" });
   const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0].iso2);
   const [code, setCode] = useState("");
+  const [loginCode, setLoginCode] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -46,19 +47,47 @@ function LoginForm() {
     try {
       if (mode === "login") {
         await api.login({ email: form.email, password: form.password });
-        await refresh();
-        router.push("/providers");
-        router.refresh();
+        setStep("login-otp");
       } else {
         const dialCode = COUNTRIES.find((c) => c.iso2 === phoneCountry)?.dialCode ?? "";
         const digits = form.phone.replace(/\D/g, "").replace(/^0+/, "");
+        const fullName = [form.firstName, form.otherName, form.surname].map((s) => s.trim()).filter(Boolean).join(" ");
         await api.register({
-          fullName: form.fullName, email: form.email, password: form.password,
+          fullName, email: form.email, password: form.password,
           phone: digits ? `${dialCode}${digits}` : undefined, role: "patient",
         });
         await refresh();
         setStep("verify");
       }
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function submitLoginOtp(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setBusy(true);
+    try {
+      await api.verifyLoginOtp({ email: form.email, code: loginCode });
+      await refresh();
+      finishToApp();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : "Something went wrong");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function resendLoginCode() {
+    setError(null);
+    setNotice(null);
+    setBusy(true);
+    try {
+      const { sent } = await api.resendLoginOtp({ email: form.email });
+      setNotice(sent ? "Code resent — check your inbox." : "Couldn't resend — try logging in again.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {
@@ -129,7 +158,47 @@ function LoginForm() {
         </div>
 
         <div className="rounded-[28px] border border-slate-200/80 bg-white/90 p-8 shadow-2xl shadow-slate-300/30 backdrop-blur-xl sm:p-10">
-          {step === "forgot" ? (
+          {step === "login-otp" ? (
+            <>
+              <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
+                <ShieldCheck className="h-6 w-6 text-teal-600" />
+              </div>
+              <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">Check your email</h1>
+              <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
+                For your security, we sent a 6-digit code to <strong className="text-slate-700">{form.email}</strong>.
+              </p>
+
+              <form onSubmit={submitLoginOtp} className="mt-7 space-y-4">
+                <Field
+                  label="Login code" value={loginCode}
+                  onChange={(v) => setLoginCode(v.replace(/\D/g, "").slice(0, 6))}
+                  placeholder="123456" required
+                />
+
+                {error && <Alert tone="error">{error}</Alert>}
+                {notice && <Alert tone="success">{notice}</Alert>}
+
+                <button
+                  type="submit" disabled={busy || loginCode.length !== 6}
+                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {busy ? "Verifying…" : "Verify & log in"}
+                </button>
+              </form>
+
+              <div className="mt-5 flex items-center justify-between text-sm">
+                <button onClick={resendLoginCode} disabled={busy} className="font-semibold text-teal-700 transition hover:text-teal-800 disabled:opacity-60">
+                  Resend code
+                </button>
+                <button
+                  onClick={() => { setStep("form"); setLoginCode(""); setError(null); setNotice(null); }}
+                  className="flex items-center gap-1 text-slate-500 transition hover:text-slate-700"
+                >
+                  <ArrowLeft className="h-3.5 w-3.5" /> Back
+                </button>
+              </div>
+            </>
+          ) : step === "forgot" ? (
             <>
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
                 <KeyRound className="h-6 w-6 text-teal-600" />
@@ -227,7 +296,15 @@ function LoginForm() {
               </div>
 
               <form onSubmit={submit} className="space-y-4">
-                {mode === "register" && <Field label="Full name" value={form.fullName} onChange={(v) => set("fullName", v)} required />}
+                {mode === "register" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="First name" value={form.firstName} onChange={(v) => set("firstName", v)} required />
+                    <Field label="Surname" value={form.surname} onChange={(v) => set("surname", v)} required />
+                    <div className="col-span-2">
+                      <Field label="Other name (optional)" value={form.otherName} onChange={(v) => set("otherName", v)} />
+                    </div>
+                  </div>
+                )}
                 <Field label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} required />
                 <div>
                   <Field label="Password" type="password" revealable value={form.password} onChange={(v) => set("password", v)} required />

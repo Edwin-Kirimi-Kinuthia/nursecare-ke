@@ -48,6 +48,26 @@ export const loginSchema = z.object({
 });
 export type LoginInput = z.infer<typeof loginSchema>;
 
+const otpCodeSchema = z.string().trim().regex(/^[0-9]{6}$/, "Enter the 6-digit code");
+
+/** Step 2 of login: the code emailed after a correct password. */
+export const loginVerifyOtpSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+  code: otpCodeSchema,
+});
+export type LoginVerifyOtpInput = z.infer<typeof loginVerifyOtpSchema>;
+
+export const loginResendOtpSchema = z.object({
+  email: z.string().trim().toLowerCase().email("Enter a valid email"),
+});
+export type LoginResendOtpInput = z.infer<typeof loginResendOtpSchema>;
+
+/** What /auth/login returns now — a password match no longer completes login by itself. */
+export interface LoginChallengeResult {
+  requiresOtp: true;
+  email: string;
+}
+
 export const refreshSchema = z.object({
   refreshToken: z.string().min(1).optional(),
 });
@@ -80,12 +100,18 @@ export const setPasswordSchema = z.object({
 });
 export type SetPasswordInput = z.infer<typeof setPasswordSchema>;
 
-/** Rotate your own password — requires proving you know the current one. */
-export const changePasswordSchema = z.object({
+/** Step 1 of rotating your own password: prove you know the current one to get an emailed code. */
+export const requestChangePasswordSchema = z.object({
   currentPassword: z.string().min(1, "Current password is required"),
+});
+export type RequestChangePasswordInput = z.infer<typeof requestChangePasswordSchema>;
+
+/** Step 2: the emailed code, plus the new password it authorizes setting. */
+export const confirmChangePasswordSchema = z.object({
+  code: otpCodeSchema,
   newPassword: z.string().min(8, "Password must be at least 8 characters").max(128),
 });
-export type ChangePasswordInput = z.infer<typeof changePasswordSchema>;
+export type ConfirmChangePasswordInput = z.infer<typeof confirmChangePasswordSchema>;
 
 /** Request a password-reset email. Always succeeds from the caller's view — doesn't reveal whether the address is registered. */
 export const forgotPasswordSchema = z.object({
