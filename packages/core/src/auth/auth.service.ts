@@ -129,9 +129,15 @@ export const authService = {
     }
 
     const tokens = await issueSession(user.id, role, meta);
-    void issueEmailVerification(user).catch(() => {
+    // Awaited deliberately: on Vercel's serverless runtime, a fire-and-forget
+    // promise isn't guaranteed to run to completion after the response is
+    // sent, which was silently dropping this send entirely. A genuine failure
+    // here still shouldn't fail registration — the user can request a resend.
+    try {
+      await issueEmailVerification(user);
+    } catch {
       /* best-effort — user can request a resend */
-    });
+    }
     return { user: toPublicUser(user), ...tokens };
   },
 

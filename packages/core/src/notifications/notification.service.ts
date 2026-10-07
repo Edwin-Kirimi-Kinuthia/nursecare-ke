@@ -11,16 +11,26 @@ function getResend(): Resend | null {
 
 async function sendEmail(to: string, subject: string, html: string) {
   const client = getResend();
-  if (!client) return;
+  if (!client) {
+    console.error("[notify] RESEND_API_KEY not set — email not sent", { to, subject });
+    return;
+  }
   try {
-    await client.emails.send({
+    // The Resend SDK resolves (doesn't throw) on an API-level rejection — it
+    // returns { error } instead, e.g. the sandbox sender being restricted to
+    // the account owner's own inbox until a domain is verified. Missing that
+    // check means every such rejection fails completely silently.
+    const { error } = await client.emails.send({
       from: "CareBora <onboarding@resend.dev>",
       to,
       subject,
       html,
     });
-  } catch {
-    console.error("[notify] email failed", { to, subject });
+    if (error) {
+      console.error("[notify] email rejected by Resend", { to, subject, error });
+    }
+  } catch (err) {
+    console.error("[notify] email failed", { to, subject, err: err instanceof Error ? err.message : err });
   }
 }
 
