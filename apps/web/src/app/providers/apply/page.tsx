@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Stethoscope, CheckCircle2, Loader2 } from "lucide-react";
+import { Stethoscope, CheckCircle2, Loader2, Upload, FileCheck2, User as UserIcon } from "lucide-react";
 import { ApiError, type ProviderApplicationInput } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { fileToDataUrl } from "@/lib/files";
 
 const ROLES = [
   { value: "doctor", label: "Doctor" },
@@ -20,17 +21,36 @@ export default function ProviderApplyPage() {
     fullName: "", email: "", phone: undefined, password: "",
     role: "doctor", specialty: "", licenceNumber: "", licenceBody: undefined,
     yearsExperience: undefined, qualifications: undefined,
+    avatarUrl: "", licenceDocumentUrl: "",
   });
+  const [licenceFileName, setLicenceFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
+  const licenceInput = useRef<HTMLInputElement>(null);
 
   const set = <K extends keyof ProviderApplicationInput>(k: K, v: ProviderApplicationInput[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
 
+  async function onPickAvatar(file: File | undefined) {
+    if (!file) return;
+    try { set("avatarUrl", await fileToDataUrl(file, 480)); }
+    catch { setError("Could not read that photo — try a different file."); }
+  }
+
+  async function onPickLicence(file: File | undefined) {
+    if (!file) return;
+    try { set("licenceDocumentUrl", await fileToDataUrl(file, 1600)); setLicenceFileName(file.name); }
+    catch { setError("Could not read that file — try a different one."); }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null); setBusy(true);
+    setError(null);
+    if (!form.avatarUrl) { setError("Please add a passport photo."); return; }
+    if (!form.licenceDocumentUrl) { setError("Please upload your practice licence."); return; }
+    setBusy(true);
     try {
       await api.applyAsProvider(form);
       await refresh();
@@ -101,6 +121,38 @@ export default function ProviderApplyPage() {
           <textarea value={form.qualifications ?? ""} onChange={(e) => set("qualifications", e.target.value || undefined)} rows={2}
             placeholder="One per line, or comma-separated — e.g. MBChB – University of Nairobi"
             className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Passport photo</label>
+            <input ref={avatarInput} type="file" accept="image/*" className="hidden" onChange={(e) => onPickAvatar(e.target.files?.[0])} />
+            <button type="button" onClick={() => avatarInput.current?.click()}
+              className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-3 py-2.5 text-left text-sm transition hover:border-teal-400 hover:bg-teal-50/50">
+              {form.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={form.avatarUrl} alt="" className="h-9 w-9 rounded-lg object-cover" />
+              ) : (
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-400"><UserIcon className="h-4 w-4" /></span>
+              )}
+              <span className={form.avatarUrl ? "font-medium text-teal-700" : "text-slate-500"}>
+                {form.avatarUrl ? "Photo selected — change" : "Upload a photo"}
+              </span>
+            </button>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-slate-700">Practice licence</label>
+            <input ref={licenceInput} type="file" accept="image/*,.pdf" className="hidden" onChange={(e) => onPickLicence(e.target.files?.[0])} />
+            <button type="button" onClick={() => licenceInput.current?.click()}
+              className="flex w-full items-center gap-3 rounded-xl border border-dashed border-slate-300 px-3 py-2.5 text-left text-sm transition hover:border-teal-400 hover:bg-teal-50/50">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-slate-100 text-slate-400">
+                {form.licenceDocumentUrl ? <FileCheck2 className="h-4 w-4 text-teal-600" /> : <Upload className="h-4 w-4" />}
+              </span>
+              <span className={`truncate ${form.licenceDocumentUrl ? "font-medium text-teal-700" : "text-slate-500"}`}>
+                {licenceFileName ?? "Upload licence (image or PDF)"}
+              </span>
+            </button>
+          </div>
         </div>
 
         {error && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}

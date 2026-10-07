@@ -1473,8 +1473,10 @@ export interface VerificationProvider {
   yearsExperience: number;
   createdAt: string;
   updatedAt: string;
-  user: { id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null; createdAt: string };
-  verificationDocuments: VerificationDocument[];
+  user: {
+    id: string; fullName: string; email: string; phone: string | null; avatarUrl: string | null; createdAt: string;
+    verificationDocuments: VerificationDocument[];
+  };
 }
 
 export interface VerificationListResult {

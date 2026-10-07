@@ -27,6 +27,9 @@ export const registerSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 
+/** A file read into a base64 data: URL on the client — same convention as every other upload in the app. */
+const dataUrlSchema = z.string().trim().regex(/^data:[-\w.+]+\/[-\w.+]+;base64,/, "Expected an uploaded file");
+
 /** Application to join as a healthcare provider — creates a pending profile for admin review. */
 export const providerApplicationSchema = z.object({
   fullName: z.string().trim().min(2, "Name is too short").max(120),
@@ -39,6 +42,10 @@ export const providerApplicationSchema = z.object({
   licenceBody: z.string().trim().max(120).optional(),
   yearsExperience: z.coerce.number().int().min(0).max(60).optional(),
   qualifications: z.string().max(1000).optional(),
+  /** Scan/photo of their practice licence — what the admin actually reviews against `licenceNumber`. */
+  licenceDocumentUrl: dataUrlSchema,
+  /** Passport-style photo — shown publicly on their profile once verified. */
+  avatarUrl: dataUrlSchema,
 });
 export type ProviderApplicationInput = z.infer<typeof providerApplicationSchema>;
 
@@ -90,6 +97,9 @@ export const adminCreateProviderSchema = z.object({
   role: z.enum(["doctor", "nurse", "physio", "pharmacy"]),
   specialty: z.string().trim().max(100).optional(),
   licenceNumber: z.string().trim().max(60).optional(),
+  /** Optional here — the admin is already vouching for this provider directly. */
+  licenceDocumentUrl: dataUrlSchema.optional(),
+  avatarUrl: dataUrlSchema.optional(),
 });
 export type AdminCreateProviderInput = z.infer<typeof adminCreateProviderSchema>;
 

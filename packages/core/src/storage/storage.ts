@@ -13,6 +13,7 @@ export const STORAGE_LIMITS = {
   medical_document: 8_000_000,
   lab_result: 8_000_000,
   verification_document: 8_000_000,
+  avatar: 3_000_000,
 } as const;
 
 export type StorageKind = keyof typeof STORAGE_LIMITS;

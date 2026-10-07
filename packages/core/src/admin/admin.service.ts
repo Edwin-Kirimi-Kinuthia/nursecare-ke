@@ -13,6 +13,7 @@ import {
 } from "@carebora/shared";
 import { settlementService } from "../payment/settlement.service";
 import { toPublicUser, issuePasswordInvite } from "../auth/auth.service";
+import { putFile } from "../storage/storage";
 
 async function writeAuditLog(
   actorId: string,
@@ -110,6 +111,9 @@ export const adminService = {
    */
   async createProviderAccount(actorId: string, input: AdminCreateProviderInput) {
     const role = input.role as UserRole;
+    const avatar = input.avatarUrl ? await putFile("avatar", input.avatarUrl) : null;
+    const licenceDoc = input.licenceDocumentUrl ? await putFile("verification_document", input.licenceDocumentUrl) : null;
+
     let user;
     try {
       user = await db.user.create({
@@ -118,6 +122,7 @@ export const adminService = {
           fullName: input.fullName,
           phone: input.phone ?? null,
           role,
+          avatarUrl: avatar?.url,
           providerProfile: {
             create: {
               specialty: input.specialty ?? null,
@@ -125,6 +130,9 @@ export const adminService = {
               verificationStatus: "verified",
             },
           },
+          ...(licenceDoc && {
+            verificationDocuments: { create: { type: "practice_licence", fileUrl: licenceDoc.url } },
+          }),
         },
       });
     } catch (err) {

@@ -19,6 +19,7 @@ import {
 } from "./tokens";
 import { generateUniqueOrgSlug } from "../org/org.service";
 import { notificationService } from "../notifications/notification.service";
+import { putFile } from "../storage/storage";
 
 const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
@@ -288,6 +289,9 @@ export const authService = {
       ? input.qualifications.split(/[\n,]/).map((s) => s.trim()).filter(Boolean)
       : [];
 
+    const avatar = await putFile("avatar", input.avatarUrl);
+    const licenceDoc = await putFile("verification_document", input.licenceDocumentUrl);
+
     let user: User;
     try {
       user = await db.user.create({
@@ -296,6 +300,7 @@ export const authService = {
           fullName: input.fullName,
           phone: input.phone ?? null,
           role,
+          avatarUrl: avatar.url,
           credentials: { create: { passwordHash: hashPassword(input.password) } },
           providerProfile: {
             create: {
@@ -306,6 +311,9 @@ export const authService = {
               qualifications,
               verificationStatus: "pending",
             },
+          },
+          verificationDocuments: {
+            create: { type: "practice_licence", fileUrl: licenceDoc.url },
           },
         },
       });

@@ -18,6 +18,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { useSection, SectionShell } from "@/components/dashboard/section";
+import { fileToDataUrl } from "@/lib/files";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
 
@@ -270,6 +271,12 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
   const [err, setErr] = useState<string | null>(null);
   const set = <K extends keyof AdminCreateProviderInput>(k: K, v: AdminCreateProviderInput[K]) => setForm((f) => ({ ...f, [k]: v }));
 
+  async function onPickFile(key: "avatarUrl" | "licenceDocumentUrl", file: File | undefined) {
+    if (!file) return;
+    try { set(key, await fileToDataUrl(file, key === "avatarUrl" ? 480 : 1600)); }
+    catch { setErr("Could not read that file."); }
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setErr(null); setBusy(true);
@@ -305,6 +312,20 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
             <input value={form.licenceNumber ?? ""} onChange={(e) => set("licenceNumber", e.target.value || undefined)} placeholder="Licence number (optional)"
               className="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500">Passport photo (optional)</span>
+              <input type="file" accept="image/*" onChange={(e) => onPickFile("avatarUrl", e.target.files?.[0])}
+                className="mt-1 w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-100 file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-slate-600" />
+              {form.avatarUrl && <span className="mt-1 block text-xs text-teal-700">Photo attached ✓</span>}
+            </label>
+            <label className="block">
+              <span className="text-xs font-medium text-slate-500">Licence document (optional)</span>
+              <input type="file" accept="image/*,.pdf" onChange={(e) => onPickFile("licenceDocumentUrl", e.target.files?.[0])}
+                className="mt-1 w-full text-xs text-slate-500 file:mr-2 file:rounded-lg file:border-0 file:bg-slate-100 file:px-2.5 file:py-1.5 file:text-xs file:font-semibold file:text-slate-600" />
+              {form.licenceDocumentUrl && <span className="mt-1 block text-xs text-teal-700">Document attached ✓</span>}
+            </label>
+          </div>
           {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
@@ -332,13 +353,30 @@ function VerificationsTab() {
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={verifs.length === 0} emptyText="No providers in the queue.">
       <div className="grid gap-4 sm:grid-cols-2">
-        {verifs.map((v: VerificationProvider) => (
+        {verifs.map((v: VerificationProvider) => {
+          const licenceDoc = v.user.verificationDocuments.find((d) => d.type === "practice_licence");
+          return (
           <div key={v.userId} className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex items-start justify-between">
-              <div>
-                <div className="font-bold text-slate-900">{v.user.fullName}</div>
-                <div className="text-sm text-teal-700">{v.specialty ?? "Clinician"}</div>
-                <div className="mt-1 text-xs text-slate-400">{v.user.email} · Licence {v.licenceNumber ?? "—"}</div>
+              <div className="flex items-start gap-3">
+                {v.user.avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={v.user.avatarUrl} alt={v.user.fullName} className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover" />
+                ) : (
+                  <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 text-lg font-bold text-teal-700">
+                    {v.user.fullName.charAt(0)}
+                  </div>
+                )}
+                <div>
+                  <div className="font-bold text-slate-900">{v.user.fullName}</div>
+                  <div className="text-sm text-teal-700">{v.specialty ?? "Clinician"}</div>
+                  <div className="mt-1 text-xs text-slate-400">{v.user.email} · Licence {v.licenceNumber ?? "—"}</div>
+                  {licenceDoc && (
+                    <a href={licenceDoc.fileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold text-teal-700 hover:underline">
+                      View licence document →
+                    </a>
+                  )}
+                </div>
               </div>
               <span className={`rounded-full px-2.5 py-1 text-xs font-medium capitalize ${
                 v.verificationStatus === "verified" ? "bg-emerald-100 text-emerald-700"
@@ -358,7 +396,8 @@ function VerificationsTab() {
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </SectionShell>
   );
@@ -862,30 +901,6 @@ function AppointmentsTab() {
 
 // ── Drug catalogue curation (admin-only; vendors manage price/stock as Listings) ──
 const EMPTY_DRUG: CreateDrugInput = { name: "", category: "", requiresPrescription: false };
-
-/** Reads an image file and returns a downscaled JPEG data URL (keeps payloads small). */
-function fileToDataUrl(file: File, max = 480): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error("read failed"));
-    reader.onload = () => {
-      const img = new window.Image();
-      img.onload = () => {
-        const scale = Math.min(1, max / Math.max(img.width, img.height));
-        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-        const canvas = document.createElement("canvas");
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return reject(new Error("no canvas"));
-        ctx.drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL("image/jpeg", 0.82));
-      };
-      img.onerror = () => reject(new Error("bad image"));
-      img.src = reader.result as string;
-    };
-    reader.readAsDataURL(file);
-  });
-}
 
 function PharmacyTab() {
   const fetcher = useCallback(() => api.adminListDrugs({ limit: 50 }).then((r) => r.drugs), []);
