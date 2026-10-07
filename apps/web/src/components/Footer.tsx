@@ -66,7 +66,10 @@ export default function Footer() {
       </div>
 
       <div className="border-t border-slate-100 py-5 text-center text-xs text-slate-400">
-        <p>© {new Date().getFullYear()} Care Bora Kenya. All rights reserved.</p>
+        <p>
+          © {new Date().getFullYear()} Care Bora Kenya. All rights reserved. ·{" "}
+          <Link href="/privacy" className="hover:text-teal-700 hover:underline">Privacy Policy</Link>
+        </p>
         <p className="mt-1.5">
           Developed by{" "}
           <a

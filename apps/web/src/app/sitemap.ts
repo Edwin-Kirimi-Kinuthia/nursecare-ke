@@ -21,6 +21,7 @@ const STATIC_ROUTES: Array<{
   { path: "/providers/apply", changeFrequency: "monthly", priority: 0.5 },
   { path: "/vendors/apply", changeFrequency: "monthly", priority: 0.5 },
   { path: "/ai", changeFrequency: "monthly", priority: 0.4 },
+  { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
 ];
 
 /**
