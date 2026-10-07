@@ -13,6 +13,7 @@ import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
+import { PhoneField } from "@/components/PhoneField";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   requested: { label: "Finding an operator…", cls: "bg-amber-100 text-amber-700" },
@@ -47,12 +48,12 @@ export default function AmbulancePage() {
   const [pickupCounty, setPickupCounty] = useState<(typeof KENYA_COUNTIES)[number]>("Nairobi");
   const [destinationName, setDestinationName] = useState("");
   const [patientCondition, setPatientCondition] = useState("");
-  const [contactPhone, setContactPhone] = useState("0708374149");
+  const [contactPhone, setContactPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const [payReq, setPayReq] = useState<AmbulanceRequest | null>(null);
-  const [payPhone, setPayPhone] = useState("0708374149");
+  const [payPhone, setPayPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<string | null>(null);
   const [simGatewayRef, setSimGatewayRef] = useState<string | null>(null);
@@ -143,12 +144,12 @@ export default function AmbulancePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-          <Siren className="h-7 w-7 text-rose-600" /> Ambulance
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <Siren className="h-7 w-7 shrink-0 text-rose-600" /> Ambulance
         </h1>
         {view === "list" && (
-          <button onClick={() => setView("request")} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:bg-rose-700">
+          <button onClick={() => setView("request")} className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:bg-rose-700">
             Request ambulance
           </button>
         )}
@@ -215,8 +216,13 @@ export default function AmbulancePage() {
           <textarea required value={patientCondition} onChange={(e) => setPatientCondition(e.target.value)} rows={2}
             placeholder="What's happening? (e.g. chest pain, road accident, difficulty breathing)"
             className="w-full resize-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
-          <input required value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="Contact phone" type="tel"
-            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+          <PhoneField
+            label="Contact phone"
+            value={contactPhone}
+            onChange={setContactPhone}
+            required
+            hint="The crew will call this number on the way to you."
+          />
 
           {msg && (
             <p className={`rounded-xl px-4 py-2.5 text-sm ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{msg.text}</p>
@@ -292,7 +298,7 @@ export default function AmbulancePage() {
 
       {payReq && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <h2 className="text-lg font-bold text-slate-900">Pay for ambulance service</h2>
             <div className="mt-1 text-2xl font-extrabold text-teal-700">{kes(payReq.feeKes ?? 0)}</div>
 
@@ -303,8 +309,7 @@ export default function AmbulancePage() {
               </div>
             ) : (
               <form onSubmit={payNow} className="mt-4 space-y-4">
-                <input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} required placeholder="0712345678"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                <PhoneField label="M-Pesa phone number" value={payPhone} onChange={setPayPhone} required lockedToKenya />
                 {payMsg && <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>}
                 {simGatewayRef && !IS_TILL_MODE && (
                   <button type="button" onClick={simulatePay} disabled={simulating}

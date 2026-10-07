@@ -55,6 +55,16 @@ export type CreateSlotInput = z.infer<typeof createSlotSchema>;
 export const createAppointmentSchema = z.object({
   slotId: z.string().uuid("Invalid slot ID"),
   patientNotes: z.string().max(1000).optional(),
+  /**
+   * How the clinician reaches the patient. Optional here because teleconsults
+   * don't need it — the service requires it for home ("door to door") visits,
+   * where it's only knowable once the slot's type is loaded.
+   */
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(/^(\+?254|0)[0-9]{9}$/, "Enter a valid Kenyan phone number (e.g. 0712345678)")
+    .optional(),
 });
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;

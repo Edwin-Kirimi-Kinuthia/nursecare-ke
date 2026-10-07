@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import { PhoneField } from "@/components/PhoneField";
 
 export default function LabsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -24,7 +25,7 @@ export default function LabsPage() {
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState<"browse" | "orders">("browse");
 
-  const [phoneNumber, setPhoneNumber] = useState("0708374149");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [checkingOut, setCheckingOut] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [pendingGatewayRef, setPendingGatewayRef] = useState<string | null>(null);
@@ -97,11 +98,11 @@ export default function LabsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="flex items-center justify-between">
-        <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-          <FlaskConical className="h-7 w-7 text-teal-600" /> Lab tests
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+          <FlaskConical className="h-7 w-7 shrink-0 text-teal-600" /> Lab tests
         </h1>
-        <div className="flex gap-1 rounded-xl border border-slate-200 bg-white p-1">
+        <div className="flex shrink-0 gap-1 rounded-xl border border-slate-200 bg-white p-1">
           <button onClick={() => setView("browse")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "browse" ? "bg-teal-600 text-white" : "text-slate-600"}`}>Browse</button>
           <button onClick={() => setView("orders")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "orders" ? "bg-teal-600 text-white" : "text-slate-600"}`}>My orders</button>
         </div>
@@ -143,8 +144,7 @@ export default function LabsPage() {
                     <span className="text-slate-500">Total</span>
                     <span className="text-xl font-extrabold text-teal-700">{kes(total)}</span>
                   </div>
-                  <input value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} placeholder="M-Pesa phone (07…)"
-                    className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+                  <PhoneField label="M-Pesa phone" value={phoneNumber} onChange={setPhoneNumber} required lockedToKenya />
                   <button onClick={checkout} disabled={checkingOut}
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-500/25 hover:bg-teal-700 disabled:opacity-60">
                     {checkingOut && <Loader2 className="h-4 w-4 animate-spin" />} Pay {kes(total)}

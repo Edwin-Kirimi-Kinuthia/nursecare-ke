@@ -8,6 +8,8 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { fileToDataUrl } from "@/lib/files";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
+import { PhoneField } from "@/components/PhoneField";
+import { PasswordField } from "@/components/PasswordField";
 
 const ROLES = [
   { value: "doctor", label: "Doctor" },
@@ -104,9 +106,9 @@ export default function ProviderApplyPage() {
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Email" type="email" required value={form.email} onChange={(v) => set("email", v)} />
-          <Field label="Phone (optional)" value={form.phone ?? ""} onChange={(v) => set("phone", v || undefined)} placeholder="0712345678" />
+          <PhoneField label="Phone (optional)" value={form.phone ?? ""} onChange={(v) => set("phone", v || undefined)} />
         </div>
-        <Field label="Password" type="password" required value={form.password} onChange={(v) => set("password", v)} />
+        <PasswordField required value={form.password} onChange={(v) => set("password", v)} autoComplete="new-password" />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Specialty" required value={form.specialty} onChange={(v) => set("specialty", v)} placeholder="e.g. General Practice" />

@@ -55,6 +55,12 @@ export const appointmentService = {
         ? (provider.consultationFeeKes ?? 0)
         : (provider.homeVisitFeeKes ?? 0);
 
+    // A clinician travelling to the patient needs a number to reach them on;
+    // a teleconsult happens in-app, so it stays optional there.
+    if (slot.appointmentType === "home_visit" && !input.contactPhone) {
+      throw ApiError.badRequest("A contact phone number is required for a home visit");
+    }
+
     try {
       const [appointment] = await db.$transaction([
         db.appointment.create({
@@ -65,6 +71,7 @@ export const appointmentService = {
             appointmentType: slot.appointmentType,
             feeKes,
             patientNotes: input.patientNotes ?? null,
+            contactPhone: input.contactPhone ?? null,
           },
           include: APPOINTMENT_INCLUDE,
         }),

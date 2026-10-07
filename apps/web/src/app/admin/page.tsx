@@ -19,6 +19,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { useSection, SectionShell } from "@/components/dashboard/section";
 import { fileToDataUrl } from "@/lib/files";
+import { PhoneField } from "@/components/PhoneField";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
@@ -291,7 +292,7 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">Create provider account</h2>
         <p className="mt-1 text-xs text-slate-400">
           Skips the public apply-and-review queue — use this once you've already vetted them yourself.
@@ -305,8 +306,7 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
           />
           <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-          <input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value || undefined)} placeholder="Phone (optional)"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <PhoneField label="Phone (optional)" value={form.phone ?? ""} onChange={(v) => set("phone", v || undefined)} />
           <select value={form.role} onChange={(e) => set("role", e.target.value as AdminCreateProviderInput["role"])}
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-teal-500">
             {PROVIDER_ROLE_OPTIONS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -647,7 +647,7 @@ function HomeVisitsTab() {
 
       {assigning && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <h2 className="text-lg font-bold text-slate-900">Assign provider</h2>
             <p className="mt-1 text-sm text-slate-500">{assigning.specialty} visit for {assigning.patient.fullName}</p>
             <form onSubmit={assign} className="mt-4 space-y-4">
@@ -1009,7 +1009,7 @@ function DrugModal({ drug, onClose, onSaved }: { drug: Drug | null; onClose: () 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-lg rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">{drug ? "Edit drug" : "Add drug"}</h2>
         <p className="mt-1 text-xs text-slate-400">Shared across every vendor. Price and stock are set per-vendor in their own catalogue.</p>
         <form onSubmit={submit} className="mt-4 space-y-3">

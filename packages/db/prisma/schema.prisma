@@ -408,6 +408,8 @@ model Appointment {
   status          AppointmentStatus @default(requested)
   feeKes          Int               @map("fee_kes")
   patientNotes    String?           @map("patient_notes")
+  /// How the clinician reaches the patient — required for home ("door to door") visits.
+  contactPhone    String?           @map("contact_phone")
   notes           String?
   createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -749,7 +751,10 @@ model HomeVisit {
   arrivedAt   DateTime?       @map("arrived_at") @db.Timestamptz(6)
   completedAt DateTime?       @map("completed_at") @db.Timestamptz(6)
   cancelledAt DateTime?       @map("cancelled_at") @db.Timestamptz(6)
+  /// The number that paid (set at payment time) — kept separate from `contactPhone`.
   phoneNumber String?         @map("phone_number")
+  /// How the visiting clinician reaches the patient, captured when the visit is requested.
+  contactPhone String?        @map("contact_phone")
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 

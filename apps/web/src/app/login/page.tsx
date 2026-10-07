@@ -7,8 +7,7 @@ import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
-import { CountryCodeSelect } from "@/components/CountryCodeSelect";
-import { COUNTRIES } from "@/lib/countries";
+import { PhoneField } from "@/components/PhoneField";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -32,7 +31,6 @@ function LoginForm() {
   const [step, setStep] = useState<"form" | "verify" | "forgot" | "login-otp">("form");
   const [form, setForm] = useState({ email: "", password: "", phone: "" });
   const [name, setName] = useState<NameParts>(EMPTY_NAME);
-  const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0].iso2);
   const [code, setCode] = useState("");
   const [loginCode, setLoginCode] = useState("");
   const [forgotEmail, setForgotEmail] = useState("");
@@ -51,12 +49,10 @@ function LoginForm() {
         await api.login({ email: form.email, password: form.password });
         setStep("login-otp");
       } else {
-        const dialCode = COUNTRIES.find((c) => c.iso2 === phoneCountry)?.dialCode ?? "";
-        const digits = form.phone.replace(/\D/g, "").replace(/^0+/, "");
         const fullName = composeFullName(name);
         await api.register({
           fullName, email: form.email, password: form.password,
-          phone: digits ? `${dialCode}${digits}` : undefined, role: "patient",
+          phone: form.phone || undefined, role: "patient",
         });
         await refresh();
         setStep("verify");
@@ -318,18 +314,7 @@ function LoginForm() {
                   )}
                 </div>
                 {mode === "register" && (
-                  <label className="block">
-                    <span className="text-sm font-medium text-slate-700">Phone (optional)</span>
-                    <div className="mt-1.5 flex">
-                      <CountryCodeSelect iso2={phoneCountry} onChange={(c) => setPhoneCountry(c.iso2)} />
-                      <input
-                        value={form.phone}
-                        onChange={(e) => set("phone", e.target.value.replace(/[^\d]/g, ""))}
-                        placeholder="712345678"
-                        className="w-full rounded-r-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
-                      />
-                    </div>
-                  </label>
+                  <PhoneField label="Phone (optional)" value={form.phone} onChange={(v) => set("phone", v)} />
                 )}
 
                 {error && <Alert tone="error">{error}</Alert>}

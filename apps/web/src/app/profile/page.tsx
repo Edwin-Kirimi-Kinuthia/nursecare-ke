@@ -12,6 +12,7 @@ import type {
 import { ApiError } from "@carebora/shared";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { PhoneField } from "@/components/PhoneField";
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
@@ -31,14 +32,17 @@ export default function ProfilePage() {
       <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
         <div className="h-24 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600" />
         <div className="px-6 pb-6">
-          <div className="-mt-10 flex items-end gap-4">
-            <div className="grid h-20 w-20 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-3xl font-bold text-teal-700 shadow">
-              {user.fullName.charAt(0)}
+          <div className="-mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-end">
+            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-3xl font-bold text-teal-700 shadow">
+              {user.avatarUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
+                : user.fullName.charAt(0)}
             </div>
-            <div className="pb-1">
-              <h1 className="text-2xl font-extrabold text-slate-900">{user.fullName}</h1>
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                {user.email}
+            <div className="min-w-0 pb-1">
+              <h1 className="truncate text-2xl font-extrabold text-slate-900">{user.fullName}</h1>
+              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                <span className="truncate">{user.email}</span>
                 <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold capitalize text-teal-700">{user.role}</span>
               </div>
             </div>
@@ -249,7 +253,7 @@ function PatientSection() {
           <Field label="Allergies (comma-separated)" value={allergiesText} onChange={setAllergiesText} />
           <Field label="Chronic conditions (comma-separated)" value={conditionsText} onChange={setConditionsText} />
           <Field label="Emergency contact name" value={p.emergencyContactName ?? ""} onChange={(v) => set("emergencyContactName", v)} />
-          <Field label="Emergency contact phone" value={p.emergencyContactPhone ?? ""} onChange={(v) => set("emergencyContactPhone", v)} />
+          <PhoneField label="Emergency contact phone" value={p.emergencyContactPhone ?? ""} onChange={(v) => set("emergencyContactPhone", v)} />
         </div>
         <button onClick={save} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
           <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}

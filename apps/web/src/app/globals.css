@@ -57,6 +57,9 @@ body {
   font-family: Inter, system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* The nav drawer parks off-screen to the right when closed; nothing in the
+     app is meant to scroll the page sideways, so stop it at the source. */
+  overflow-x: hidden;
 }
 ::selection { background: #99f6e4; color: #134e4a }
 

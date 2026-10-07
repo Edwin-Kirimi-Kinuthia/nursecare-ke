@@ -19,6 +19,7 @@ import type {
 } from "@carebora/api-client";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { PhoneField } from "@/components/PhoneField";
 import { useSection, SectionShell } from "@/components/dashboard/section";
 import { useLocation } from "@/components/LocationProvider";
 
@@ -151,11 +152,7 @@ function OverviewTab({ org, onSaved }: { org: OrganizationDetail; onSaved: () =>
           <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3}
             className="w-full resize-none rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
         </div>
-        <div>
-          <label className="mb-1 block text-xs font-medium text-slate-500">Contact phone</label>
-          <input value={contactPhone} onChange={(e) => setContactPhone(e.target.value)}
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        </div>
+        <PhoneField label="Contact phone" value={contactPhone} onChange={setContactPhone} />
         {err && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{err}</p>}
         <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
           {busy ? "Saving…" : "Save changes"}
@@ -245,7 +242,7 @@ function BranchesTab({ branches, onChanged }: { branches: OrgBranch[]; onChanged
 
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Add branch</h2>
               <button onClick={() => setAdding(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
@@ -431,7 +428,7 @@ function ListingModal({ listing, onClose, onSaved }: { listing?: Listing; onClos
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">{listing ? "Edit listing" : "Add listing"}</h2>
           <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
@@ -733,7 +730,7 @@ function FleetTab() {
       </SectionShell>
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Add vehicle</h2>
               <button onClick={() => setAdding(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
@@ -822,7 +819,7 @@ function LabTestsTab() {
       </SectionShell>
       {adding && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-slate-900">Add test</h2>
               <button onClick={() => setAdding(false)} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>
@@ -929,7 +926,7 @@ function ResultModal({ item, onClose, onSaved }: { item: LabOrderItem; onClose: 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-sm rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-900">Enter result — {item.testName}</h2>
           <button onClick={onClose} className="rounded-lg p-1 text-slate-400 hover:bg-slate-100"><X className="h-4 w-4" /></button>

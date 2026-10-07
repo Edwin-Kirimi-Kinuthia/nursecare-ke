@@ -11,6 +11,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import { PhoneField } from "@/components/PhoneField";
 
 /** The cart + M-Pesa checkout. Self-contained — fetches product details for the
  *  items in the cart, so it works from anywhere (used inside the cart drawer). */
@@ -20,7 +21,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const { items, add, sub, remove, clear, closeCart } = useCart();
 
   const [catalog, setCatalog] = useState<Record<string, Listing & { organization: { id: string; name: string } }>>({});
-  const [phone, setPhone] = useState("0708374149");
+  const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [rxImage, setRxImage] = useState<string | null>(null);
   const [rxName, setRxName] = useState("");
@@ -178,8 +179,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
           )}
 
           <div className="mt-4 space-y-2.5">
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="M-Pesa phone (07…)"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
+            <PhoneField label="M-Pesa phone" value={phone} onChange={setPhone} required lockedToKenya />
             <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" rows={2}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
             <button onClick={checkout} disabled={placing || address.length < 5 || !rxSatisfied}

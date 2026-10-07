@@ -10,6 +10,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import { PhoneField } from "@/components/PhoneField";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
@@ -28,7 +29,7 @@ export default function AppointmentsPage() {
 
   // pay modal
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
-  const [payPhone, setPayPhone] = useState("0708374149");
+  const [payPhone, setPayPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
@@ -71,7 +72,7 @@ export default function AppointmentsPage() {
   }
 
   function openPay(appt: Appointment) {
-    setPayAppt(appt); setPayMsg(null); setSimCheckoutId(null); setPayPhone("0708374149");
+    setPayAppt(appt); setPayMsg(null); setSimCheckoutId(null); setPayPhone(user?.phone ?? "");
   }
 
   async function payAppointment() {
@@ -213,7 +214,7 @@ export default function AppointmentsPage() {
       {/* Pay modal */}
       {payAppt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPayAppt(null)}>
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+          <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-lg font-bold text-slate-900">Pay for your consultation</h2>
             <p className="mt-1 text-sm text-slate-500">
               {payAppt.provider?.user?.fullName} · <span className="font-semibold text-slate-700">{kes(payAppt.feeKes)}</span>
@@ -235,11 +236,7 @@ export default function AppointmentsPage() {
                 </>
               ) : (
                 <>
-                  <div>
-                    <label className="mb-1 block text-sm font-medium text-slate-700">M-Pesa phone</label>
-                    <input value={payPhone} onChange={(e) => setPayPhone(e.target.value)} placeholder="07…"
-                      className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                  </div>
+                  <PhoneField label="M-Pesa phone" value={payPhone} onChange={setPayPhone} required lockedToKenya />
                   {payMsg && (
                     <p className={`rounded-xl px-4 py-3 text-sm ${payMsg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>{payMsg.text}</p>
                   )}

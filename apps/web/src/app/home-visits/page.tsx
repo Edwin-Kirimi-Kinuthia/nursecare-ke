@@ -11,6 +11,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
+import { PhoneField } from "@/components/PhoneField";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending:   { label: "Pending",   cls: "bg-amber-100 text-amber-700" },
@@ -38,12 +39,13 @@ export default function HomeVisitsPage() {
   const [address, setAddress] = useState("");
   const [county, setCounty] = useState("");
   const [scheduledAt, setScheduledAt] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   // pay modal
   const [payVisit, setPayVisit] = useState<HomeVisit | null>(null);
-  const [phone, setPhone] = useState("0708374149");
+  const [phone, setPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [payMsg, setPayMsg] = useState<string | null>(null);
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
@@ -76,6 +78,7 @@ export default function HomeVisitsPage() {
         description,
         address,
         county,
+        contactPhone,
         scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       });
       setMsg({ kind: "ok", text: "Request submitted! Our team will assign a provider and contact you shortly." });
@@ -130,7 +133,7 @@ export default function HomeVisitsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">
             <Home className="h-4 w-4" /> Home-Based Care
@@ -141,7 +144,7 @@ export default function HomeVisitsPage() {
         {view === "list" && user.role === "patient" && (
           <button
             onClick={() => { setView("request"); setMsg(null); }}
-            className="rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            className="shrink-0 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
           >
             + Request visit
           </button>
@@ -206,11 +209,19 @@ export default function HomeVisitsPage() {
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">Preferred date & time (optional)</label>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Preferred date &amp; time (optional)</label>
               <input type="datetime-local" value={scheduledAt} onChange={e => setScheduledAt(e.target.value)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
           </div>
+
+          <PhoneField
+            label="Contact phone"
+            value={contactPhone}
+            onChange={setContactPhone}
+            required
+            hint="The nurse or doctor visiting you will call this number."
+          />
 
           {msg && (
             <div className={`flex items-start gap-2 rounded-xl px-4 py-3 text-sm font-medium ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
@@ -253,7 +264,7 @@ export default function HomeVisitsPage() {
       {/* Pay modal */}
       {payVisit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl">
+          <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
             <h2 className="font-bold text-slate-900 text-lg">Pay for home visit</h2>
             <div className="mt-2 text-sm text-slate-500">
               Provider: <span className="font-medium text-slate-700">{payVisit.provider?.user.fullName ?? "—"}</span>
@@ -275,12 +286,7 @@ export default function HomeVisitsPage() {
               </div>
             ) : (
               <form onSubmit={payNow} className="mt-4 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">M-Pesa phone number</label>
-                  <input value={phone} onChange={e => setPhone(e.target.value)} required
-                    placeholder="0712345678"
-                    className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-                </div>
+                <PhoneField label="M-Pesa phone number" value={phone} onChange={setPhone} required lockedToKenya />
                 {payMsg && (
                   <p className="rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{payMsg}</p>
                 )}

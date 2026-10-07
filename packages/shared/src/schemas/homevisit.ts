@@ -12,6 +12,8 @@ export const createHomeVisitSchema = z.object({
   address: z.string().min(5, "Full address is required").max(500),
   county: z.string().min(2).max(100),
   scheduledAt: z.string().datetime().optional(),
+  /** How the visiting clinician reaches the patient. */
+  contactPhone: kenyanPhone,
 });
 export type CreateHomeVisitInput = z.infer<typeof createHomeVisitSchema>;
 

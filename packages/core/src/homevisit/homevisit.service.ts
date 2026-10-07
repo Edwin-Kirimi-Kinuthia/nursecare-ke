@@ -50,6 +50,7 @@ export const homeVisitService = {
         description: input.description,
         address: input.address,
         county: input.county,
+        contactPhone: input.contactPhone,
         scheduledAt: input.scheduledAt ? new Date(input.scheduledAt) : null,
       },
       include: VISIT_INCLUDE,
