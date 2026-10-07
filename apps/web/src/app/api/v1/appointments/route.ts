@@ -1,5 +1,5 @@
 import { route, jsonOk } from "@/server/http";
-import { requireAuth } from "@/server/auth";
+import { requireAuth, requirePatient } from "@/server/auth";
 import { appointmentsQuerySchema, createAppointmentSchema } from "@carebora/shared";
 import { appointmentService } from "@carebora/core";
 
@@ -14,7 +14,7 @@ export const GET = route(async (req) => {
 
 /** POST /api/v1/appointments — book a slot (patients only). */
 export const POST = route(async (req) => {
-  const auth = await requireAuth(req, ["patient"]);
+  const auth = await requirePatient(req);
   const input = createAppointmentSchema.parse(await req.json());
   const appointment = await appointmentService.create(auth.sub, input);
   return jsonOk(appointment, 201);

@@ -35,7 +35,15 @@ export default function AppointmentsPage() {
   const [simCheckoutId, setSimCheckoutId] = useState<string | null>(null);
   const [simulating, setSimulating] = useState(false);
 
-  const isProvider = !!user && ["doctor", "nurse", "physio", "pharmacy"].includes(user.role);
+  /**
+   * Which side of a given appointment the viewer is on.
+   *
+   * Decided per appointment rather than from the account's role, because any
+   * account can now book care — a doctor viewing a consultation they booked
+   * for themselves is the patient there and needs Pay and Join, not Confirm
+   * and Start.
+   */
+  const actingAsProvider = (a: Appointment) => !!user && a.providerId === user.id;
 
   async function load() {
     try {
@@ -130,6 +138,7 @@ export default function AppointmentsPage() {
         <div className="mt-6 space-y-3">
           {appts.map((a) => {
             const st = STATUS[a.status] ?? { label: a.status, cls: "bg-slate-100 text-slate-600" };
+            const isProvider = actingAsProvider(a);
             return (
               <div key={a.id} className="card-lift flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 font-bold text-teal-700">

@@ -1,5 +1,5 @@
 import { route, jsonOk } from "@/server/http";
-import { requireAuth } from "@/server/auth";
+import { requirePatient } from "@/server/auth";
 import { homeVisitStkSchema } from "@carebora/shared";
 import { homeVisitService } from "@carebora/core";
 
@@ -8,7 +8,7 @@ import { homeVisitService } from "@carebora/core";
  * Patient initiates M-Pesa STK push to pay for an assigned visit.
  */
 export const POST = route(async (req, { params }: { params: Promise<{ visitId: string }> }) => {
-  const claims = await requireAuth(req, ["patient"]);
+  const claims = await requirePatient(req);
   const { visitId } = await params;
   const body = await req.json();
   const input = homeVisitStkSchema.parse(body);

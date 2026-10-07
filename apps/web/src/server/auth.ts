@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { verifyAccessToken, resolveMembership, type AccessClaims } from "@carebora/core";
+import { verifyAccessToken, resolveMembership, profileService, type AccessClaims } from "@carebora/core";
 import { ApiError, type UserRole } from "@carebora/shared";
 import type { RequestMeta } from "@carebora/core";
 
@@ -80,6 +80,24 @@ export async function requireAuth(
   const auth = await getAuth(req);
   if (!auth) throw ApiError.unauthorized();
   if (roles && !roles.includes(auth.role)) throw ApiError.forbidden();
+  return auth;
+}
+
+/**
+ * Require a session that may act as a patient — which is any signed-in account.
+ *
+ * Replaces `requireAuth(req, ["patient"])` on the care-consuming routes.
+ * Restricting those to role === "patient" meant a doctor or an admin couldn't
+ * book a consultation, request a home visit or order medication for
+ * themselves, which is a normal thing to want and nothing to do with the
+ * powers their role carries.
+ *
+ * The patient profile is created on first use, since only accounts that
+ * registered as patients were given one.
+ */
+export async function requirePatient(req: Request): Promise<AccessClaims> {
+  const auth = await requireAuth(req);
+  await profileService.ensurePatientProfile(auth.sub);
   return auth;
 }
 

@@ -1,5 +1,5 @@
 import { route, jsonOk } from "@/server/http";
-import { requireAuth } from "@/server/auth";
+import { requireAuth, requirePatient } from "@/server/auth";
 import { createHomeVisitSchema, homeVisitsQuerySchema } from "@carebora/shared";
 import { homeVisitService } from "@carebora/core";
 
@@ -14,7 +14,7 @@ export const GET = route(async (req) => {
 
 /** POST /api/v1/home-visits — patient requests a home visit. */
 export const POST = route(async (req) => {
-  const claims = await requireAuth(req, ["patient"]);
+  const claims = await requirePatient(req);
   const body = await req.json();
   const input = createHomeVisitSchema.parse(body);
   const visit = await homeVisitService.request(claims.sub, input);

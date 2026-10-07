@@ -9,6 +9,27 @@ export const profileService = {
     return profile;
   },
 
+  /**
+   * Make sure a user can be treated as a patient, creating the profile on
+   * first use.
+   *
+   * Role and patient-hood are deliberately separate concerns. `role` governs
+   * what extra powers an account has (appearing in the directory, taking
+   * bookings, writing prescriptions, reaching the admin panel); being able to
+   * *receive* care is universal, because a doctor or an admin may well want to
+   * book a consultation or order medication for themselves.
+   *
+   * Only patients got a patientProfile at registration, so provider and admin
+   * accounts need one minted lazily the first time they act as a patient.
+   */
+  async ensurePatientProfile(userId: string) {
+    return db.patientProfile.upsert({
+      where: { userId },
+      update: {},
+      create: { userId },
+    });
+  },
+
   async patchPatient(userId: string, data: PatchPatientProfileInput) {
     const profile = await db.patientProfile.findUnique({ where: { userId } });
     if (!profile) throw ApiError.notFound("Patient profile not found");

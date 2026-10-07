@@ -1,5 +1,5 @@
 import { route, jsonOk } from "@/server/http";
-import { requireAuth } from "@/server/auth";
+import { requirePatient } from "@/server/auth";
 import { mpesaStkSchema } from "@carebora/shared";
 import { paymentService } from "@carebora/core";
 
@@ -9,7 +9,7 @@ import { paymentService } from "@carebora/core";
  * Body: { appointmentId, phoneNumber }
  */
 export const POST = route(async (req) => {
-  const auth = await requireAuth(req, ["patient"]);
+  const auth = await requirePatient(req);
   const input = mpesaStkSchema.parse(await req.json());
   const payment = await paymentService.initiateMpesa(auth.sub, input);
   return jsonOk(payment, 202);

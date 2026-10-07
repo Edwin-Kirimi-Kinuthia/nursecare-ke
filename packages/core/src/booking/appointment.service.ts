@@ -50,6 +50,14 @@ export const appointmentService = {
     });
     if (!provider) throw ApiError.notFound("Provider not found");
 
+    // Any signed-in account can book care, providers included — but not from
+    // itself. Doing so would take a real slot out of circulation and create an
+    // appointment the same person sits on both sides of, with the clinical
+    // notes and prescription that implies.
+    if (slot.providerId === patientId) {
+      throw ApiError.badRequest("You cannot book an appointment with yourself");
+    }
+
     const feeKes =
       slot.appointmentType === "teleconsult"
         ? (provider.consultationFeeKes ?? 0)
@@ -106,10 +114,13 @@ export const appointmentService = {
   },
 
   /** List appointments for the calling user (patient sees theirs, provider sees theirs). */
-  async list(userId: string, role: UserRole, query: AppointmentsQuery) {
-    const isProvider = PROVIDER_ROLES.includes(role);
+  async list(userId: string, _role: UserRole, query: AppointmentsQuery) {
+    // Either side of the appointment, rather than one side chosen by role.
+    // A provider has a clinical workload *and* may book care for themselves;
+    // filtering on providerId alone hid their own bookings from them entirely.
+    // For a patient-only account the providerId arm simply never matches.
     const where = {
-      ...(isProvider ? { providerId: userId } : { patientId: userId }),
+      OR: [{ patientId: userId }, { providerId: userId }],
       ...(query.status ? { status: query.status } : {}),
     };
     const [appointments, total] = await Promise.all([
@@ -133,10 +144,9 @@ export const appointmentService = {
     });
     if (!appointment) throw ApiError.notFound("Appointment not found");
 
-    const isProvider = PROVIDER_ROLES.includes(role);
-    const owns =
-      (isProvider && appointment.providerId === userId) ||
-      (!isProvider && appointment.patientId === userId);
+    // Either side may read it. Keyed off the appointment, not the account's
+    // role, so a provider can open a consultation they booked for themselves.
+    const owns = appointment.providerId === userId || appointment.patientId === userId;
     if (!owns) throw ApiError.forbidden();
 
     return attachPayment(appointment);
@@ -154,20 +164,24 @@ export const appointmentService = {
     });
     if (!appointment) throw ApiError.notFound("Appointment not found");
 
-    const isProvider = PROVIDER_ROLES.includes(role);
-    const isPatient = role === "patient";
+    // Which side of *this* appointment the caller is on. A care account can be
+    // the patient on an appointment it booked for itself, and there it gets the
+    // patient's powers (cancel), not the clinician's (confirm/complete).
+    // Self-booking is blocked in create(), so these two are mutually exclusive.
+    const isAdmin = role === "admin";
+    const isActingProvider = PROVIDER_ROLES.includes(role) && appointment.providerId === userId;
+    const isActingPatient = appointment.patientId === userId;
 
-    if (isProvider && appointment.providerId !== userId) throw ApiError.forbidden();
-    if (isPatient && appointment.patientId !== userId) throw ApiError.forbidden();
+    if (!isAdmin && !isActingProvider && !isActingPatient) throw ApiError.forbidden();
 
-    if (input.status) {
+    if (input.status && !isAdmin) {
       const providerStatuses = ["confirmed", "completed", "no_show"] as const;
       const patientStatuses = ["cancelled"] as const;
 
-      if (isProvider && !(providerStatuses as readonly string[]).includes(input.status)) {
+      if (isActingProvider && !(providerStatuses as readonly string[]).includes(input.status)) {
         throw ApiError.forbidden("Providers can only confirm, complete, or mark no-show");
       }
-      if (isPatient && !(patientStatuses as readonly string[]).includes(input.status)) {
+      if (isActingPatient && !(patientStatuses as readonly string[]).includes(input.status)) {
         throw ApiError.forbidden("Patients can only cancel appointments");
       }
     }

@@ -1,5 +1,5 @@
 import { route, jsonOk } from "@/server/http";
-import { requireAuth } from "@/server/auth";
+import { requireAuth, requirePatient } from "@/server/auth";
 import { z } from "zod";
 import { ambulanceService } from "@carebora/core";
 
@@ -17,7 +17,7 @@ const cancelSchema = z.object({ cancelReason: z.string().trim().max(500).optiona
 
 /** PATCH /api/v1/ambulance-requests/:requestId — patient cancels (before dispatch). */
 export const PATCH = route(async (req, { params }: Params) => {
-  const claims = await requireAuth(req, ["patient"]);
+  const claims = await requirePatient(req);
   const { requestId } = await params;
   const { cancelReason } = cancelSchema.parse(await req.json());
   const request = await ambulanceService.cancel(requestId, claims.sub, claims.role, cancelReason);
