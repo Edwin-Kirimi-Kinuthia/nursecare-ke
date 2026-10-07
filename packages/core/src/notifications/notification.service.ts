@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderEmail, p, otp, panel, rows } from "./email-layout";
 
 // Instantiate lazily so a missing RESEND_API_KEY never crashes module import
 // (e.g. during `next build` page-data collection when the key isn't present).
@@ -47,59 +48,100 @@ async function sendSms(to: string | null | undefined, message: string) {
   }
 }
 
+function appBase(): string {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.carebora.co.ke").replace(/\/$/, "");
+}
+
+/**
+ * Escape anything user-supplied before it goes into email HTML.
+ *
+ * Names, specialties and review comments are all typed by people. The previous
+ * templates interpolated them raw — a review comment containing markup was
+ * injected straight into the provider's inbox.
+ */
+function esc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** "Edwin Kirimi Kinuthia" -> "Edwin". A greeting reads better with one name. */
+function firstName(fullName: string): string {
+  return esc(fullName.trim().split(/\s+/)[0] || "there");
+}
+
+function nairobi(date: Date): string {
+  return date.toLocaleString("en-KE", {
+    timeZone: "Africa/Nairobi",
+    dateStyle: "full",
+    timeStyle: "short",
+  });
+}
+
+function money(kes: number): string {
+  return `KES ${kes.toLocaleString("en-KE")}`;
+}
+
 export const notificationService = {
   async emailVerificationCode(opts: { email: string; fullName: string; code: string }) {
-    await sendEmail(opts.email, "Verify your email — CareBora", `
-      <h2>Welcome to CareBora, ${opts.fullName}!</h2>
-      <p>Thanks for signing up. Enter this code in the app to verify your email address:</p>
-      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
-      <p>This code expires in 15 minutes. If you didn't create a CareBora account, you can ignore this email.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.email, "Verify your email — CareBora", renderEmail({
+      preheader: `Your verification code is ${opts.code}`,
+      heading: `Welcome to Care Bora, ${firstName(opts.fullName)}`,
+      body:
+        p("Thanks for signing up. Enter this code in the app to verify your email address:")
+        + otp(opts.code)
+        + p("The code expires in 15 minutes."),
+      footnote: "If you didn't create a Care Bora account, you can safely ignore this email.",
+    }));
   },
 
   async loginOtpCode(opts: { email: string; fullName: string; code: string }) {
-    await sendEmail(opts.email, "Your CareBora login code", `
-      <h2>Hi ${opts.fullName},</h2>
-      <p>Enter this code to finish signing in:</p>
-      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
-      <p>This code expires in 10 minutes. If this wasn't you, your password may be compromised — change it as soon as you can.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.email, "Your CareBora login code", renderEmail({
+      preheader: `Your login code is ${opts.code}`,
+      heading: "Finish signing in",
+      body:
+        p(`Hi ${firstName(opts.fullName)}, enter this code to complete your sign-in:`)
+        + otp(opts.code)
+        + p("The code expires in 10 minutes."),
+      footnote:
+        "If this wasn't you, someone may know your password — change it as soon as you can.",
+    }));
   },
 
   async changePasswordOtp(opts: { email: string; fullName: string; code: string }) {
-    await sendEmail(opts.email, "Confirm your CareBora password change", `
-      <h2>Hi ${opts.fullName},</h2>
-      <p>Enter this code to confirm changing your password:</p>
-      <p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0d9488">${opts.code}</p>
-      <p>This code expires in 10 minutes. If you didn't request this, you can ignore this email — your password won't change.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.email, "Confirm your CareBora password change", renderEmail({
+      preheader: `Your confirmation code is ${opts.code}`,
+      heading: "Confirm your password change",
+      body:
+        p(`Hi ${firstName(opts.fullName)}, enter this code in the app to confirm your new password:`)
+        + otp(opts.code)
+        + p("The code expires in 10 minutes."),
+      footnote:
+        "Didn't request this? Ignore this email — your password won't change without the code.",
+    }));
   },
 
   async accountInvite(opts: { email: string; fullName: string; token: string }) {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const url = `${base}/set-password?token=${opts.token}`;
-    await sendEmail(opts.email, "You're invited to CareBora", `
-      <h2>Hi ${opts.fullName},</h2>
-      <p>An admin has created a CareBora account for you. Set your password to activate it:</p>
-      <p><a href="${url}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Set your password</a></p>
-      <p>This link expires in 7 days.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.email, "You're invited to CareBora", renderEmail({
+      preheader: "Set your password to activate your Care Bora account.",
+      heading: `Your Care Bora account is ready, ${firstName(opts.fullName)}`,
+      body: p("An administrator has created an account for you. Set a password to activate it and sign in."),
+      button: { label: "Set your password", url: `${appBase()}/set-password?token=${opts.token}` },
+      footnote: "This link expires in 7 days. If the button doesn't work, copy it into your browser.",
+    }));
   },
 
   async passwordResetRequested(opts: { email: string; fullName: string; token: string }) {
-    const base = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
-    const url = `${base}/set-password?token=${opts.token}`;
-    await sendEmail(opts.email, "Reset your CareBora password", `
-      <h2>Hi ${opts.fullName},</h2>
-      <p>We received a request to reset your CareBora password. Click below to set a new one:</p>
-      <p><a href="${url}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Reset password</a></p>
-      <p>This link expires in 7 days. If you didn't request this, you can safely ignore this email — your password won't change.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.email, "Reset your CareBora password", renderEmail({
+      preheader: "Choose a new Care Bora password.",
+      heading: "Reset your password",
+      body: p(`Hi ${firstName(opts.fullName)}, we received a request to reset your password. Choose a new one below.`),
+      button: { label: "Reset password", url: `${appBase()}/set-password?token=${opts.token}` },
+      footnote:
+        "This link expires in 7 days. If you didn't request a reset, ignore this email — your password won't change.",
+    }));
   },
 
   async appointmentBooked(opts: {
@@ -111,15 +153,19 @@ export const notificationService = {
     slotTime: Date;
     feeKes: number;
   }) {
-    const slot = opts.slotTime.toLocaleString("en-KE", { timeZone: "Africa/Nairobi", dateStyle: "full", timeStyle: "short" });
-    await sendEmail(opts.patientEmail, "Appointment Booked — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p>Your appointment with <strong>${opts.providerName}</strong>${opts.specialty ? ` (${opts.specialty})` : ""} has been requested.</p>
-      <p><strong>Slot:</strong> ${slot}</p>
-      <p><strong>Fee:</strong> KES ${opts.feeKes.toLocaleString()}</p>
-      <p>You'll receive another notification once the provider confirms.</p>
-      <p>— The CareBora Team</p>
-    `);
+    const slot = nairobi(opts.slotTime);
+    await sendEmail(opts.patientEmail, "Appointment requested — CareBora", renderEmail({
+      preheader: `${opts.providerName} · ${slot}`,
+      heading: "Appointment requested",
+      body:
+        p(`Hi ${firstName(opts.patientName)}, your appointment request has been sent.`)
+        + rows([
+          ["Provider", esc(opts.providerName) + (opts.specialty ? ` <span style="font-weight:400;color:#64748b">(${esc(opts.specialty)})</span>` : "")],
+          ["When", slot],
+          ["Fee", money(opts.feeKes)],
+        ])
+        + p("We'll email you again as soon as the provider confirms."),
+    }));
     void sendSms(opts.patientPhone, `CareBora: Appointment with ${opts.providerName} requested for ${slot}. Awaiting confirmation.`);
   },
 
@@ -131,15 +177,16 @@ export const notificationService = {
     slotTime: Date;
     feeKes: number;
   }) {
-    const slot = opts.slotTime.toLocaleString("en-KE", { timeZone: "Africa/Nairobi", dateStyle: "full", timeStyle: "short" });
-    await sendEmail(opts.patientEmail, "Appointment Confirmed ✓ — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p>Your appointment with <strong>${opts.providerName}</strong> is <strong>confirmed</strong>.</p>
-      <p><strong>Slot:</strong> ${slot}</p>
-      <p><strong>Fee:</strong> KES ${opts.feeKes.toLocaleString()}</p>
-      <p>Please pay via M-Pesa on the CareBora app to complete your booking.</p>
-      <p>— The CareBora Team</p>
-    `);
+    const slot = nairobi(opts.slotTime);
+    await sendEmail(opts.patientEmail, "Appointment confirmed — CareBora", renderEmail({
+      preheader: `Confirmed: ${opts.providerName} · ${slot}`,
+      heading: "Your appointment is confirmed",
+      body:
+        p(`Hi ${firstName(opts.patientName)}, ${esc(opts.providerName)} has confirmed your appointment.`)
+        + rows([["Provider", esc(opts.providerName)], ["When", slot], ["Fee", money(opts.feeKes)]])
+        + panel("Pay with M-Pesa in the app to complete your booking. You'll get an M-Pesa prompt on your phone."),
+      button: { label: "Pay for your appointment", url: `${appBase()}/appointments` },
+    }));
     void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. Please pay KES ${opts.feeKes} on the app.`);
   },
 
@@ -150,13 +197,13 @@ export const notificationService = {
     providerName: string;
     joinUrl: string;
   }) {
-    await sendEmail(opts.patientEmail, "Your doctor is ready — join now — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p><strong>${opts.providerName}</strong> has started your video consultation and is waiting for you.</p>
-      <p><a href="${opts.joinUrl}" style="display:inline-block;background:#0d9488;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none;font-weight:bold">Join the consultation</a></p>
-      <p>Or open the CareBora app and tap “Join consultation” on your appointment.</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.patientEmail, "Your provider is ready — join now", renderEmail({
+      preheader: `${opts.providerName} is waiting for you.`,
+      heading: "Your provider is ready",
+      body: p(`Hi ${firstName(opts.patientName)}, <strong>${esc(opts.providerName)}</strong> has started your video consultation and is waiting for you.`),
+      button: { label: "Join the consultation", url: opts.joinUrl },
+      footnote: "You can also open the Care Bora app and tap “Join consultation” on your appointment.",
+    }));
     void sendSms(opts.patientPhone, `CareBora: ${opts.providerName} has started your consultation — join now: ${opts.joinUrl}`);
   },
 
@@ -169,13 +216,20 @@ export const notificationService = {
     receiptNumber: string | null;
     context: string;
   }) {
-    await sendEmail(opts.patientEmail, "Payment Received — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p>We've received your M-Pesa payment of <strong>KES ${opts.amountKes.toLocaleString()}</strong> for your ${opts.context} with ${opts.providerName}.</p>
-      ${opts.receiptNumber ? `<p><strong>M-Pesa Receipt:</strong> ${opts.receiptNumber}</p>` : ""}
-      <p>Thank you for choosing CareBora!</p>
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.patientEmail, "Payment received — CareBora", renderEmail({
+      preheader: `${money(opts.amountKes)} received. Thank you.`,
+      heading: "Payment received",
+      body:
+        p(`Hi ${firstName(opts.patientName)}, thank you — your M-Pesa payment has gone through.`)
+        + rows([
+          ["Amount", money(opts.amountKes)],
+          ["For", `${esc(opts.context)} with ${esc(opts.providerName)}`],
+          ...(opts.receiptNumber
+            ? ([["M-Pesa receipt", `<span style="font-family:monospace">${esc(opts.receiptNumber)}</span>`]] as [string, string][])
+            : []),
+        ]),
+      footnote: "Keep this email as your receipt.",
+    }));
     void sendSms(opts.patientPhone, `CareBora: Payment of KES ${opts.amountKes} received${opts.receiptNumber ? ` (${opts.receiptNumber})` : ""}. Thank you!`);
   },
 
@@ -185,12 +239,15 @@ export const notificationService = {
     providerName: string;
     medicationCount: number;
   }) {
-    await sendEmail(opts.patientEmail, "Prescription Issued — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p>Dr. ${opts.providerName} has issued you a prescription with <strong>${opts.medicationCount} medication(s)</strong>.</p>
-      <p>You can view and download your prescription on the CareBora app. You can also use it to order medications from our pharmacy.</p>
-      <p>— The CareBora Team</p>
-    `);
+    const n = opts.medicationCount;
+    await sendEmail(opts.patientEmail, "Prescription issued — CareBora", renderEmail({
+      preheader: `${n} medication${n === 1 ? "" : "s"} prescribed.`,
+      heading: "Your prescription is ready",
+      body:
+        p(`Hi ${firstName(opts.patientName)}, ${esc(opts.providerName)} has issued you a prescription with <strong>${n} medication${n === 1 ? "" : "s"}</strong>.`)
+        + p("View and download it in the app, or use it to order from a licensed pharmacy with delivery to your door."),
+      button: { label: "View prescription", url: `${appBase()}/records` },
+    }));
   },
 
   async homeVisitAssigned(opts: {
@@ -201,18 +258,16 @@ export const notificationService = {
     scheduledAt: Date | null;
     feeKes: number;
   }) {
-    const slot = opts.scheduledAt
-      ? opts.scheduledAt.toLocaleString("en-KE", { timeZone: "Africa/Nairobi", dateStyle: "full", timeStyle: "short" })
-      : "To be confirmed";
-    await sendEmail(opts.patientEmail, "Home Visit Assigned — CareBora", `
-      <h2>Hi ${opts.patientName},</h2>
-      <p>A healthcare provider has been assigned to your home visit request.</p>
-      <p><strong>Provider:</strong> ${opts.providerName}</p>
-      <p><strong>Scheduled:</strong> ${slot}</p>
-      <p><strong>Fee:</strong> KES ${opts.feeKes.toLocaleString()}</p>
-      <p>Please pay via M-Pesa on the CareBora app to confirm your visit.</p>
-      <p>— The CareBora Team</p>
-    `);
+    const slot = opts.scheduledAt ? nairobi(opts.scheduledAt) : "To be confirmed";
+    await sendEmail(opts.patientEmail, "Home visit assigned — CareBora", renderEmail({
+      preheader: `${opts.providerName} · ${slot}`,
+      heading: "A provider is on the way",
+      body:
+        p(`Hi ${firstName(opts.patientName)}, a provider has been assigned to your home visit request.`)
+        + rows([["Provider", esc(opts.providerName)], ["Scheduled", slot], ["Fee", money(opts.feeKes)]])
+        + panel("Pay with M-Pesa in the app to confirm your visit."),
+      button: { label: "Pay for your visit", url: `${appBase()}/home-visits` },
+    }));
     void sendSms(opts.patientPhone, `CareBora: Home visit assigned to ${opts.providerName} on ${slot}. Pay KES ${opts.feeKes} on the app.`);
   },
 
@@ -224,11 +279,15 @@ export const notificationService = {
     comment?: string | null;
   }) {
     const stars = "★".repeat(opts.rating) + "☆".repeat(5 - opts.rating);
-    await sendEmail(opts.providerEmail, "New Review — CareBora", `
-      <h2>Hi ${opts.providerName},</h2>
-      <p>${opts.patientName} left you a <strong>${stars} (${opts.rating}/5)</strong> review.</p>
-      ${opts.comment ? `<blockquote>"${opts.comment}"</blockquote>` : ""}
-      <p>— The CareBora Team</p>
-    `);
+    await sendEmail(opts.providerEmail, "You have a new review — CareBora", renderEmail({
+      preheader: `${opts.patientName} rated you ${opts.rating}/5.`,
+      heading: "You have a new review",
+      body:
+        p(`Hi ${firstName(opts.providerName)}, ${esc(opts.patientName)} reviewed a recent appointment.`)
+        + `<div style="margin:18px 0 6px;font-size:26px;letter-spacing:3px;color:#f59e0b">${stars}</div>`
+        + p(`<strong>${opts.rating} out of 5</strong>`)
+        + (opts.comment ? panel(`“${esc(opts.comment)}”`) : ""),
+      button: { label: "See your profile", url: `${appBase()}/providers` },
+    }));
   },
 };
