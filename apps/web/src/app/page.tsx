@@ -79,14 +79,15 @@ export default function HomePage() {
 
           {/* Stats */}
           <div className="animate-fade-in delay-300 mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
-            {/* Claims that hold at any size. These were counts ("5+ verified
-                providers", "15 pharmacy products") that overstated the real
-                figures and would have needed editing every week besides —
-                a bad trade on a health platform, where the thing being sold
-                is trust. */}
+            {/* Claims that are true at any size, and that stay true as the
+                platform grows. These were counts ("5+ verified providers",
+                "15 pharmacy products") that overstated the real figures.
+                Coverage claims have the same trap: "47 counties served" reads
+                as a presence in each one. A video consultation genuinely does
+                reach anywhere in Kenya, so that is what it says. */}
             {[
               { k: "Licensed", v: "Every provider checked" },
-              { k: "47", v: "Counties served" },
+              { k: "Nationwide", v: "Video consultations" },
               { k: "24/7", v: "Ambulance dispatch" },
               { k: "M-Pesa", v: "Instant payment" },
             ].map((s) => (
