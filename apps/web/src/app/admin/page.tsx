@@ -6,7 +6,7 @@ import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
   BadgeCheck, XCircle, ScrollText, LayoutDashboard, Star, MessageSquare,
   Loader2, Eye, EyeOff, Pill, Plus, Pencil, Trash2, Power,
-  Upload, ImageIcon, X, Building2, Ban, AlertTriangle,
+  Upload, ImageIcon, X, Building2, Ban, AlertTriangle, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
@@ -31,6 +31,8 @@ export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("overview");
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 220, behavior: "smooth" });
 
   useEffect(() => {
     if (authLoading) return;
@@ -81,18 +83,32 @@ export default function AdminPage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-8">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {TABS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${
-                tab === id ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-100"
-              }`}
-            >
-              <Icon className="h-4 w-4" /> {label}
-            </button>
-          ))}
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button" onClick={() => scrollTabs(-1)} aria-label="Scroll tabs left"
+            className="shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div ref={tabsRef} className="flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            {TABS.map(({ id, label, Icon }) => (
+              <button
+                key={id}
+                onClick={() => setTab(id)}
+                className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium transition sm:px-4 ${
+                  tab === id ? "bg-teal-600 text-white" : "text-slate-600 hover:bg-slate-100"
+                }`}
+              >
+                <Icon className="h-4 w-4" /> {label}
+              </button>
+            ))}
+          </div>
+          <button
+            type="button" onClick={() => scrollTabs(1)} aria-label="Scroll tabs right"
+            className="shrink-0 rounded-lg border border-slate-200 bg-white p-2 text-slate-500 hover:bg-slate-50"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
         <div className="mt-6">
