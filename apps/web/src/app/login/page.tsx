@@ -8,6 +8,7 @@ import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PhoneField } from "@/components/PhoneField";
+import { PasswordField } from "@/components/PasswordField";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
@@ -301,8 +302,18 @@ function LoginForm() {
                   />
                 )}
                 <Field label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} required />
-                <div>
-                  <Field label="Password" type="password" revealable value={form.password} onChange={(v) => set("password", v)} required />
+                <PasswordField
+                  label="Password"
+                  value={form.password}
+                  onChange={(v) => set("password", v)}
+                  required
+                  autoComplete={mode === "register" ? "new-password" : "current-password"}
+                  labelClassName="text-sm font-medium text-slate-700"
+                  inputClassName="mt-1.5 w-full rounded-xl border border-slate-300 px-3.5 py-2.5 pr-11 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+                  // Only while choosing a password — nagging someone about
+                  // strength as they sign in to an existing account is noise.
+                  showStrength={mode === "register"}
+                >
                   {mode === "login" && (
                     <button
                       type="button"
@@ -312,7 +323,7 @@ function LoginForm() {
                       Forgot password?
                     </button>
                   )}
-                </div>
+                </PasswordField>
                 {mode === "register" && (
                   <PhoneField label="Phone (optional)" value={form.phone} onChange={(v) => set("phone", v)} />
                 )}

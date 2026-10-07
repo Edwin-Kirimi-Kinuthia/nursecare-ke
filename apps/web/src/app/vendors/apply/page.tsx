@@ -113,7 +113,7 @@ export default function VendorApplyPage() {
           <Field label="Email" type="email" required value={form.email} onChange={(v) => set("email", v)} />
           <PhoneField label="Phone (optional)" value={form.phone ?? ""} onChange={(v) => set("phone", v || undefined)} />
         </div>
-        <PasswordField required value={form.password} onChange={(v) => set("password", v)} autoComplete="new-password" />
+        <PasswordField required value={form.password} onChange={(v) => set("password", v)} autoComplete="new-password" showStrength />
 
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Business name" required value={form.orgName} onChange={(v) => set("orgName", v)} placeholder="e.g. Wellcare Pharmacy" />

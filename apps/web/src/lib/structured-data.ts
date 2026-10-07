@@ -1,4 +1,4 @@
-import { EMERGENCY_PHONE } from "@/lib/contact";
+import { AMBULANCE_PHONE, SUPPORT_PHONE, SUPPORT_EMAIL } from "@/lib/contact";
 import { SITE_NAME, SITE_URL, absoluteUrl } from "@/lib/seo";
 
 /**
@@ -59,8 +59,8 @@ export function organizationSchema() {
     description:
       "Kenya's telehealth platform: video consultations with verified doctors and nurses, emergency ambulance dispatch, home-based care, medical reports and certificates, laboratory tests, and pharmacy delivery — paid for with M-Pesa.",
     slogan: "Quality care, made accessible.",
-    email: "customercare@carebora.co.ke",
-    telephone: EMERGENCY_PHONE,
+    email: SUPPORT_EMAIL,
+    telephone: SUPPORT_PHONE,
     address: {
       "@type": "PostalAddress",
       addressLocality: "Nairobi",
@@ -71,15 +71,15 @@ export function organizationSchema() {
     contactPoint: [
       {
         "@type": "ContactPoint",
-        telephone: EMERGENCY_PHONE,
+        telephone: AMBULANCE_PHONE,
         contactType: "emergency",
         areaServed: "KE",
         availableLanguage: ["en", "sw"],
       },
       {
         "@type": "ContactPoint",
-        telephone: EMERGENCY_PHONE,
-        email: "customercare@carebora.co.ke",
+        telephone: SUPPORT_PHONE,
+        email: SUPPORT_EMAIL,
         contactType: "customer support",
         areaServed: "KE",
       },
@@ -130,7 +130,7 @@ export function faqSchema() {
     },
     {
       q: "How do I get an ambulance in an emergency?",
-      a: `Call ${EMERGENCY_PHONE} and our dispatch team will send the nearest available crew, or request an ambulance in the app and track it to your door.`,
+      a: `Call ${AMBULANCE_PHONE} and our dispatch team will send the nearest available crew, or request an ambulance in the app and track it to your door.`,
     },
     {
       q: "Can I get a sick-off sheet online?",

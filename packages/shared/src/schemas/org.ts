@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { KENYA_COUNTIES } from "../geo";
+import { passwordSchema } from "./auth";
 
 export const orgTypeEnum = z.enum(["pharmacy", "ambulance", "lab", "clinic"]);
 export const orgStatusEnum = z.enum(["pending", "in_review", "approved", "suspended", "rejected"]);
@@ -31,7 +32,7 @@ export const vendorApplicationSchema = z.object({
   fullName: z.string().trim().min(2, "Name is too short").max(120),
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   phone: phoneSchema.optional(),
-  password: z.string().min(8, "Password must be at least 8 characters").max(128),
+  password: passwordSchema,
   orgType: orgTypeEnum,
   orgName: z.string().trim().min(2, "Business name is required").max(120),
   description: z.string().trim().max(1000).optional(),

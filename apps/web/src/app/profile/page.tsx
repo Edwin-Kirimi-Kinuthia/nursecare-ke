@@ -9,10 +9,11 @@ import {
 import type {
   PatientProfile, ProviderProfile, MedicalHistoryEntry,
 } from "@carebora/api-client";
-import { ApiError } from "@carebora/shared";
+import { ApiError, passwordMeetsRules } from "@carebora/shared";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PhoneField } from "@/components/PhoneField";
+import { PasswordField } from "@/components/PasswordField";
 
 export default function ProfilePage() {
   const { user, loading: authLoading } = useAuth();
@@ -120,11 +121,11 @@ function ChangePasswordCard() {
 
       {step === "form" ? (
         <form onSubmit={requestCode} className="mt-4 grid gap-3 sm:grid-cols-2">
-          <Field label="Current password" type="password" revealable value={currentPassword} onChange={setCurrentPassword} placeholder="••••••••" />
-          <Field label="New password" type="password" revealable value={newPassword} onChange={setNewPassword} placeholder="At least 8 characters" />
+          <PasswordField label="Current password" value={currentPassword} onChange={setCurrentPassword} autoComplete="current-password" />
+          <PasswordField label="New password" value={newPassword} onChange={setNewPassword} autoComplete="new-password" showStrength />
           {error && <p className="sm:col-span-2 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
           {done && <p className="sm:col-span-2 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">Password updated.</p>}
-          <button type="submit" disabled={busy || !currentPassword || newPassword.length < 8}
+          <button type="submit" disabled={busy || !currentPassword || !passwordMeetsRules(newPassword)}
             className="sm:col-span-2 w-fit rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
             {busy ? "Sending code…" : "Send confirmation code"}
           </button>

@@ -4,7 +4,7 @@ import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
   ArrowRight, Star, FileText, Baby, Plane, Stamp, Siren, Phone,
 } from "lucide-react";
-import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
+import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { JsonLd } from "@/components/JsonLd";
 import { organizationSchema, websiteSchema, faqSchema } from "@/lib/structured-data";
 
@@ -109,10 +109,10 @@ export default function HomePage() {
           </div>
           <div className="flex w-full shrink-0 gap-2 sm:w-auto">
             <a
-              href={`tel:${EMERGENCY_PHONE}`}
+              href={`tel:${AMBULANCE_PHONE}`}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700 sm:flex-none"
             >
-              <Phone className="h-4 w-4" /> Call {EMERGENCY_PHONE_DISPLAY}
+              <Phone className="h-4 w-4" /> Call {AMBULANCE_PHONE_DISPLAY}
             </a>
             <Link
               href="/ambulance"

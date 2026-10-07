@@ -2,8 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Phone, Mail, MapPin, Facebook, Instagram } from "lucide-react";
-import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
+import { Phone, Mail, MapPin, Facebook, Instagram, Ambulance, MessageSquare } from "lucide-react";
+import {
+  AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY,
+  SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY,
+  SUPPORT_PHONE_ALT, SUPPORT_PHONE_ALT_DISPLAY,
+  SUPPORT_EMAIL, ADMIN_EMAIL,
+} from "@/lib/contact";
 
 export default function Footer() {
   const pathname = usePathname();
@@ -48,18 +53,33 @@ export default function Footer() {
         {/* Contact */}
         <div className="space-y-3 text-sm sm:col-span-2">
           <div className="font-semibold text-slate-700">Contact</div>
-          <a href={`tel:${EMERGENCY_PHONE}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
-            <Phone className="h-4 w-4 shrink-0" /> {EMERGENCY_PHONE_DISPLAY}
+          {/* Ambulance dispatch first and visually distinct — an emergency caller
+              should never have to pick it out of a list of enquiry numbers. */}
+          <a
+            href={`tel:${AMBULANCE_PHONE}`}
+            className="flex items-center gap-2 rounded-lg bg-rose-50 px-2.5 py-2 font-semibold text-rose-700 transition hover:bg-rose-100"
+          >
+            <Ambulance className="h-4 w-4 shrink-0" />
+            <span>
+              Ambulance {AMBULANCE_PHONE_DISPLAY}
+              <span className="block text-[11px] font-normal text-rose-500">24/7 dispatch</span>
+            </span>
           </a>
-          <a href="tel:+254757963762" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
-            <Phone className="h-4 w-4 shrink-0" /> +254 757 963 762
+          <a href={`tel:${SUPPORT_PHONE}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <Phone className="h-4 w-4 shrink-0" /> {SUPPORT_PHONE_DISPLAY}
           </a>
-          <a href="mailto:customercare@carebora.co.ke" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
-            <Mail className="h-4 w-4 shrink-0" /> customercare@carebora.co.ke
+          <a href={`tel:${SUPPORT_PHONE_ALT}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <Phone className="h-4 w-4 shrink-0" /> {SUPPORT_PHONE_ALT_DISPLAY}
           </a>
-          <a href="mailto:admin@carebora.co.ke" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
-            <Mail className="h-4 w-4 shrink-0" /> admin@carebora.co.ke
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <Mail className="h-4 w-4 shrink-0" /> {SUPPORT_EMAIL}
           </a>
+          <a href={`mailto:${ADMIN_EMAIL}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <Mail className="h-4 w-4 shrink-0" /> {ADMIN_EMAIL}
+          </a>
+          <Link href="/contact" className="flex items-center gap-2 font-medium text-teal-700 hover:underline">
+            <MessageSquare className="h-4 w-4 shrink-0" /> Message us / request a document
+          </Link>
           <div className="flex items-center gap-2 text-slate-500">
             <MapPin className="h-4 w-4 shrink-0" /> Nairobi, Kenya
           </div>

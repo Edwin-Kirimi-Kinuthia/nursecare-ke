@@ -11,7 +11,7 @@ import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useLocation } from "@/components/LocationProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
-import { EMERGENCY_PHONE, EMERGENCY_PHONE_DISPLAY } from "@/lib/contact";
+import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
 import { PhoneField } from "@/components/PhoneField";
 
@@ -158,7 +158,7 @@ export default function AmbulancePage() {
       {/* Calling is always the fastest path in a real emergency — offered before
           the request form, and on every view, so it's never more than one tap away. */}
       <a
-        href={`tel:${EMERGENCY_PHONE}`}
+        href={`tel:${AMBULANCE_PHONE}`}
         className="mt-5 flex items-center gap-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 transition hover:bg-rose-100"
       >
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-rose-600 text-white shadow-lg shadow-rose-500/25">
@@ -167,7 +167,7 @@ export default function AmbulancePage() {
         <span className="min-w-0 flex-1">
           <span className="block font-bold text-rose-900">Life-threatening? Call now</span>
           <span className="block text-sm text-rose-700">
-            Speak to our dispatch team on {EMERGENCY_PHONE_DISPLAY} — faster than filling the form below.
+            Speak to our dispatch team on {AMBULANCE_PHONE_DISPLAY} — faster than filling the form below.
           </span>
         </span>
       </a>
