@@ -21,7 +21,7 @@ async function sendEmail(to: string, subject: string, html: string) {
     // the account owner's own inbox until a domain is verified. Missing that
     // check means every such rejection fails completely silently.
     const { error } = await client.emails.send({
-      from: "CareBora <onboarding@resend.dev>",
+      from: "CareBora <noreply@app.carebora.co.ke>",
       to,
       subject,
       html,
