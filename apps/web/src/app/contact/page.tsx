@@ -17,6 +17,7 @@ import {
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PhoneField } from "@/components/PhoneField";
+import PageHeader from "@/components/PageHeader";
 import {
   AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY,
   SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY, SUPPORT_EMAIL,
@@ -113,16 +114,12 @@ export default function ContactPage() {
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-10">
-      <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">
-        <MessageSquare className="h-4 w-4" /> Contact us
-      </div>
-      <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">
-        Message us directly
-      </h1>
-      <p className="mt-2 max-w-2xl text-slate-500">
-        Ask us anything, or request a medical document — a sick-off sheet, medical report,
-        fit-to-work or school form. A verified clinician reviews every document request.
-      </p>
+      <PageHeader
+        eyebrow="Contact us"
+        Icon={MessageSquare}
+        title="Message us directly"
+        lede="Ask us anything, or request a medical document — a sick-off sheet, medical report, fit-to-work or school form. A licensed clinician reviews every document request."
+      />
 
       {/* Emergency first: nobody with a real emergency should be filling in a form. */}
       <a

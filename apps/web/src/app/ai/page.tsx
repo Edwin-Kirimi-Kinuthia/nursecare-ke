@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Brain, AlertTriangle, AlertCircle, CheckCircle2, Loader2, ArrowRight, ShoppingBag } from "lucide-react";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import PageHeader from "@/components/PageHeader";
 import type { SymptomCheckResult } from "@carebora/api-client";
 
 const URGENCY_META: Record<string, { label: string; cls: string; Icon: React.ElementType }> = {
@@ -52,15 +53,14 @@ export default function AiPage() {
 
   return (
     <main className="mx-auto max-w-2xl px-4 py-10">
-      <div className="mb-8 flex items-center gap-3">
-        <span className="grid h-12 w-12 place-items-center rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/30">
-          <Brain className="h-6 w-6" />
-        </span>
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">AI Health Check</h1>
-          <p className="text-sm text-slate-500">Describe your symptoms — get instant triage guidance</p>
-        </div>
-      </div>
+      <PageHeader
+        className="mb-8"
+        eyebrow="Symptom checker"
+        Icon={Brain}
+        tone="violet"
+        title="AI health check"
+        lede="Describe your symptoms and get instant triage guidance. This is not a diagnosis — it tells you how urgently to seek care and who to see."
+      />
 
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
@@ -80,7 +80,7 @@ export default function AiPage() {
           <p className="mt-1 text-right text-xs text-slate-400">{symptoms.length}/1000</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="mb-1.5 block text-sm font-medium text-slate-700">Age (optional)</label>
             <input

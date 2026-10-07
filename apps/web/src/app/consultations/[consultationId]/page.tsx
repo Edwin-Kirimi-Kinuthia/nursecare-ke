@@ -301,7 +301,7 @@ export default function ConsultationRoom() {
               <form onSubmit={issueRx} className="mb-4 rounded-xl border border-slate-200 p-3">
                 <div className="mb-2 text-sm font-semibold text-slate-700">New prescription</div>
                 {meds.map((m, i) => (
-                  <div key={i} className="mb-2 grid grid-cols-2 gap-2">
+                  <div key={i} className="mb-2 grid gap-2 sm:grid-cols-2">
                     <input value={m.name} onChange={(e) => setMed(i, "name", e.target.value)} placeholder="Medication" className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
                     <input value={m.dosage} onChange={(e) => setMed(i, "dosage", e.target.value)} placeholder="Dosage e.g. 500mg" className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />
                     <input value={m.frequency} onChange={(e) => setMed(i, "frequency", e.target.value)} placeholder="Frequency e.g. 3x daily" className="rounded-lg border border-slate-200 px-2 py-1.5 text-sm" />

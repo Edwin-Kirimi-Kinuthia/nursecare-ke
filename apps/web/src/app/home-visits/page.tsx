@@ -13,6 +13,8 @@ import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   pending:   { label: "Pending",   cls: "bg-amber-100 text-amber-700" },
@@ -131,29 +133,25 @@ export default function HomeVisitsPage() {
   }
 
   if (authLoading || !user) {
-    return <div className="mx-auto max-w-3xl px-4 py-16"><div className="h-40 rounded-2xl skeleton" /></div>;
+    return <div className="mx-auto max-w-3xl px-4 py-10"><div className="h-40 rounded-2xl skeleton" /></div>;
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {/* Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">
-            <Home className="h-4 w-4" /> Home-Based Care
-          </div>
-          <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900">Home visits</h1>
-          <p className="mt-1 text-slate-500 text-sm">Request a nurse, physiotherapist, or doctor to visit you at home.</p>
-        </div>
-        {view === "list" && user.role === "patient" && (
+      <PageHeader
+        eyebrow="Home-based care"
+        Icon={Home}
+        title="Home visits"
+        lede="Request a nurse, physiotherapist or doctor to come to you. You'll be matched to a provider near you and pay only once they're assigned."
+        action={view === "list" && (
           <button
             onClick={() => { setView("request"); setMsg(null); }}
-            className="shrink-0 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
+            className="shrink-0 rounded-xl bg-teal-600 px-4 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700"
           >
             + Request visit
           </button>
         )}
-      </div>
+      />
 
       {/* Request form */}
       {view === "request" && (
@@ -254,11 +252,11 @@ export default function HomeVisitsPage() {
           {loading ? (
             <div className="h-40 rounded-2xl skeleton" />
           ) : visits.length === 0 ? (
-            <div className="rounded-2xl border border-dashed border-slate-200 py-16 text-center text-slate-400">
-              <Home className="mx-auto h-8 w-8 mb-3 opacity-40" />
-              <p className="font-medium">No home visits yet</p>
-              {user.role === "patient" && <p className="text-sm mt-1">Request your first visit above.</p>}
-            </div>
+            <EmptyState
+              Icon={Home}
+              title="No home visits yet"
+              hint="Request a visit above and we'll match you to a provider near you."
+            />
           ) : visits.map((v) => (
             <VisitCard key={v.id} visit={v} onPay={() => { setPayVisit(v); setPayMsg(null); setSimCheckoutId(null); }} />
           ))}

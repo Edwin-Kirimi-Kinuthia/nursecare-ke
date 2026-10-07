@@ -11,9 +11,11 @@ import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import Stars from "@/components/Stars";
+import PageHeader from "@/components/PageHeader";
 import ReviewModal from "@/components/ReviewModal";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
@@ -128,20 +130,25 @@ export default function AppointmentsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-        <CalendarDays className="h-7 w-7 text-teal-600" /> My appointments
-      </h1>
+      <PageHeader
+        eyebrow="Consultations"
+        Icon={CalendarDays}
+        title="My appointments"
+        lede="Your upcoming and past consultations, home visits and the records that came out of them."
+      />
 
       {appts.length === 0 ? (
-        <div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-teal-50 text-teal-600">
-            <CalendarDays className="h-7 w-7" />
-          </div>
-          <p className="mt-4 text-slate-500">You have no appointments yet.</p>
-          <Link href="/providers" className="mt-4 inline-block rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">
-            Find a provider
-          </Link>
-        </div>
+        <EmptyState
+          className="mt-8"
+          Icon={CalendarDays}
+          title="No appointments yet"
+          hint="Book a consultation and it will appear here, along with any notes or prescriptions from it."
+          action={
+            <Link href="/providers" className="inline-block rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700">
+              Find a provider
+            </Link>
+          }
+        />
       ) : (
         <div className="mt-6 space-y-3">
           {appts.map((a) => {

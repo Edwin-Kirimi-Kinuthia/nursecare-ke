@@ -13,6 +13,8 @@ import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { TillPayBox } from "@/components/TillPayBox";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 
 const STATUS_META: Record<string, { label: string; cls: string }> = {
   requested: { label: "Finding an operator…", cls: "bg-amber-100 text-amber-700" },
@@ -145,16 +147,18 @@ export default function AmbulancePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-          <Siren className="h-7 w-7 shrink-0 text-rose-600" /> Ambulance
-        </h1>
-        {view === "list" && (
-          <button onClick={() => setView("request")} className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 hover:bg-rose-700">
+      <PageHeader
+        eyebrow="Emergency"
+        Icon={Siren}
+        tone="rose"
+        title="Ambulance"
+        lede="Dispatch a crew to your location and track it to your door."
+        action={view === "list" && (
+          <button onClick={() => setView("request")} className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700">
             Request ambulance
           </button>
         )}
-      </div>
+      />
 
       {/* Calling is always the fastest path in a real emergency — offered before
           the request form, and on every view, so it's never more than one tap away. */}
@@ -236,12 +240,13 @@ export default function AmbulancePage() {
           </div>
         </form>
       ) : requests.length === 0 ? (
-        <div className="mt-8 rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center">
-          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-rose-50 text-rose-600">
-            <AmbulanceIcon className="h-7 w-7" />
-          </div>
-          <p className="mt-4 text-slate-500">No ambulance requests yet.</p>
-        </div>
+        <EmptyState
+          className="mt-8"
+          Icon={AmbulanceIcon}
+          tone="rose"
+          title="No ambulance requests yet"
+          hint="In an emergency, calling the dispatch line above is always faster than the form."
+        />
       ) : (
         <div className="mt-6 space-y-3">
           {requests.map((r) => {

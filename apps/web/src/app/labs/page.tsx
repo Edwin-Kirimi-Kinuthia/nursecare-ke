@@ -12,6 +12,7 @@ import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
+import PageHeader from "@/components/PageHeader";
 
 export default function LabsPage() {
   const { user, loading: authLoading } = useAuth();
@@ -101,15 +102,18 @@ export default function LabsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
-          <FlaskConical className="h-7 w-7 shrink-0 text-teal-600" /> Lab tests
-        </h1>
-        <div className="flex shrink-0 gap-1 rounded-xl border border-slate-200 bg-white p-1">
+      <PageHeader
+        eyebrow="Diagnostics"
+        Icon={FlaskConical}
+        title="Lab tests"
+        lede="Book tests at an accredited laboratory near you and get results in your medical record."
+        action={
+          <div className="flex shrink-0 gap-1 rounded-xl border border-slate-200 bg-white p-1">
           <button onClick={() => setView("browse")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "browse" ? "bg-teal-600 text-white" : "text-slate-600"}`}>Browse</button>
           <button onClick={() => setView("orders")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "orders" ? "bg-teal-600 text-white" : "text-slate-600"}`}>My orders</button>
-        </div>
-      </div>
+          </div>
+        }
+      />
 
       {view === "browse" ? (
         <>

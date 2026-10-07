@@ -51,7 +51,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {user.role === "patient" && <PatientSection />}
+      {/* Everyone has patient details of their own — blood group, allergies, an
+          emergency contact — because any account can receive care. A clinician
+          who books a consultation for themselves needs these on file just as
+          much as a patient does, and the endpoint creates the profile on first
+          use. Role only adds the sections below. */}
+      <PatientSection />
       {["doctor", "nurse", "physio", "pharmacy"].includes(user.role) && <ProviderSection />}
       {user.role === "admin" && (
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-6">

@@ -48,7 +48,7 @@ export default function VendorDashboardPage() {
   const { data: org, loading, error, reload } = useSection(fetcher);
 
   if (authLoading || !user || user.role !== "vendor") {
-    return <div className="mx-auto max-w-6xl px-4 py-16"><div className="h-40 rounded-2xl skeleton" /></div>;
+    return <div className="mx-auto max-w-6xl px-4 py-10"><div className="h-40 rounded-2xl skeleton" /></div>;
   }
 
   const TABS: { id: Tab; label: string; Icon: typeof Building2 }[] = [

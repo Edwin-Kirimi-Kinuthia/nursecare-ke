@@ -5,6 +5,7 @@ import { MessageSquareQuote } from "lucide-react";
 import type { Review } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import Stars from "@/components/Stars";
+import EmptyState from "@/components/EmptyState";
 
 const PAGE = 5;
 
@@ -72,12 +73,12 @@ export default function ProviderReviews({
         <h2 className="flex items-center gap-2 text-lg font-bold text-slate-900">
           <MessageSquareQuote className="h-5 w-5 text-teal-600" /> Patient reviews
         </h2>
-        <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-white px-5 py-8 text-center">
-          <p className="text-sm text-slate-500">No reviews yet.</p>
-          <p className="mt-1 text-xs text-slate-400">
-            Patients can rate this provider after a completed consultation.
-          </p>
-        </div>
+        <EmptyState
+          className="mt-4"
+          Icon={MessageSquareQuote}
+          title="No reviews yet"
+          hint="Patients can rate this provider once a consultation is complete."
+        />
       </div>
     );
   }

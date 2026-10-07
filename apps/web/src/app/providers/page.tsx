@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Stethoscope, SearchX } from "lucide-react";
 import type { ProviderPublicProfile } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import ProviderCard from "@/components/ProviderCard";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 
 const FILTERS = ["", "General Practice", "Paediatrics", "Obstetrics", "Nursing"];
 
@@ -35,8 +37,12 @@ export default function ProvidersPage() {
       {/* Header */}
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-12">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Find your provider</h1>
-          <p className="mt-2 text-slate-500">Verified doctors, nurses, and specialists across Kenya.</p>
+          <PageHeader
+            eyebrow="Care providers"
+            Icon={Stethoscope}
+            title="Find your provider"
+            lede="Verified doctors, nurses and specialists across Kenya. Every clinician here has had their practice licence checked."
+          />
 
           <div className="mt-6 flex flex-wrap gap-2">
             {FILTERS.map((s) => (
@@ -68,7 +74,11 @@ export default function ProvidersPage() {
         ) : error ? (
           <p className="py-16 text-center text-rose-600">{error}</p>
         ) : providers.length === 0 ? (
-          <p className="py-16 text-center text-slate-400">No providers match that filter.</p>
+          <EmptyState
+            Icon={SearchX}
+            title="No providers match that filter"
+            hint="Try another specialty, or clear the filter to see everyone."
+          />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             {providers.map((p) => <ProviderCard key={p.userId} p={p} />)}

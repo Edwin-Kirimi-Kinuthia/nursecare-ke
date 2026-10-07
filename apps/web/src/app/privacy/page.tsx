@@ -39,7 +39,7 @@ export default function PrivacyPolicyPage() {
         Care Bora Kenya (&ldquo;CareBora&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;) operates a telehealth platform
         connecting patients in Kenya with doctors, nurses, physiotherapists, pharmacies, diagnostic labs, and
         ambulance operators. This policy explains what personal and health information we collect through our
-        website and app, why we collect it, who we share it with, and the choices and rights you have. It's
+        website and app, why we collect it, who we share it with, and the choices and rights you have. It&apos;s
         written to reflect what CareBora actually does, not a generic template.
       </p>
 

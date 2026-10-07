@@ -63,6 +63,33 @@ body {
 }
 ::selection { background: #99f6e4; color: #134e4a }
 
+/* A visible focus ring everywhere, so keyboard users never lose their place on
+   a control whose own styles don't define one. :focus-visible keeps it off
+   mouse clicks. */
+:focus-visible {
+  outline: 2px solid var(--color-brand-600);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Respect the system "reduce motion" setting. `float` and `blob` loop forever,
+   which is the kind of thing that triggers motion sensitivity and costs battery
+   on a phone; the rest are entrance animations whose end state is the one that
+   matters, so collapsing them to nothing loses no content. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto }
+  .animate-slide-up,
+  .animate-fade-in,
+  .animate-float,
+  .animate-blob,
+  .skeleton {
+    animation: none !important;
+  }
+  .animate-slide-up, .animate-fade-in { opacity: 1; transform: none }
+  .card-lift { transition: none }
+  .card-lift:hover { transform: none }
+}
+
 /* Tidy scrollbar */
 ::-webkit-scrollbar { width: 10px; height: 10px }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; border: 2px solid #f6f8f9 }

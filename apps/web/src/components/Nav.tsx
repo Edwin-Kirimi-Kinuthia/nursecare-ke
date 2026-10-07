@@ -62,8 +62,10 @@ export default function Nav() {
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");
   const careLinks = careLinksFor(user);
 
-  // Close on navigation, so tapping a link in the drawer doesn't leave it hanging open.
-  useEffect(() => { setOpen(false); }, [pathname]);
+  // Close on navigation, so tapping a link in the drawer doesn't leave it hanging
+  // open. Deferred to a microtask so the write lands after the effect rather
+  // than synchronously inside it, which cascades a second render.
+  useEffect(() => { queueMicrotask(() => setOpen(false)); }, [pathname]);
 
   // Escape to close, and hold the page still while the drawer is over it.
   useEffect(() => {

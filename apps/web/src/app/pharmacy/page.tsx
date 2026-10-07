@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, LocateFixed, MapPin, Loader2 } from "lucide-react";
+import { AlertCircle, LocateFixed, MapPin, Loader2, Pill, PackageSearch } from "lucide-react";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import DrugCard from "@/components/DrugCard";
 import DrugDetailModal from "@/components/DrugDetailModal";
 import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
+import PageHeader from "@/components/PageHeader";
+import EmptyState from "@/components/EmptyState";
 
 export default function PharmacyPage() {
   const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
@@ -44,8 +46,12 @@ export default function PharmacyPage() {
       {/* Header */}
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-12">
-          <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Pharmacy</h1>
-          <p className="mt-2 text-slate-500">Medication and supplies from vendors near you, delivered across Kenya.</p>
+          <PageHeader
+            eyebrow="Pharmacy"
+            Icon={Pill}
+            title="Medicine, delivered"
+            lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya."
+          />
 
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
@@ -111,9 +117,11 @@ export default function PharmacyPage() {
             {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-72 rounded-2xl skeleton" />)}
           </div>
         ) : drugs.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-12 text-center text-slate-400">
-            No medication found. Try a different search, category, or location.
-          </div>
+          <EmptyState
+            Icon={PackageSearch}
+            title="No medication found"
+            hint="Try a different search, category or location — stock varies by pharmacy."
+          />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {drugs.map((d) => <DrugCard key={d.drugId} d={d} onOpen={() => setSelected(d.drugId)} />)}

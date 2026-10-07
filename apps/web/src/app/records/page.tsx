@@ -10,6 +10,7 @@ import { ApiError, clinicalTemplateFor, type CreateAllergyInput, type CreateCond
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useSection, SectionShell } from "@/components/dashboard/section";
+import PageHeader from "@/components/PageHeader";
 
 type Tab = "overview" | "documents" | "consultations" | "access";
 
@@ -21,7 +22,7 @@ export default function RecordsPage() {
   const fetcher = useCallback(() => (user ? api.getRecord(user.id) : Promise.reject(new Error("not signed in"))), [user]);
   const { data: record, loading, error, reload } = useSection(fetcher);
 
-  if (authLoading) return <div className="mx-auto max-w-3xl px-4 py-16"><div className="h-40 rounded-2xl skeleton" /></div>;
+  if (authLoading) return <div className="mx-auto max-w-3xl px-4 py-10"><div className="h-40 rounded-2xl skeleton" /></div>;
   if (!user) { router.push("/login"); return null; }
 
   const TABS: { id: Tab; label: string; Icon: typeof FileText }[] = [
@@ -33,10 +34,12 @@ export default function RecordsPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight text-slate-900">
-        <FileText className="h-7 w-7 text-teal-600" /> My medical record
-      </h1>
-      <p className="mt-1 text-sm text-slate-500">Everything about your care, in one place. You control who else can see it.</p>
+      <PageHeader
+        eyebrow="Health record"
+        Icon={FileText}
+        title="My medical record"
+        lede="Everything about your care, in one place. You control who else can see it."
+      />
 
       <div className="mt-6 flex gap-1 overflow-x-auto rounded-xl border border-slate-200 bg-white p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {TABS.map(({ id, label, Icon }) => (
@@ -242,7 +245,7 @@ function MedicationModal({ patientId, onClose, onSaved }: { patientId: string; o
       <form onSubmit={submit} className="space-y-3">
         <input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Medication name"
           className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <input value={form.dosage ?? ""} onChange={(e) => setForm((f) => ({ ...f, dosage: e.target.value || undefined }))} placeholder="Dosage"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <input value={form.frequency ?? ""} onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value || undefined }))} placeholder="Frequency"

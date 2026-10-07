@@ -53,7 +53,7 @@ export default function AdminPage() {
   const stats = statsSec.data;
 
   if (authLoading || !user || user.role !== "admin") {
-    return <div className="mx-auto max-w-6xl px-4 py-16"><div className="h-40 rounded-2xl skeleton" /></div>;
+    return <div className="mx-auto max-w-6xl px-4 py-10"><div className="h-40 rounded-2xl skeleton" /></div>;
   }
 
   const TABS: { id: Tab; label: string; Icon: typeof Users }[] = [
@@ -301,8 +301,8 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
       <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">Create provider account</h2>
         <p className="mt-1 text-xs text-slate-400">
-          Skips the public apply-and-review queue — use this once you've already vetted them yourself.
-          They'll get an email to set their own password.
+          Skips the public apply-and-review queue — use this once you&apos;ve already vetted them
+          yourself. They&apos;ll get an email to set their own password.
         </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <NameFields

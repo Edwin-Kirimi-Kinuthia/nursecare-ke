@@ -79,11 +79,16 @@ export default function HomePage() {
 
           {/* Stats */}
           <div className="animate-fade-in delay-300 mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+            {/* Claims that hold at any size. These were counts ("5+ verified
+                providers", "15 pharmacy products") that overstated the real
+                figures and would have needed editing every week besides —
+                a bad trade on a health platform, where the thing being sold
+                is trust. */}
             {[
-              { k: "5+", v: "Verified providers" },
-              { k: "15", v: "Pharmacy products" },
-              { k: "24/7", v: "Always on" },
-              { k: "M-Pesa", v: "Instant pay" },
+              { k: "Licensed", v: "Every provider checked" },
+              { k: "47", v: "Counties served" },
+              { k: "24/7", v: "Ambulance dispatch" },
+              { k: "M-Pesa", v: "Instant payment" },
             ].map((s) => (
               <div key={s.v} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
                 <div className="text-2xl font-extrabold text-white">{s.k}</div>
@@ -138,7 +143,7 @@ export default function HomePage() {
               </span>
               <h3 className="mt-4 font-bold text-slate-900">{title}</h3>
               <p className="mt-2 text-sm text-slate-500">{desc}</p>
-              <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-600 opacity-0 transition group-hover:opacity-100">
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-600 transition-transform group-hover:translate-x-0.5">
                 Explore <ArrowRight className="h-4 w-4" />
               </span>
             </Link>
