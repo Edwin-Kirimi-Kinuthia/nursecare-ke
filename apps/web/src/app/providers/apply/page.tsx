@@ -7,6 +7,7 @@ import { ApiError, type ProviderApplicationInput } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { fileToDataUrl } from "@/lib/files";
+import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 const ROLES = [
   { value: "doctor", label: "Doctor" },
@@ -23,6 +24,7 @@ export default function ProviderApplyPage() {
     yearsExperience: undefined, qualifications: undefined,
     avatarUrl: "", licenceDocumentUrl: "",
   });
+  const [name, setName] = useState<NameParts>(EMPTY_NAME);
   const [licenceFileName, setLicenceFileName] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +54,7 @@ export default function ProviderApplyPage() {
     if (!form.licenceDocumentUrl) { setError("Please upload your practice licence."); return; }
     setBusy(true);
     try {
-      await api.applyAsProvider(form);
+      await api.applyAsProvider({ ...form, fullName: composeFullName(name) });
       await refresh();
       setDone(true);
     } catch (err) {
@@ -92,15 +94,13 @@ export default function ProviderApplyPage() {
       </div>
 
       <form onSubmit={submit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Full name" required value={form.fullName} onChange={(v) => set("fullName", v)} placeholder="Dr. Jane Doe" />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Profession</label>
-            <select value={form.role} onChange={(e) => set("role", e.target.value as ProviderApplicationInput["role"])}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
-              {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
-            </select>
-          </div>
+        <NameFields value={name} onChange={setName} />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Profession</label>
+          <select value={form.role} onChange={(e) => set("role", e.target.value as ProviderApplicationInput["role"])}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+            {ROLES.map((r) => <option key={r.value} value={r.value}>{r.label}</option>)}
+          </select>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Email" type="email" required value={form.email} onChange={(v) => set("email", v)} />

@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { CountryCodeSelect } from "@/components/CountryCodeSelect";
 import { COUNTRIES } from "@/lib/countries";
+import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   unsupported_provider: "That sign-in method isn't available.",
@@ -29,7 +30,8 @@ function LoginForm() {
   const oauthError = useSearchParams().get("oauthError");
   const [mode, setMode] = useState<"login" | "register">("login");
   const [step, setStep] = useState<"form" | "verify" | "forgot" | "login-otp">("form");
-  const [form, setForm] = useState({ firstName: "", otherName: "", surname: "", email: "", password: "", phone: "" });
+  const [form, setForm] = useState({ email: "", password: "", phone: "" });
+  const [name, setName] = useState<NameParts>(EMPTY_NAME);
   const [phoneCountry, setPhoneCountry] = useState(COUNTRIES[0].iso2);
   const [code, setCode] = useState("");
   const [loginCode, setLoginCode] = useState("");
@@ -51,7 +53,7 @@ function LoginForm() {
       } else {
         const dialCode = COUNTRIES.find((c) => c.iso2 === phoneCountry)?.dialCode ?? "";
         const digits = form.phone.replace(/\D/g, "").replace(/^0+/, "");
-        const fullName = [form.firstName, form.otherName, form.surname].map((s) => s.trim()).filter(Boolean).join(" ");
+        const fullName = composeFullName(name);
         await api.register({
           fullName, email: form.email, password: form.password,
           phone: digits ? `${dialCode}${digits}` : undefined, role: "patient",
@@ -297,13 +299,10 @@ function LoginForm() {
 
               <form onSubmit={submit} className="space-y-4">
                 {mode === "register" && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field label="First name" value={form.firstName} onChange={(v) => set("firstName", v)} required />
-                    <Field label="Surname" value={form.surname} onChange={(v) => set("surname", v)} required />
-                    <div className="col-span-2">
-                      <Field label="Other name (optional)" value={form.otherName} onChange={(v) => set("otherName", v)} />
-                    </div>
-                  </div>
+                  <NameFields
+                    value={name} onChange={setName}
+                    inputClassName="w-full rounded-xl border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition focus:border-teal-500 focus:ring-4 focus:ring-teal-500/10"
+                  />
                 )}
                 <Field label="Email" type="email" value={form.email} onChange={(v) => set("email", v)} required />
                 <div>

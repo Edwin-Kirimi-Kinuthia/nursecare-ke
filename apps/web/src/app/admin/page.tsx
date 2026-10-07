@@ -19,6 +19,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE } from "@/lib/payments";
 import { useSection, SectionShell } from "@/components/dashboard/section";
 import { fileToDataUrl } from "@/lib/files";
+import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "reviews" | "audit" | "pay-verify";
 
@@ -267,6 +268,7 @@ const EMPTY_PROVIDER: AdminCreateProviderInput = { fullName: "", email: "", role
 
 function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCreated: (email: string) => void }) {
   const [form, setForm] = useState<AdminCreateProviderInput>({ ...EMPTY_PROVIDER });
+  const [name, setName] = useState<NameParts>(EMPTY_NAME);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const set = <K extends keyof AdminCreateProviderInput>(k: K, v: AdminCreateProviderInput[K]) => setForm((f) => ({ ...f, [k]: v }));
@@ -281,7 +283,7 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
     e.preventDefault();
     setErr(null); setBusy(true);
     try {
-      await api.adminCreateProvider(form);
+      await api.adminCreateProvider({ ...form, fullName: composeFullName(name) });
       onCreated(form.email);
     } catch (e) { setErr(e instanceof Error ? e.message : "Failed to create account"); }
     finally { setBusy(false); }
@@ -296,8 +298,11 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
           They'll get an email to set their own password.
         </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
-          <input required value={form.fullName} onChange={(e) => set("fullName", e.target.value)} placeholder="Full name"
-            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          <NameFields
+            value={name} onChange={setName}
+            inputClassName="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+            labelClassName="text-xs font-medium text-slate-500"
+          />
           <input required type="email" value={form.email} onChange={(e) => set("email", e.target.value)} placeholder="Email"
             className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
           <input value={form.phone ?? ""} onChange={(e) => set("phone", e.target.value || undefined)} placeholder="Phone (optional)"

@@ -6,6 +6,7 @@ import { Building2, CheckCircle2, Loader2, LocateFixed } from "lucide-react";
 import { ApiError, KENYA_COUNTIES, type VendorApplicationInput } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
 
 const ORG_TYPES = [
   { value: "pharmacy", label: "Pharmacy" },
@@ -29,6 +30,7 @@ const EMPTY: VendorApplicationInput = {
 export default function VendorApplyPage() {
   const { refresh } = useAuth();
   const [form, setForm] = useState<VendorApplicationInput>(EMPTY);
+  const [name, setName] = useState<NameParts>(EMPTY_NAME);
   const [busy, setBusy] = useState(false);
   const [locating, setLocating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function VendorApplyPage() {
     e.preventDefault();
     setError(null); setBusy(true);
     try {
-      await api.applyAsVendor(form);
+      await api.applyAsVendor({ ...form, fullName: composeFullName(name) });
       await refresh();
       setDone(true);
     } catch (err) {
@@ -97,15 +99,13 @@ export default function VendorApplyPage() {
       </div>
 
       <form onSubmit={submit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Your full name" required value={form.fullName} onChange={(v) => set("fullName", v)} />
-          <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700">Business type</label>
-            <select value={form.orgType} onChange={(e) => set("orgType", e.target.value as VendorApplicationInput["orgType"])}
-              className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
-              {ORG_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+        <NameFields value={name} onChange={setName} />
+        <div>
+          <label className="mb-1 block text-sm font-medium text-slate-700">Business type</label>
+          <select value={form.orgType} onChange={(e) => set("orgType", e.target.value as VendorApplicationInput["orgType"])}
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100">
+            {ORG_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+          </select>
         </div>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field label="Email" type="email" required value={form.email} onChange={(v) => set("email", v)} />
