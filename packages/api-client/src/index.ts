@@ -112,12 +112,41 @@ import { ApiError, ErrorCode, LAUNCH_RESET_CONFIRM_PHRASE } from "@carebora/shar
 export interface ClientOptions {
   baseUrl: string;
   getToken?: () => string | null | Promise<string | null>;
+  /**
+   * Mobile: called when a request made with an access token comes back 401 —
+   * the access token has expired (they last 15 minutes). Use the stored refresh
+   * token to get a new pair (`client.refresh(refreshToken)`), save it so
+   * `getToken` returns the new access token, and resolve `true`. Resolve `false`
+   * (or throw) if the session is really over and the user must sign in again.
+   *
+   * The client calls this at most once at a time however many requests fail at
+   * once, then retries each failed request a single time. Leave it unset on the
+   * web, where the browser holds the session in cookies.
+   */
+  onUnauthorized?: () => boolean | Promise<boolean>;
 }
+
+/** Endpoints where a 401 means "wrong credentials" or "no session", not "token expired". */
+const NO_REFRESH_PATHS = [
+  "/auth/login", "/auth/register", "/auth/refresh", "/auth/logout",
+  "/auth/forgot-password", "/auth/set-password", "/auth/verify-email",
+];
 
 export class CareBoraClient {
   constructor(private readonly opts: ClientOptions) {}
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  /** One refresh in flight at a time; every request that fails meanwhile waits on it. */
+  private refreshing: Promise<boolean> | null = null;
+
+  private refreshOnce(): Promise<boolean> {
+    this.refreshing ??= Promise.resolve()
+      .then(() => this.opts.onUnauthorized!())
+      .catch(() => false)
+      .finally(() => { this.refreshing = null; });
+    return this.refreshing;
+  }
+
+  private async request<T>(path: string, init: RequestInit = {}, retried = false): Promise<T> {
     const token = (await this.opts.getToken?.()) ?? null;
     const res = await fetch(`${this.opts.baseUrl}${path}`, {
       ...init,
@@ -129,6 +158,14 @@ export class CareBoraClient {
       },
     });
 
+    // An expired access token: refresh once, then replay this request.
+    if (
+      res.status === 401 && token && !retried && this.opts.onUnauthorized &&
+      !NO_REFRESH_PATHS.some((p) => path.startsWith(p))
+    ) {
+      if (await this.refreshOnce()) return this.request<T>(path, init, true);
+    }
+
     let body: ApiResult<T>;
     try {
       body = (await res.json()) as ApiResult<T>;
@@ -137,8 +174,16 @@ export class CareBoraClient {
     }
 
     if (!res.ok || "error" in body) {
-      const e = (body as { error?: { code: ErrorCode; message: string } }).error;
-      throw new ApiError(e?.code ?? ErrorCode.INTERNAL, e?.message ?? "Request failed");
+      const e = (body as { error?: { code: ErrorCode; message: string; details?: unknown } }).error;
+      // `details` carries the per-field validation errors a form needs to point
+      // at the right input; it used to be thrown away here. A 429 also says how
+      // long to wait.
+      const retryAfter = res.headers.get("Retry-After");
+      throw new ApiError(
+        e?.code ?? ErrorCode.INTERNAL,
+        e?.message ?? "Request failed",
+        retryAfter ? { ...(typeof e?.details === "object" && e.details ? e.details : {}), retryAfterSeconds: Number(retryAfter) } : e?.details,
+      );
     }
     return (body as { data: T }).data;
   }
@@ -149,6 +194,11 @@ export class CareBoraClient {
 
   private patch<T>(path: string, payload: unknown) {
     return this.request<T>(path, { method: "PATCH", body: JSON.stringify(payload) });
+  }
+
+  /** Public settings a client needs before sign-in: payment mode, contacts, password rules, upload limits. */
+  getConfig() {
+    return this.request<AppConfig>("/config");
   }
 
   // ── Health ──
@@ -1616,6 +1666,22 @@ export interface ReviewListResult {
   total: number;
   limit: number;
   offset: number;
+}
+
+// ── Config ──────────────────────────────────────────────────────────────────
+
+export interface AppConfig {
+  app: { name: string; apiVersion: string; minSupportedAppVersion: string | null };
+  contact: { ambulancePhone: string; supportPhones: string[]; supportEmail: string; nationalEmergencyNumbers: string[] };
+  payments: {
+    currency: "KES";
+    mode: "mpesa_daraja" | "jenga" | "till";
+    /** M-Pesa sandbox: the "simulate payment" shortcut is only valid when true. */
+    sandbox: boolean;
+    till?: { number: string | null; name: string | null };
+  };
+  auth: { passwordMinLength: number; passwordRules: string[]; nameTitles: string[] };
+  uploads: { maxBytesByKind: Record<string, number>; maxRequestBodyBytes: number };
 }
 
 // ── Support ─────────────────────────────────────────────────────────────────

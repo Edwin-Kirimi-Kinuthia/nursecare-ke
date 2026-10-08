@@ -7,8 +7,8 @@ import { ok, toErrorResponse } from "@carebora/shared";
  * `{ data }` / `{ error }` envelope.
  */
 
-export function jsonOk<T>(data: T, status = 200) {
-  return NextResponse.json(ok(data), { status });
+export function jsonOk<T>(data: T, status = 200, headers?: Record<string, string>) {
+  return NextResponse.json(ok(data), { status, ...(headers ? { headers } : {}) });
 }
 
 export function jsonError(err: unknown) {

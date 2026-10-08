@@ -36,8 +36,66 @@ function generateOtp(): string {
   return String(randomInt(0, 1_000_000)).padStart(6, "0");
 }
 
+/**
+ * A 6-digit code has a million possible values and lives for ten minutes, so
+ * without a limit it can simply be guessed — the check used to answer "wrong"
+ * indefinitely, and the right code still worked after any number of misses.
+ * Each code now accepts a few guesses and then locks.
+ */
+const MAX_CODE_ATTEMPTS = 5;
+
+/** How many fresh codes one account may be sent per window — otherwise requesting
+ *  a new code (which resets the guess count) is just a slower way to brute-force,
+ *  and a free way to flood someone's inbox. */
+const MAX_CODES_PER_WINDOW = 5;
+const CODE_WINDOW_MS = 15 * 60 * 1000;
+
+async function assertCanIssueCode(userId: string, channel: string) {
+  const recent = await db.verificationCode.count({
+    where: { userId, channel, createdAt: { gte: new Date(Date.now() - CODE_WINDOW_MS) } },
+  });
+  if (recent >= MAX_CODES_PER_WINDOW) {
+    throw ApiError.tooManyRequests("Too many codes requested. Please wait a few minutes before trying again.");
+  }
+}
+
+/**
+ * Check a submitted code against the newest live one for this user and channel.
+ *
+ * The attempt is spent *before* the comparison, atomically, and only while
+ * attempts remain. Comparing first and counting after would let a burst of
+ * parallel requests each pass the "attempts left?" check before any of them
+ * recorded a miss, which is the one way to get past a counter.
+ *
+ * Returns the record on a match; throws `invalid` (the caller's own error, so
+ * each endpoint keeps its existing status) or a 429 once the code is locked.
+ */
+async function spendCodeAttempt(
+  userId: string,
+  channel: string,
+  code: string,
+  invalid: () => ApiError,
+) {
+  const record = await db.verificationCode.findFirst({
+    where: { userId, channel, consumedAt: null },
+    orderBy: { createdAt: "desc" },
+  });
+  if (!record || record.expiresAt < new Date()) throw invalid();
+
+  const spent = await db.verificationCode.updateMany({
+    where: { id: record.id, consumedAt: null, attempts: { lt: MAX_CODE_ATTEMPTS } },
+    data: { attempts: { increment: 1 } },
+  });
+  if (spent.count === 0) {
+    throw ApiError.tooManyRequests("Too many incorrect attempts. Please request a new code.");
+  }
+  if (record.codeHash !== hashCode(code)) throw invalid();
+  return record;
+}
+
 /** Generate a 6-digit email verification code, store its hash, and email it. */
 async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullName">) {
+  await assertCanIssueCode(user.id, "email");
   const code = generateOtp();
   await db.verificationCode.create({
     data: {
@@ -56,6 +114,7 @@ async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullNam
 
 /** Second factor on every password login: a 6-digit code emailed after the password checks out. */
 async function issueLoginOtp(user: Pick<User, "id" | "email" | "fullName">) {
+  await assertCanIssueCode(user.id, "login_otp");
   const code = generateOtp();
   await db.verificationCode.create({
     data: {
@@ -70,6 +129,7 @@ async function issueLoginOtp(user: Pick<User, "id" | "email" | "fullName">) {
 
 /** Second factor on changing your own password while logged in: a 6-digit code emailed after the current password checks out. */
 async function issueChangePasswordOtp(user: Pick<User, "id" | "email" | "fullName">) {
+  await assertCanIssueCode(user.id, "change_password_otp");
   const code = generateOtp();
   await db.verificationCode.create({
     data: {
@@ -197,13 +257,7 @@ export const authService = {
 
   /** Confirm a code emailed by `requestEmailVerification` and mark the email verified. */
   async verifyEmail(userId: string, code: string): Promise<PublicUser> {
-    const record = await db.verificationCode.findFirst({
-      where: { userId, channel: "email", consumedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!record || record.expiresAt < new Date() || record.codeHash !== hashCode(code)) {
-      throw ApiError.badRequest("Invalid or expired code");
-    }
+    const record = await spendCodeAttempt(userId, "email", code, () => ApiError.badRequest("Invalid or expired code"));
     const [, user] = await db.$transaction([
       db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
       db.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } }),
@@ -253,13 +307,7 @@ export const authService = {
 
   /** Step 2: confirm the emailed code and set the new password. */
   async confirmChangePassword(userId: string, code: string, newPassword: string) {
-    const record = await db.verificationCode.findFirst({
-      where: { userId, channel: "change_password_otp", consumedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!record || record.expiresAt < new Date() || record.codeHash !== hashCode(code)) {
-      throw ApiError.badRequest("Invalid or expired code");
-    }
+    const record = await spendCodeAttempt(userId, "change_password_otp", code, () => ApiError.badRequest("Invalid or expired code"));
     await db.$transaction([
       db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
       db.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } }),
@@ -405,13 +453,7 @@ export const authService = {
     const user = await db.user.findUnique({ where: { email } });
     if (!user) throw ApiError.unauthorized("Invalid or expired code");
 
-    const record = await db.verificationCode.findFirst({
-      where: { userId: user.id, channel: "login_otp", consumedAt: null },
-      orderBy: { createdAt: "desc" },
-    });
-    if (!record || record.expiresAt < new Date() || record.codeHash !== hashCode(code)) {
-      throw ApiError.unauthorized("Invalid or expired code");
-    }
+    const record = await spendCodeAttempt(user.id, "login_otp", code, () => ApiError.unauthorized("Invalid or expired code"));
     await db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } });
 
     const tokens = await issueSession(user.id, user.role as UserRole, meta);

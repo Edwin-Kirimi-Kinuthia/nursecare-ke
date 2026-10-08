@@ -1,13 +1,72 @@
 import { NextResponse } from "next/server";
+import generated from "./generated.json";
 
 const BASE = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
 
 const bearerAuth = { bearerAuth: [] };
 
-/** GET /api/v1/openapi — machine-readable OpenAPI 3.1 spec for all CareBora endpoints. */
+type Op = Record<string, unknown>;
+type PathItem = Record<string, Op>;
+
+/**
+ * Stable, unique function names for SDK generators: GET /providers/{providerId}/slots
+ * becomes getProvidersByProviderIdSlots. Derived from the route so it never
+ * has to be maintained by hand and can't collide.
+ */
+function operationId(method: string, path: string) {
+  const words = path
+    .split("/")
+    .filter(Boolean)
+    .flatMap((seg) => {
+      const param = /^\{(.+)\}$/.exec(seg);
+      return param ? ["by", param[1]!] : seg.split(/[-_]/);
+    });
+  return method.toLowerCase() + words.map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("");
+}
+
+/** "/appointments/{appointmentId}" and "/appointments/{id}" are the same route. */
+const shape = (path: string) => path.replace(/\{[^}]+\}/g, "{}");
+
+/**
+ * Combine the hand-written spec with the one generated from the route files.
+ *
+ * The hand-written entries carry curated wording, so their summary, description
+ * and tags are kept. Everything that can be wrong or missing there — the request
+ * body, query and path parameters, the auth requirement — comes from the
+ * generated side, because that is read from the code. An endpoint that exists
+ * only in the code (every one added since the spec was written) appears as
+ * generated, so nothing is undocumented.
+ */
+function mergePaths(hand: Record<string, PathItem>, gen: Record<string, PathItem>): Record<string, PathItem> {
+  const handByShape = new Map<string, [string, PathItem]>();
+  for (const [path, item] of Object.entries(hand)) handByShape.set(shape(path), [path, item]);
+
+  const out: Record<string, PathItem> = {};
+  for (const [path, genItem] of Object.entries(gen)) {
+    const handItem = handByShape.get(shape(path))?.[1] ?? {};
+    out[path] = {};
+    for (const [method, g] of Object.entries(genItem)) {
+      const h = handItem[method];
+      out[path]![method] = h
+        ? {
+            ...g,
+            operationId: operationId(method, path),
+            ...(h.summary ? { summary: h.summary } : {}),
+            ...(h.description ? { description: h.description } : {}),
+            ...(h.tags ? { tags: h.tags } : {}),
+            responses: { ...(g.responses as object), ...(h.responses as object) },
+            ...(g.requestBody ? {} : h.requestBody ? { requestBody: h.requestBody } : {}),
+          }
+        : { ...g, operationId: operationId(method, path) };
+    }
+  }
+  return out;
+}
+
+/** GET /api/v1/openapi — machine-readable OpenAPI 3.0 spec for all CareBora endpoints. */
 export function GET() {
   const spec = {
-    openapi: "3.1.0",
+    openapi: "3.0.3",
     info: {
       title: "CareBora API",
       version: "1.0.0",
@@ -410,7 +469,39 @@ export function GET() {
     ],
   };
 
-  return NextResponse.json(spec, {
+  const full = {
+    ...spec,
+    paths: mergePaths(spec.paths as unknown as Record<string, PathItem>, generated.paths as unknown as Record<string, PathItem>),
+    components: {
+      ...spec.components,
+      schemas: {
+        ...spec.components.schemas,
+        // Every success response is wrapped as { data: … }; every failure as { error: … }.
+        DataEnvelope: { type: "object", properties: { data: {} }, required: ["data"] },
+        ErrorEnvelope: {
+          type: "object",
+          required: ["error"],
+          properties: {
+            error: {
+              type: "object",
+              required: ["code", "message"],
+              properties: {
+                code: { type: "string", enum: ["VALIDATION_ERROR", "BAD_REQUEST", "UNAUTHORIZED", "FORBIDDEN", "NOT_FOUND", "CONFLICT", "RATE_LIMITED", "INTERNAL", "SERVICE_UNAVAILABLE"] },
+                message: { type: "string" },
+                details: { description: "For VALIDATION_ERROR: { fieldErrors: { field: [messages] } }." },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        Error: { description: "Error", content: { "application/json": { schema: { $ref: "#/components/schemas/ErrorEnvelope" } } } },
+      },
+    },
+    tags: [...spec.tags, { name: "AI" }, { name: "Notifications" }, { name: "Support" }],
+  };
+
+  return NextResponse.json(full, {
     headers: { "Access-Control-Allow-Origin": "*" },
   });
 }

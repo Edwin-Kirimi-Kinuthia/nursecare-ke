@@ -254,10 +254,14 @@ model VerificationCode {
   codeHash   String    @map("code_hash")
   expiresAt  DateTime  @map("expires_at") @db.Timestamptz(6)
   consumedAt DateTime? @map("consumed_at") @db.Timestamptz(6)
+  /// Guesses spent against this code. A 6-digit code has only a million values,
+  /// so it must stop accepting guesses after a handful (see MAX_CODE_ATTEMPTS).
+  attempts   Int       @default(0)
   createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, channel, createdAt])
   @@map("verification_codes")
 }
 
