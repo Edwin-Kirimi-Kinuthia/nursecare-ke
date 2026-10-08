@@ -14,9 +14,10 @@ import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { PhoneField } from "@/components/PhoneField";
 import { PasswordField } from "@/components/PasswordField";
+import IdentityCard from "@/components/IdentityCard";
 
 export default function ProfilePage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, refresh } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -29,27 +30,7 @@ export default function ProfilePage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
-      {/* Header */}
-      <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white">
-        <div className="h-24 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600" />
-        <div className="px-6 pb-6">
-          <div className="-mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-end">
-            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-3xl font-bold text-teal-700 shadow">
-              {user.avatarUrl
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover" />
-                : user.fullName.charAt(0)}
-            </div>
-            <div className="min-w-0 pb-1">
-              <h1 className="truncate text-2xl font-extrabold text-slate-900">{user.fullName}</h1>
-              <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500">
-                <span className="truncate">{user.email}</span>
-                <span className="rounded-full bg-teal-100 px-2 py-0.5 text-xs font-semibold capitalize text-teal-700">{user.role}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <IdentityCard user={user} onSaved={refresh} />
 
       {/* Everyone has patient details of their own — blood group, allergies, an
           emergency contact — because any account can receive care. A clinician

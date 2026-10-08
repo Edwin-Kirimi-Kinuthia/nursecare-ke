@@ -39,6 +39,32 @@ export const createDrugSchema = z.object({
 });
 export type CreateDrugInput = z.infer<typeof createDrugSchema>;
 
+/**
+ * What the admin catalogue form sends.
+ *
+ * A Drug is the shared catalogue entry and deliberately carries no price — a
+ * price belongs to a Listing, which is one pharmacy's offer of that drug. But
+ * the storefront only ever shows Listings, so a drug added to the catalogue
+ * alone is invisible to clients no matter how complete it looks in the admin
+ * panel. Taking price and stock here lets the admin do both in one step: the
+ * catalogue entry, and Care Bora's own listing of it.
+ *
+ * Stock is what makes it visible — the storefront requires stock_qty > 0 — so
+ * it is required rather than defaulted to zero.
+ */
+export const adminCreateDrugSchema = createDrugSchema.extend({
+  priceKes: z.number().int().min(1, "Set a price"),
+  stockQty: z.number().int().min(0),
+});
+export type AdminCreateDrugInput = z.infer<typeof adminCreateDrugSchema>;
+
+export const adminUpdateDrugSchema = createDrugSchema.partial().extend({
+  isActive: z.boolean().optional(),
+  priceKes: z.number().int().min(1).optional(),
+  stockQty: z.number().int().min(0).optional(),
+});
+export type AdminUpdateDrugInput = z.infer<typeof adminUpdateDrugSchema>;
+
 export const updateDrugSchema = createDrugSchema.partial().extend({
   isActive: z.boolean().optional(),
 });

@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 import type {
   PlatformStats, AdminUserSummary, VerificationProvider, AuditLogEntry, HomeVisit, Review,
-  Appointment, Drug, Order, ProviderPublicProfile, Organization, OrgBranch, SupportTicket,
+  Appointment, AdminDrug, Order, ProviderPublicProfile, Organization, OrgBranch, SupportTicket,
 } from "@carebora/api-client";
-import type { CreateDrugInput, TillVerificationItem, AdminCreateProviderInput, LaunchResetPreview } from "@carebora/shared";
+import type { AdminCreateDrugInput, TillVerificationItem, AdminCreateProviderInput, AdminPatchUserInput, LaunchResetPreview } from "@carebora/shared";
 import {
   LAUNCH_RESET_CONFIRM_PHRASE,
   SUPPORT_CATEGORY_LABELS, SUPPORT_DOCUMENT_LABELS, SUPPORT_STATUS_LABELS,
@@ -24,7 +24,7 @@ import { IS_TILL_MODE } from "@/lib/payments";
 import { useSection, SectionShell } from "@/components/dashboard/section";
 import { fileToDataUrl } from "@/lib/files";
 import { PhoneField } from "@/components/PhoneField";
-import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
+import { NameFields, EMPTY_NAME, composeFullName, splitFullName, type NameParts } from "@/components/NameFields";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify";
 
@@ -201,6 +201,7 @@ function UsersTab() {
   const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number]>("all");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [openUserId, setOpenUserId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
 
@@ -227,6 +228,9 @@ function UsersTab() {
         </button>
       </div>
       {notice && <p className="mb-3 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-700">{notice}</p>}
+      {openUserId && (
+        <UserModal userId={openUserId} onClose={() => setOpenUserId(null)} onSaved={reload} />
+      )}
       <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
         <table className="w-full min-w-[560px] text-sm">
           <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
@@ -235,7 +239,23 @@ function UsersTab() {
           <tbody className="divide-y divide-slate-100">
             {users.map((u: AdminUserSummary) => (
               <tr key={u.id} className="hover:bg-slate-50">
-                <td className="px-4 py-3 font-medium text-slate-800">{u.fullName}</td>
+                <td className="px-4 py-3">
+                  {/* The row opens the full record — a button rather than the
+                      <tr>, so the Disable control beside it still works and
+                      the row stays reachable by keyboard. */}
+                  <button
+                    onClick={() => setOpenUserId(u.id)}
+                    className="flex items-center gap-2 text-left font-medium text-slate-800 hover:text-teal-700"
+                  >
+                    <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-gradient-to-br from-teal-100 to-emerald-100 text-xs font-bold text-teal-700">
+                      {u.avatarUrl
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={u.avatarUrl} alt="" className="h-full w-full object-cover object-top" />
+                        : u.fullName.charAt(0)}
+                    </span>
+                    <span className="truncate underline-offset-2 hover:underline">{u.fullName}</span>
+                  </button>
+                </td>
                 <td className="px-4 py-3 text-slate-500">{u.email}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">{u.role}</span></td>
                 <td className="px-4 py-3">
@@ -910,16 +930,19 @@ function AppointmentsTab() {
   );
 }
 
-// ── Drug catalogue curation (admin-only; vendors manage price/stock as Listings) ──
-const EMPTY_DRUG: CreateDrugInput = { name: "", category: "", requiresPrescription: false };
+// ── Pharmacy catalogue (admin sells through Care Bora's own pharmacy; vendor
+//    pharmacies manage their own price/stock from the vendor dashboard) ──
+const EMPTY_DRUG: AdminCreateDrugInput = {
+  name: "", category: "", requiresPrescription: false, priceKes: 0, stockQty: 0,
+};
 
 function PharmacyTab() {
   const fetcher = useCallback(() => api.adminListDrugs({ limit: 50 }).then((r) => r.drugs), []);
   const { data, loading, error, reload } = useSection(fetcher);
   const drugs = data ?? [];
-  const [editing, setEditing] = useState<Drug | "new" | null>(null);
+  const [editing, setEditing] = useState<AdminDrug | "new" | null>(null);
 
-  async function remove(d: Drug) {
+  async function remove(d: AdminDrug) {
     if (!confirm(`Remove "${d.name}" from the shared catalogue? This hides it from every vendor.`)) return;
     try { await api.adminDeleteDrug(d.id); await reload(); }
     catch (e) { alert(e instanceof Error ? e.message : "Failed to remove"); }
@@ -928,7 +951,12 @@ function PharmacyTab() {
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={false}>
       <div className="mb-3 flex items-center justify-between">
-        <p className="text-sm text-slate-500">{drugs.length} drugs in the shared catalogue</p>
+        <p className="text-sm text-slate-500">
+          {drugs.length} in the catalogue
+          {drugs.length > 0 && (
+            <> · <span className="font-semibold text-slate-700">{drugs.filter((d: AdminDrug) => d.sellerCount > 0).length}</span> on sale</>
+          )}
+        </p>
         <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
           <Plus className="h-4 w-4" /> Add drug
         </button>
@@ -939,10 +967,10 @@ function PharmacyTab() {
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full min-w-[520px] text-sm">
             <thead className="bg-slate-50 text-left text-xs uppercase text-slate-500">
-              <tr><th className="px-4 py-3">Drug</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Type</th><th className="px-4 py-3 text-right">Actions</th></tr>
+              <tr><th className="px-4 py-3">Drug</th><th className="px-4 py-3">Category</th><th className="px-4 py-3">Type</th><th className="px-4 py-3">Price</th><th className="px-4 py-3">Stock</th><th className="px-4 py-3 text-right">Actions</th></tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {drugs.map((d: Drug) => (
+              {drugs.map((d: AdminDrug) => (
                 <tr key={d.id} className={`hover:bg-slate-50 ${!d.isActive ? "opacity-50" : ""}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -959,6 +987,19 @@ function PharmacyTab() {
                   </td>
                   <td className="px-4 py-3 text-slate-500">{d.category}</td>
                   <td className="px-4 py-3">{d.requiresPrescription ? <span className="rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-700">Rx</span> : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">OTC</span>}</td>
+                  <td className="px-4 py-3 text-slate-700">{d.priceKes === null ? <span className="text-slate-300">—</span> : kes(d.priceKes)}</td>
+                  <td className="px-4 py-3">
+                    {/* Stock is what decides visibility: the storefront only
+                        shows listings with stock, so zero reads as "not on
+                        sale" rather than merely low. */}
+                    {d.sellerCount > 0 ? (
+                      <span className="font-medium text-slate-700">{d.stockQty ?? "—"}</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700" title="Clients cannot see this yet — it needs a price and stock above zero.">
+                        <AlertTriangle className="h-3 w-3" /> Not on sale
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
                       <button onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
@@ -976,17 +1017,18 @@ function PharmacyTab() {
   );
 }
 
-function DrugModal({ drug, onClose, onSaved }: { drug: Drug | null; onClose: () => void; onSaved: () => void }) {
-  const [form, setForm] = useState<CreateDrugInput>(drug ? {
+function DrugModal({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState<AdminCreateDrugInput>(drug ? {
     name: drug.name, genericName: drug.genericName ?? undefined, description: drug.description ?? undefined,
     category: drug.category, form: drug.form ?? undefined, strength: drug.strength ?? undefined,
     requiresPrescription: drug.requiresPrescription,
     images: drug.images?.length ? drug.images : drug.imageUrl ? [drug.imageUrl] : [],
+    priceKes: drug.priceKes ?? 0, stockQty: drug.stockQty ?? 0,
   } : { ...EMPTY_DRUG });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
-  const set = <K extends keyof CreateDrugInput>(k: K, v: CreateDrugInput[K]) => setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof AdminCreateDrugInput>(k: K, v: AdminCreateDrugInput[K]) => setForm((f) => ({ ...f, [k]: v }));
   const images = form.images ?? [];
 
   async function onPickFiles(e: React.ChangeEvent<HTMLInputElement>) {
@@ -1017,7 +1059,10 @@ function DrugModal({ drug, onClose, onSaved }: { drug: Drug | null; onClose: () 
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl">
         <h2 className="text-lg font-bold text-slate-900">{drug ? "Edit drug" : "Add drug"}</h2>
-        <p className="mt-1 text-xs text-slate-400">Shared across every vendor. Price and stock are set per-vendor in their own catalogue.</p>
+        <p className="mt-1 text-xs text-slate-400">
+          Added to the shared catalogue and listed for sale through Care Bora Pharmacy.
+          Vendor pharmacies set their own price and stock from their dashboard.
+        </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           {/* Images (up to 6) */}
           <div>
@@ -1061,6 +1106,36 @@ function DrugModal({ drug, onClose, onSaved }: { drug: Drug | null; onClose: () 
             <input type="checkbox" checked={form.requiresPrescription ?? false} onChange={(e) => set("requiresPrescription", e.target.checked)} className="h-4 w-4 rounded border-slate-300 text-teal-600" />
             Requires prescription (Rx)
           </label>
+
+          <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+            <div className="text-xs font-semibold uppercase tracking-wide text-teal-700">Care Bora Pharmacy listing</div>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">Price (KES)</span>
+                <input
+                  required type="number" min="1" value={form.priceKes || ""}
+                  onChange={(e) => set("priceKes", parseInt(e.target.value, 10) || 0)}
+                  placeholder="e.g. 250"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </label>
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-slate-600">Stock quantity</span>
+                <input
+                  required type="number" min="0" value={form.stockQty}
+                  onChange={(e) => set("stockQty", parseInt(e.target.value, 10) || 0)}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                />
+              </label>
+            </div>
+            {form.stockQty === 0 && (
+              <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
+                <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
+                Clients won&apos;t see this while stock is zero. Set a quantity to put it on sale.
+              </p>
+            )}
+          </div>
+
           {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={busy} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">{busy ? "Saving…" : drug ? "Save changes" : "Add drug"}</button>
@@ -1304,5 +1379,226 @@ function AdminTicket({
         </div>
       )}
     </div>
+  );
+}
+
+/* ── One user's full record, editable ─────────────────────────────────────── */
+const VERIFICATION_OPTIONS = ["unverified", "pending", "in_review", "verified", "rejected"] as const;
+
+function UserModal({ userId, onClose, onSaved }: { userId: string; onClose: () => void; onSaved: () => void }) {
+  const fetcher = useCallback(() => api.adminGetUser(userId), [userId]);
+  const { data: user, loading, error, reload } = useSection(fetcher);
+
+  const [name, setName] = useState<NameParts>(EMPTY_NAME);
+  const [phone, setPhone] = useState("");
+  const [prov, setProv] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const hydrated = useRef(false);
+
+  // Fill the form once the record arrives, without clobbering later typing.
+  useEffect(() => {
+    if (!user || hydrated.current) return;
+    hydrated.current = true;
+    queueMicrotask(() => {
+      setName(splitFullName(user.fullName));
+      setPhone(user.phone ?? "");
+      const p = user.providerProfile;
+      if (p) {
+        setProv({
+          specialty: p.specialty ?? "",
+          subSpecialty: p.subSpecialty ?? "",
+          licenceNumber: p.licenceNumber ?? "",
+          licenceBody: p.licenceBody ?? "",
+          county: p.county ?? "",
+          town: p.town ?? "",
+          consultationFeeKes: String(p.consultationFeeKes ?? ""),
+          homeVisitFeeKes: String(p.homeVisitFeeKes ?? ""),
+          yearsExperience: String(p.yearsExperience ?? ""),
+          verificationStatus: p.verificationStatus,
+          bio: p.bio ?? "",
+        });
+      }
+    });
+  }, [user]);
+
+  async function pickPhoto(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (file.size > 3_000_000) { setErr("That image is over 3MB."); return; }
+    setPhotoBusy(true); setErr(null);
+    try {
+      await api.adminPatchUser(userId, { avatarUrl: await fileToDataUrl(file) });
+      await reload(); onSaved();
+    } catch (e) { setErr(e instanceof Error ? e.message : "Could not upload that photo"); }
+    finally { setPhotoBusy(false); }
+  }
+
+  const num = (v: string) => (v.trim() === "" ? undefined : parseInt(v, 10));
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try {
+      const input: AdminPatchUserInput = {
+        fullName: composeFullName(name),
+        phone: phone.trim(),
+        ...(user?.providerProfile
+          ? {
+              providerProfile: {
+                specialty: prov.specialty || undefined,
+                subSpecialty: prov.subSpecialty || undefined,
+                licenceNumber: prov.licenceNumber || undefined,
+                licenceBody: prov.licenceBody || undefined,
+                county: prov.county || undefined,
+                town: prov.town || undefined,
+                bio: prov.bio || undefined,
+                consultationFeeKes: num(prov.consultationFeeKes ?? ""),
+                homeVisitFeeKes: num(prov.homeVisitFeeKes ?? ""),
+                yearsExperience: num(prov.yearsExperience ?? ""),
+                verificationStatus: prov.verificationStatus as (typeof VERIFICATION_OPTIONS)[number],
+              },
+            }
+          : {}),
+      };
+      await api.adminPatchUser(userId, input);
+      await reload(); onSaved();
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (e) { setErr(e instanceof Error ? e.message : "Failed to save"); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-lg font-bold text-slate-900">User record</h2>
+          <button onClick={onClose} aria-label="Close" className="-mr-1 -mt-1 rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {loading ? (
+          <div className="mt-4 h-64 rounded-2xl skeleton" />
+        ) : error || !user ? (
+          <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm text-rose-700">{error ?? "Could not load this user."}</p>
+        ) : (
+          <>
+            <div className="mt-4 flex items-center gap-4">
+              <div className="relative shrink-0">
+                <div className="grid h-16 w-16 place-items-center overflow-hidden rounded-2xl bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700">
+                  {user.avatarUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover object-top" />
+                    : user.fullName.charAt(0)}
+                </div>
+                <button type="button" onClick={() => fileRef.current?.click()} disabled={photoBusy}
+                  aria-label="Change photo"
+                  className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-teal-600 text-white shadow hover:bg-teal-700 disabled:opacity-60">
+                  {photoBusy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Upload className="h-3 w-3" />}
+                </button>
+                <input ref={fileRef} type="file" accept="image/*" onChange={pickPhoto} className="hidden" />
+              </div>
+              <div className="min-w-0">
+                <div className="truncate font-semibold text-slate-900">{user.fullName}</div>
+                <div className="truncate text-sm text-slate-500">{user.email}</div>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-700">{user.role}</span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${user.isActive ? "bg-emerald-100 text-emerald-700" : "bg-rose-100 text-rose-700"}`}>
+                    {user.isActive ? "Active" : "Disabled"}
+                  </span>
+                  <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${user.emailVerifiedAt ? "bg-teal-100 text-teal-700" : "bg-amber-100 text-amber-700"}`}>
+                    {user.emailVerifiedAt ? "Email verified" : "Email unverified"}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <form onSubmit={save} className="mt-5 space-y-4 border-t border-slate-100 pt-5">
+              <NameFields value={name} onChange={setName} />
+              <PhoneField label="Phone" value={phone} onChange={setPhone} />
+              <p className="text-xs text-slate-400">
+                Email is the login identity and where every security code goes, so it isn&apos;t
+                editable here.
+              </p>
+
+              {user.providerProfile && (
+                <div className="rounded-xl border border-teal-200 bg-teal-50/60 p-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide text-teal-700">Provider details</div>
+                  <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                    <ProvField label="Specialty" v={prov.specialty ?? ""} on={(v) => setProv((p) => ({ ...p, specialty: v }))} />
+                    <ProvField label="Sub-specialty" v={prov.subSpecialty ?? ""} on={(v) => setProv((p) => ({ ...p, subSpecialty: v }))} />
+                    <ProvField label="Licence number" v={prov.licenceNumber ?? ""} on={(v) => setProv((p) => ({ ...p, licenceNumber: v }))} />
+                    <ProvField label="Licence body" v={prov.licenceBody ?? ""} on={(v) => setProv((p) => ({ ...p, licenceBody: v }))} />
+                    <ProvField label="County" v={prov.county ?? ""} on={(v) => setProv((p) => ({ ...p, county: v }))} />
+                    <ProvField label="Town" v={prov.town ?? ""} on={(v) => setProv((p) => ({ ...p, town: v }))} />
+                    <ProvField label="Consultation fee (KES)" type="number" v={prov.consultationFeeKes ?? ""} on={(v) => setProv((p) => ({ ...p, consultationFeeKes: v }))} />
+                    <ProvField label="Home visit fee (KES)" type="number" v={prov.homeVisitFeeKes ?? ""} on={(v) => setProv((p) => ({ ...p, homeVisitFeeKes: v }))} />
+                    <ProvField label="Years of experience" type="number" v={prov.yearsExperience ?? ""} on={(v) => setProv((p) => ({ ...p, yearsExperience: v }))} />
+                    <label className="block">
+                      <span className="mb-1 block text-xs font-medium text-slate-600">Verification</span>
+                      <select value={prov.verificationStatus ?? "unverified"} onChange={(e) => setProv((p) => ({ ...p, verificationStatus: e.target.value }))}
+                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm capitalize focus:outline-none focus:ring-2 focus:ring-teal-500">
+                        {VERIFICATION_OPTIONS.map((o) => <option key={o} value={o}>{o.replace("_", " ")}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="mt-3 block">
+                    <span className="mb-1 block text-xs font-medium text-slate-600">Bio</span>
+                    <textarea rows={2} value={prov.bio ?? ""} onChange={(e) => setProv((p) => ({ ...p, bio: e.target.value }))}
+                      className="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  </label>
+                </div>
+              )}
+
+              {user.verificationDocuments.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uploaded documents</div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {user.verificationDocuments.map((d) => (
+                      <a key={d.id} href={d.fileUrl} target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
+                        <ImageIcon className="h-3.5 w-3.5" /> {d.type.replace(/_/g, " ")}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {user.sessions.length > 0 && (
+                <p className="text-xs text-slate-400">{user.sessions.length} active session{user.sessions.length === 1 ? "" : "s"}</p>
+              )}
+
+              {err && <p className="rounded-xl bg-rose-50 px-4 py-2.5 text-sm text-rose-700">{err}</p>}
+              {saved && <p className="inline-flex items-center gap-1 text-sm text-emerald-600"><BadgeCheck className="h-4 w-4" /> Saved</p>}
+
+              <div className="flex gap-3 pt-1">
+                <button type="submit" disabled={busy}
+                  className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                  {busy && <Loader2 className="h-4 w-4 animate-spin" />} Save changes
+                </button>
+                <button type="button" onClick={onClose}
+                  className="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">Close</button>
+              </div>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ProvField({ label, v, on, type = "text" }: { label: string; v: string; on: (v: string) => void; type?: string }) {
+  return (
+    <label className="block">
+      <span className="mb-1 block text-xs font-medium text-slate-600">{label}</span>
+      <input type={type} value={v} onChange={(e) => on(e.target.value)}
+        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+    </label>
   );
 }

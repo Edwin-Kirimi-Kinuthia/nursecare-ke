@@ -1,6 +1,7 @@
 import { db, Prisma, type User } from "@carebora/db";
 import { randomInt, randomBytes, createHash } from "node:crypto";
 import {
+  type PatchMeInput,
   ApiError,
   PROVIDER_ROLES,
   type LoginInput,
@@ -444,6 +445,47 @@ export const authService = {
       patientProfile: user.patientProfile ?? undefined,
       providerProfile: user.providerProfile ?? undefined,
     };
+  },
+
+  /**
+   * Update the account's own fields — display name, phone, profile photo.
+   *
+   * Available to every role: a provider changing the photo clients see on
+   * their public profile and a patient correcting a typo in their phone number
+   * are the same operation on the same columns.
+   */
+  async patchMe(userId: string, input: PatchMeInput) {
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user) throw ApiError.notFound("User not found");
+
+    // Every upload goes through putFile, which owns the size limit and is the
+    // seam a move to blob storage would change. A plain http(s) URL (or null to
+    // clear) passes straight through.
+    let avatarUrl = input.avatarUrl;
+    if (typeof avatarUrl === "string" && avatarUrl.startsWith("data:")) {
+      avatarUrl = (await putFile("avatar", avatarUrl)).url;
+    }
+
+    try {
+      await db.user.update({
+        where: { id: userId },
+        data: {
+          ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
+          // An empty string means "remove it", which is distinct from the
+          // field being absent and left alone.
+          ...(input.phone !== undefined ? { phone: input.phone === "" ? null : input.phone } : {}),
+          ...(input.avatarUrl !== undefined ? { avatarUrl } : {}),
+          // A changed number is unverified again until it's confirmed.
+          ...(input.phone !== undefined && input.phone !== user.phone ? { phoneVerifiedAt: null } : {}),
+        },
+      });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        throw ApiError.conflict("That phone number is already on another account");
+      }
+      throw err;
+    }
+    return this.getProfile(userId);
   },
 
   /** Rotate a refresh token: revoke the old session and mint a new one. */

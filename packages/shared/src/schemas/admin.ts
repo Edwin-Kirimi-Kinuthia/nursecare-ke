@@ -15,9 +15,44 @@ export const adminUsersQuerySchema = z.object({
 });
 export type AdminUsersQuery = z.infer<typeof adminUsersQuerySchema>;
 
+/**
+ * What an admin may change on someone else's account.
+ *
+ * Beyond enable/disable and role, this covers the corrections support actually
+ * gets asked for — a misspelt name, a wrong phone, a missing photo — and, for
+ * care accounts, the clinical profile fields an admin has to be able to fix
+ * while verifying a licence.
+ *
+ * Email stays out: it is the login identity and the address every OTP goes to,
+ * so it needs a verified flow rather than an admin edit.
+ */
 export const adminPatchUserSchema = z.object({
   isActive: z.boolean().optional(),
   role: userRoleEnum.optional(),
+  fullName: z.string().trim().min(2, "Name is too short").max(120).optional(),
+  phone: z
+    .string()
+    .trim()
+    .regex(/^\+?[0-9]{9,15}$/, "Enter a valid phone number")
+    .optional()
+    .or(z.literal("")),
+  avatarUrl: z.string().trim().nullable().optional(),
+  /** Only applied when the account actually has a provider profile. */
+  providerProfile: z
+    .object({
+      specialty: z.string().trim().max(80).optional(),
+      subSpecialty: z.string().trim().max(80).optional(),
+      bio: z.string().max(2000).optional(),
+      licenceNumber: z.string().trim().max(60).optional(),
+      licenceBody: z.string().trim().max(120).optional(),
+      yearsExperience: z.number().int().min(0).max(60).optional(),
+      consultationFeeKes: z.number().int().min(0).optional(),
+      homeVisitFeeKes: z.number().int().min(0).optional(),
+      county: z.string().trim().max(60).optional(),
+      town: z.string().trim().max(60).optional(),
+      verificationStatus: z.enum(["unverified", "pending", "in_review", "verified", "rejected"]).optional(),
+    })
+    .optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "Nothing to update" });
 export type AdminPatchUserInput = z.infer<typeof adminPatchUserSchema>;
 

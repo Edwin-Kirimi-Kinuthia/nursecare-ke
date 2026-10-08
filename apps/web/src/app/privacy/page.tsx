@@ -77,8 +77,8 @@ export default function PrivacyPolicyPage() {
             </li>
             <li>
               <strong>Payment information:</strong> your M-Pesa phone number and the transaction/receipt reference
-              Safaricom or Jenga (Equity) returns to us. Payments are processed directly by Safaricom Daraja or the
-              Jenga API — we never see or store your M-Pesa PIN, and we don&apos;t handle card numbers.
+              Safaricom returns to us. Payments are processed directly by Safaricom through the M-Pesa Daraja
+              API — we never see or store your M-Pesa PIN, and we don&apos;t handle card numbers.
             </li>
             <li>
               <strong>Files you upload:</strong> professional licence documents (providers/vendors), prescription
@@ -118,7 +118,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc space-y-2 pl-5">
             <li><strong>The clinician or vendor you engage with</strong> — a doctor, nurse, physiotherapist, pharmacy, lab, or ambulance operator sees what&apos;s necessary to provide your care or fulfil your order.</li>
-            <li><strong>Payment processors:</strong> Safaricom (M-Pesa Daraja) and, where used, Jenga/Equity, to complete and confirm your payment.</li>
+            <li><strong>Safaricom</strong> (M-Pesa Daraja), to complete and confirm your payment.</li>
             <li><strong>Resend</strong>, for transactional email (booking confirmations, receipts, verification codes).</li>
             <li><strong>Africa&apos;s Talking</strong>, for SMS notifications, when enabled.</li>
             <li><strong>LiveKit</strong>, to establish your video/audio consultation connection. Consultations are not recorded or stored by CareBora.</li>

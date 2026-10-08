@@ -18,6 +18,25 @@ const DEFAULT_INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 const DEFAULT_LABEL_CLASS = "mb-1 block text-sm font-medium text-slate-700";
 
+/**
+ * The inverse of composeFullName, for forms that edit an existing name.
+ *
+ * Names are stored as one "First Middle Surname" string, so this is a best
+ * effort: the first word is the first name, the last is the surname, and
+ * anything between is the middle. It round-trips every name this app composed
+ * and degrades sensibly on a one-word name.
+ */
+export function splitFullName(fullName: string): NameParts {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { ...EMPTY_NAME };
+  if (parts.length === 1) return { ...EMPTY_NAME, firstName: parts[0] };
+  return {
+    firstName: parts[0],
+    middleName: parts.slice(1, -1).join(" "),
+    surname: parts[parts.length - 1],
+  };
+}
+
 export function NameFields({
   value, onChange, inputClassName = DEFAULT_INPUT_CLASS, labelClassName = DEFAULT_LABEL_CLASS,
 }: {

@@ -61,7 +61,10 @@ import type {
   SupportDocumentType,
   SupportStatus,
   SymptomCheckInput,
+  PatchMeInput,
   CreateDrugInput,
+  AdminCreateDrugInput,
+  AdminUpdateDrugInput,
   UpdateDrugInput,
   CreateListingInput,
   PatchListingInput,
@@ -330,6 +333,11 @@ export class CareBoraClient {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<PaymentListResult>(`/payments?${params}`);
   }
+  /** Update your own name, phone or profile photo. Works for every role. */
+  patchMe(input: PatchMeInput) {
+    return this.patch<PublicUser>("/auth/me", input);
+  }
+
   getPayment(paymentId: string) {
     return this.request<PaymentRecord>(`/payments/${paymentId}`);
   }
@@ -626,13 +634,13 @@ export class CareBoraClient {
   // ── Admin — Drug catalogue curation ──
   adminListDrugs(query?: Partial<DrugsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
-    return this.request<DrugListResult>(`/admin/drugs?${params}`);
+    return this.request<AdminDrugListResult>(`/admin/drugs?${params}`);
   }
-  adminCreateDrug(input: CreateDrugInput) {
-    return this.post<Drug>(`/admin/drugs`, input);
+  adminCreateDrug(input: AdminCreateDrugInput) {
+    return this.post<AdminDrug>(`/admin/drugs`, input);
   }
-  adminUpdateDrug(drugId: string, input: UpdateDrugInput) {
-    return this.patch<Drug>(`/admin/drugs/${drugId}`, input);
+  adminUpdateDrug(drugId: string, input: AdminUpdateDrugInput) {
+    return this.patch<AdminDrug>(`/admin/drugs/${drugId}`, input);
   }
   adminDeleteDrug(drugId: string) {
     return this.request<{ id: string; isActive: boolean }>(`/admin/drugs/${drugId}`, { method: "DELETE" });
@@ -1089,6 +1097,21 @@ export interface Drug {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A catalogue row as the admin sees it: Care Bora's own price and stock, plus
+ *  how many pharmacies a client could actually buy it from right now. */
+export interface AdminDrug extends Drug {
+  priceKes: number | null;
+  stockQty: number | null;
+  sellerCount: number;
+}
+
+export interface AdminDrugListResult {
+  drugs: AdminDrug[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface DrugListResult {

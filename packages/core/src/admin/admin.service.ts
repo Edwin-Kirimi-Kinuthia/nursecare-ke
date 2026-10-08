@@ -91,14 +91,31 @@ export const adminService = {
     const user = await db.user.findUnique({ where: { id: targetId } });
     if (!user) throw ApiError.notFound("User not found");
 
+    let avatarUrl = input.avatarUrl;
+    if (typeof avatarUrl === "string" && avatarUrl.startsWith("data:")) {
+      avatarUrl = (await putFile("avatar", avatarUrl)).url;
+    }
+
     const updated = await db.user.update({
       where: { id: targetId },
       data: {
         ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
         ...(input.role !== undefined ? { role: input.role } : {}),
+        ...(input.fullName !== undefined ? { fullName: input.fullName } : {}),
+        ...(input.phone !== undefined ? { phone: input.phone === "" ? null : input.phone } : {}),
+        ...(input.avatarUrl !== undefined ? { avatarUrl } : {}),
+        ...(input.phone !== undefined && input.phone !== user.phone ? { phoneVerifiedAt: null } : {}),
       },
       select: USER_SUMMARY,
     });
+
+    // Clinical fields, only where there is a provider profile to put them on —
+    // an admin fixing a licence number or specialty during verification.
+    if (input.providerProfile && Object.keys(input.providerProfile).length > 0) {
+      const profile = await db.providerProfile.findUnique({ where: { userId: targetId } });
+      if (!profile) throw ApiError.badRequest("This account has no provider profile");
+      await db.providerProfile.update({ where: { userId: targetId }, data: input.providerProfile });
+    }
 
     await writeAuditLog(actorId, "admin_patch_user", "user", targetId, input as Record<string, unknown>);
     return updated;

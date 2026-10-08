@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill,
-  Siren, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare,
+  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Siren, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare, ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
@@ -212,6 +211,12 @@ export default function Nav() {
                 <DrawerLink link={{ href: "/vendors/apply", label: "Sell on CareBora", Icon: Building2 }} active={isActive("/vendors/apply")} />
               </>
             )}
+          </DrawerGroup>
+
+          {/* Reachable from the drawer as well as the footer, so it's one tap
+              away on a phone instead of a scroll to the bottom of the page. */}
+          <DrawerGroup title="Legal">
+            <DrawerLink link={{ href: "/privacy", label: "Privacy policy", Icon: ShieldCheck }} active={isActive("/privacy")} />
           </DrawerGroup>
         </div>
       </aside>
