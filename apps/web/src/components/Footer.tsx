@@ -17,7 +17,7 @@ export default function Footer() {
 
   return (
     <footer className="mt-20 border-t border-slate-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.4fr]">
         {/* Brand */}
         <div className="sm:col-span-2 lg:col-span-1">
           <div className="flex items-center gap-2 font-extrabold text-slate-900">
@@ -42,16 +42,28 @@ export default function Footer() {
         </div>
 
         {/* Care */}
-        <div className="space-y-2 text-sm">
+        <nav aria-label="Care services" className="space-y-2 text-sm">
           <div className="font-semibold text-slate-700">Care</div>
-          <Link href="/providers" className="block text-slate-500 hover:text-teal-700">Find providers</Link>
+          <Link href="/providers" className="block text-slate-500 hover:text-teal-700">Find a doctor</Link>
+          <Link href="/online-doctor-kenya" className="block text-slate-500 hover:text-teal-700">See a doctor online</Link>
+          <Link href="/sick-off-sheet-online-kenya" className="block text-slate-500 hover:text-teal-700">Sick-off sheet online</Link>
+          <Link href="/home-visits-nairobi" className="block text-slate-500 hover:text-teal-700">Home visits</Link>
+          <Link href="/ambulance-nairobi" className="block text-slate-500 hover:text-teal-700">Ambulance line</Link>
           <Link href="/pharmacy" className="block text-slate-500 hover:text-teal-700">Pharmacy</Link>
-          <Link href="/home-visits" className="block text-slate-500 hover:text-teal-700">Home visits</Link>
+        </nav>
+
+        {/* Company — the trust pages, linked from every page */}
+        <nav aria-label="About Care Bora" className="space-y-2 text-sm">
+          <div className="font-semibold text-slate-700">Care Bora</div>
+          <Link href="/about" className="block text-slate-500 hover:text-teal-700">About us</Link>
+          <Link href="/how-we-verify-providers" className="block text-slate-500 hover:text-teal-700">How we verify providers</Link>
+          <Link href="/providers/apply" className="block text-slate-500 hover:text-teal-700">Join as a provider</Link>
+          <Link href="/privacy" className="block text-slate-500 hover:text-teal-700">Privacy policy</Link>
           <a href="/api/v1/docs" className="block text-slate-500 hover:text-teal-700">API docs</a>
-        </div>
+        </nav>
 
         {/* Contact */}
-        <div className="space-y-3 text-sm sm:col-span-2">
+        <div className="space-y-3 text-sm">
           <div className="font-semibold text-slate-700">Contact</div>
           {/* Ambulance dispatch first and visually distinct — an emergency caller
               should never have to pick it out of a list of enquiry numbers. */}

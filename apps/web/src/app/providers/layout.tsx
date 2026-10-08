@@ -3,14 +3,14 @@ import type { Metadata } from "next";
 // The page itself is a client component and so can't export metadata — it lives
 // here instead. Nested routes (/providers/[id], /providers/apply) override it.
 export const metadata: Metadata = {
-  title: "Find verified doctors, nurses & physiotherapists in Kenya",
+  title: "Find Licensed Doctors in Kenya",
   description:
-    "Browse doctors, nurses and physiotherapists vetted against Kenyan licensing bodies. Filter by specialty and county, see fees upfront, and book a video consultation or home visit.",
+    "Browse licence-checked doctors and other clinicians in Kenya. See specialty, fees and patient reviews, then book a video consultation and pay with M-Pesa.",
   alternates: { canonical: "/providers" },
   openGraph: {
-    title: "Find verified doctors, nurses & physiotherapists in Kenya",
+    title: "Find Licensed Doctors in Kenya · Care Bora Kenya",
     description:
-      "Clinicians vetted against Kenyan licensing bodies. Filter by specialty and county, see fees upfront, and book online.",
+      "Browse licence-checked doctors and other clinicians in Kenya. See specialty, fees and patient reviews, then book a video consultation and pay with M-Pesa.",
     url: "/providers",
     type: "website",
   },

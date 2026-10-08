@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Contact us — message Care Bora or request a medical document",
+  title: "Contact Us: Message Care Bora",
   description:
-    "Message the Care Bora team about an appointment, a payment or a technical problem, or request a sick-off sheet, medical report, fit-to-work or school medical form.",
+    "Message the Care Bora team about an appointment, payment or technical problem, or request a sick-off sheet, medical report or school or insurance form.",
   alternates: { canonical: "/contact" },
 };
 

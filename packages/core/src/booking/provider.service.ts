@@ -10,6 +10,24 @@ function cleanLabel(raw: string | null | undefined): string {
   return (raw ?? "").trim().replace(/\s+/g, " ");
 }
 
+/**
+ * Photos are stored as base64 data: URLs, which are fine in a row but ruinous
+ * inside a page: a directory of twenty providers would embed megabytes of text
+ * in the HTML. Public responses point at the avatar route instead, versioned by
+ * the user's last update so the long cache lifetime never serves a stale photo.
+ */
+function publicAvatar(userId: string, avatarUrl: string | null, updatedAt: Date): string | null {
+  if (!avatarUrl) return null;
+  return avatarUrl.startsWith("data:") ? `/api/v1/providers/${userId}/avatar?v=${updatedAt.getTime()}` : avatarUrl;
+}
+
+const PUBLIC_USER = { select: { id: true, fullName: true, avatarUrl: true, role: true, updatedAt: true } } as const;
+
+function withPublicAvatar<T extends { user: { id: string; avatarUrl: string | null; updatedAt: Date } }>(p: T) {
+  const { updatedAt, ...user } = p.user;
+  return { ...p, user: { ...user, avatarUrl: publicAvatar(user.id, user.avatarUrl, updatedAt) } };
+}
+
 export const providerService = {
   /** Paginated, filterable provider directory (defaults to verified providers). */
   async list(query: ProvidersQuery) {
@@ -47,7 +65,7 @@ export const providerService = {
     const [providers, total] = await Promise.all([
       db.providerProfile.findMany({
         where,
-        include: { user: { select: { id: true, fullName: true, avatarUrl: true, role: true } } },
+        include: { user: PUBLIC_USER },
         orderBy: [{ ratingAvg: "desc" }, { createdAt: "asc" }],
         skip: query.offset,
         take: query.limit,
@@ -55,7 +73,7 @@ export const providerService = {
       db.providerProfile.count({ where }),
     ]);
 
-    return { providers, total, limit: query.limit, offset: query.offset };
+    return { providers: providers.map(withPublicAvatar), total, limit: query.limit, offset: query.offset };
   },
 
   /**
@@ -104,9 +122,9 @@ export const providerService = {
   async getById(providerId: string) {
     const profile = await db.providerProfile.findUnique({
       where: { userId: providerId },
-      include: { user: { select: { id: true, fullName: true, avatarUrl: true, role: true } } },
+      include: { user: PUBLIC_USER },
     });
     if (!profile) throw ApiError.notFound("Provider not found");
-    return profile;
+    return withPublicAvatar(profile);
   },
 };

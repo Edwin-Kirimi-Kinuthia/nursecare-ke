@@ -311,8 +311,8 @@ export default function ContactPage() {
               <div className="flex items-start gap-2.5 text-slate-600">
                 <Clock className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" />
                 <span>
-                  Customer care 8am–8pm daily
-                  <span className="block text-xs text-slate-400">Ambulance dispatch is 24/7</span>
+                  Ambulance dispatch line
+                  <span className="block text-xs text-slate-400">For emergencies, call rather than write</span>
                 </span>
               </div>
             </div>

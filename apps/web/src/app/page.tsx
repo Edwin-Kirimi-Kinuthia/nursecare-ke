@@ -2,43 +2,49 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
-  ArrowRight, Star, FileText, Baby, Plane, Stamp, Siren, Phone,
+  ArrowRight, Star, FileText, Stamp, Siren, Phone,
 } from "lucide-react";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { JsonLd } from "@/components/JsonLd";
-import { organizationSchema, websiteSchema, faqSchema } from "@/lib/structured-data";
+import { organizationSchema, websiteSchema, faqSchema, HOME_FAQS } from "@/lib/structured-data";
+import FaqList from "@/components/FaqList";
+import { reviewService } from "@carebora/core";
 
 // Title and description come from the root layout's defaults, which are written
 // for the homepage; this just pins its canonical.
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
 const FEATURES = [
-  { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/providers" },
-  { Icon: Siren, title: "Emergency ambulance", desc: "An ambulance ready when you need one — call us directly or request dispatch in-app, and we send the nearest crew.", href: "/ambulance" },
-  { Icon: Plane, title: "Travel & vaccination certificates", desc: "Yellow fever certificates required for travel, plus fitness-to-fly and other clearances asked for at airports and embassies.", href: "/providers" },
-  { Icon: Stamp, title: "Medical forms filled & stamped", desc: "School admission, employment and insurance forms completed, signed and stamped by verified clinicians.", href: "/providers" },
-  { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", href: "/providers" },
-  { Icon: Baby, title: "Pregnancy crisis management", desc: "Urgent OB-GYN support and pregnancy crisis management, any time — from bleeding to severe symptoms.", href: "/providers" },
+  { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", href: "/online-doctor-kenya" },
+  { Icon: Siren, title: "Emergency ambulance", desc: "Call our ambulance line directly, or send a request in the app and follow its status.", href: "/ambulance-nairobi" },
+  { Icon: Stamp, title: "Medical forms & reports", desc: "Request a sick-off sheet, medical report or school, employment or insurance form — a licensed clinician reviews and signs it.", href: "/providers" },
+  { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", href: "/sick-off-sheet-online-kenya" },
   { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", href: "/pharmacy" },
-  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/home-visits" },
-  { Icon: Users, title: "Verified providers", desc: "Browse clinicians vetted against Kenyan licensing bodies.", href: "/providers" },
+  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", href: "/home-visits-nairobi" },
+  { Icon: Users, title: "Licence-checked providers", desc: "Every clinician submits their practice licence for review before they appear.", href: "/how-we-verify-providers" },
   { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", href: "/pharmacy" },
   { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", href: "/records" },
 ];
 
 const STEPS = [
   { n: "01", title: "Create an account", desc: "Sign up in seconds as a patient." },
-  { n: "02", title: "Find your provider", desc: "Filter by specialty and pick an open slot." },
-  { n: "03", title: "Get care & pay", desc: "Consult, get a prescription, pay with M-Pesa." },
+  { n: "02", title: "Find your provider", desc: "Browse licence-checked clinicians and pick an open time." },
+  { n: "03", title: "Pay, then see your doctor", desc: "Pay the fee with M-Pesa, then join a private video call at your time." },
 ];
 
-const REVIEWS = [
-  { name: "Wanjiru K.", text: "Booked a doctor in minutes and got my prescription the same evening. Incredible.", stars: 5 },
-  { name: "Brian O.", text: "The home-visit nurse was professional and on time. CareBora is a game-changer.", stars: 5 },
-  { name: "Aisha M.", text: "Ordered my mum's medication and it arrived next day. So convenient.", stars: 4 },
-];
+/** Refreshed every ten minutes: fresh enough for reviews, cheap to serve. */
+export const revalidate = 600;
 
-export default function HomePage() {
+export default async function HomePage() {
+  // Real reviews only. If there are none yet, the section is simply not shown —
+  // an empty "what patients say" is honest; an invented one is not.
+  let reviews: Awaited<ReturnType<typeof reviewService.featured>> = [];
+  try {
+    reviews = await reviewService.featured(3);
+  } catch {
+    reviews = [];
+  }
+
   return (
     <div>
       {/* Tells search engines what this business is, where it operates and what
@@ -110,7 +116,7 @@ export default function HomePage() {
           <div className="flex-1">
             <h2 className="font-bold text-rose-900">Medical emergency? An ambulance is ready.</h2>
             <p className="mt-1 text-sm text-rose-700">
-              Call us now and we&apos;ll dispatch the nearest crew — or request one in-app and track it to your door.
+              Call our ambulance line now — or send a request in the app and follow its status.
             </p>
           </div>
           <div className="flex w-full shrink-0 gap-2 sm:w-auto">
@@ -170,24 +176,45 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Reviews */}
-      <section className="mx-auto max-w-6xl px-4 py-20">
+      {/* What patients say — only real reviews from completed appointments. */}
+      {reviews.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 py-20" aria-labelledby="reviews">
+          <div className="text-center">
+            <h2 id="reviews" className="text-3xl font-extrabold tracking-tight text-slate-900">What patients say</h2>
+            <p className="mt-3 text-slate-500">Reviews from patients after a completed appointment.</p>
+          </div>
+          <div className="mt-12 grid gap-5 md:grid-cols-3">
+            {reviews.map((r) => (
+              <figure key={r.id} className="card-lift rounded-2xl border border-slate-200 bg-white p-6">
+                <div className="flex gap-0.5" role="img" aria-label={`${r.rating} out of 5 stars`}>
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <Star key={i} className={`h-4 w-4 ${i < r.rating ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200"}`} />
+                  ))}
+                </div>
+                <blockquote className="mt-3 text-slate-600">“{r.comment}”</blockquote>
+                <figcaption className="mt-4 text-sm">
+                  <span className="font-semibold text-slate-900">{r.reviewer}</span>
+                  <Link href={`/providers/${r.providerId}`} className="block text-slate-500 hover:text-teal-700 hover:underline">
+                    about {r.providerName}
+                  </Link>
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* FAQ — the same list that is emitted as FAQPage markup above, so what a
+          search engine is told is exactly what a visitor can read. */}
+      <section className="mx-auto max-w-3xl px-4 py-20" aria-labelledby="faq">
         <div className="text-center">
-          <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Loved by patients</h2>
+          <h2 id="faq" className="text-3xl font-extrabold tracking-tight text-slate-900">Questions people ask</h2>
+          <p className="mt-3 text-slate-500">
+            More in <Link href="/online-doctor-kenya" className="font-semibold text-teal-700 hover:underline">how online consultations work</Link> and{" "}
+            <Link href="/how-we-verify-providers" className="font-semibold text-teal-700 hover:underline">how we verify providers</Link>.
+          </p>
         </div>
-        <div className="mt-12 grid gap-5 md:grid-cols-3">
-          {REVIEWS.map((r) => (
-            <div key={r.name} className="card-lift rounded-2xl border border-slate-200 bg-white p-6">
-              <div className="flex gap-0.5">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} className={`h-4 w-4 ${i < r.stars ? "fill-amber-400 text-amber-400" : "fill-slate-200 text-slate-200"}`} />
-                ))}
-              </div>
-              <p className="mt-3 text-slate-600">“{r.text}”</p>
-              <div className="mt-4 text-sm font-semibold text-slate-900">{r.name}</div>
-            </div>
-          ))}
-        </div>
+        <FaqList faqs={HOME_FAQS} className="mt-10" />
       </section>
 
       {/* CTA */}

@@ -1,109 +1,38 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { Search, Stethoscope, SearchX } from "lucide-react";
+import { providerService } from "@carebora/core";
 import type { ProviderPublicProfile } from "@carebora/api-client";
-import { api } from "@/lib/api";
-import ProviderCard from "@/components/ProviderCard";
-import PageHeader from "@/components/PageHeader";
-import EmptyState from "@/components/EmptyState";
+import { JsonLd } from "@/components/JsonLd";
+import ProvidersDirectory from "@/components/ProvidersDirectory";
+import { breadcrumbSchema, providerListSchema } from "@/lib/structured-data";
 
-export default function ProvidersPage() {
-  const [providers, setProviders] = useState<ProviderPublicProfile[]>([]);
-  const [specialty, setSpecialty] = useState("");
-  // The filter chips come from what providers have actually entered, not a
-  // fixed list — a chip for "Nursing" with no nurse on the platform is a
-  // dead end. Fetched once and independent of the selected filter, so
-  // choosing one doesn't make the others vanish.
-  const [specialties, setSpecialties] = useState<{ name: string; count: number }[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+/** Rebuilt at most every five minutes — fresh enough for a directory, cheap enough to serve from cache. */
+export const revalidate = 300;
 
-  useEffect(() => {
-    let active = true;
-    api.listSpecialties()
-      .then((r) => { if (active) setSpecialties(r.specialties); })
-      .catch(() => { /* the directory still works without chips */ });
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      setLoading(true);
-      try {
-        const res = await api.listProviders(specialty ? { specialty } : {});
-        if (active) { setProviders(res.providers); setError(null); }
-      } catch {
-        if (active) setError("Could not load providers");
-      } finally {
-        if (active) setLoading(false);
-      }
-    })();
-    return () => { active = false; };
-  }, [specialty]);
+/**
+ * The directory is rendered on the server so that its content is in the HTML.
+ * It used to be fetched in the browser, which left crawlers an empty list and a
+ * loading skeleton — a page about doctors that, to a search engine, contained
+ * none. The client component takes over for filtering.
+ */
+export default async function ProvidersPage() {
+  let providers: ProviderPublicProfile[] = [];
+  let specialties: { name: string; count: number }[] = [];
+  try {
+    const [list, specs] = await Promise.all([
+      providerService.list({ limit: 20, offset: 0 } as never),
+      providerService.specialties(),
+    ]);
+    // Plain JSON across the server/client boundary (dates become strings, as the API returns them).
+    providers = JSON.parse(JSON.stringify(list.providers));
+    specialties = specs;
+  } catch {
+    // No database at build time, or a transient error: render the page empty and let the client fetch.
+  }
 
   return (
-    <div>
-      {/* Header */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <PageHeader
-            eyebrow="Care providers"
-            Icon={Stethoscope}
-            title="Find your provider"
-            lede="Licensed clinicians across Kenya. Every provider here has had their practice licence checked."
-          />
-
-          {/* One specialty is the same as no filter, so the row only appears
-              once there is something to choose between. */}
-          {specialties.length >= 2 && (
-            <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filter by specialty">
-              {[{ name: "", count: 0 }, ...specialties].map(({ name, count }) => (
-                <button
-                  key={name || "all"}
-                  onClick={() => setSpecialty(name)}
-                  aria-pressed={specialty === name}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                    specialty === name
-                      ? "border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-500/30"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700"
-                  }`}
-                >
-                  {name === "" && <Search className="h-3.5 w-3.5" />}
-                  {name || "All providers"}
-                  {name !== "" && (
-                    <span className={`text-xs tabular-nums ${specialty === name ? "text-teal-100" : "text-slate-400"}`}>{count}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Grid */}
-      <section className="mx-auto max-w-6xl px-4 py-10">
-        {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="h-72 rounded-2xl skeleton" />
-            ))}
-          </div>
-        ) : error ? (
-          <p className="py-16 text-center text-rose-600">{error}</p>
-        ) : providers.length === 0 ? (
-          <EmptyState
-            Icon={SearchX}
-            title="No providers match that filter"
-            hint="Try another specialty, or clear the filter to see everyone."
-          />
-        ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-            {providers.map((p) => <ProviderCard key={p.userId} p={p} />)}
-          </div>
-        )}
-      </section>
-    </div>
+    <>
+      <JsonLd data={breadcrumbSchema([["Home", "/"], ["Find a provider", "/providers"]])} />
+      {providers.length > 0 && <JsonLd data={providerListSchema(providers)} />}
+      <ProvidersDirectory initialProviders={providers} initialSpecialties={specialties} />
+    </>
   );
 }

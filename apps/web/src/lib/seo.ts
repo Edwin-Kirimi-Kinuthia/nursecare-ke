@@ -36,3 +36,25 @@ export const PRIVATE_PATHS = [
 
 /** `robots` metadata for a page that should stay out of search results entirely. */
 export const NOINDEX = { index: false, follow: false } as const;
+
+/**
+ * Whether a provider's profile is worth a search result.
+ *
+ * A listed provider with no specialty and no bio has nothing on their page that
+ * the next provider's page doesn't also say — thin, near-duplicate content that
+ * dilutes how the rest of the site is judged. Those profiles stay reachable for
+ * the people who follow a link, but stay out of the index and the sitemap until
+ * the provider fills them in. Used by both so they can't disagree.
+ */
+export function isIndexableProvider(p: {
+  verificationStatus: string;
+  specialty: string | null;
+  bio: string | null;
+}): boolean {
+  return p.verificationStatus === "verified" && Boolean(p.specialty?.trim()) && Boolean(p.bio?.trim());
+}
+
+/** Collapse stray whitespace and dangling commas typed into free-text fields. */
+export function tidy(v: string | null | undefined): string {
+  return (v ?? "").replace(/\s+/g, " ").replace(/\s+,/g, ",").trim();
+}

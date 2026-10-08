@@ -106,7 +106,7 @@ export default function LabsPage() {
         eyebrow="Diagnostics"
         Icon={FlaskConical}
         title="Lab tests"
-        lede="Book tests at an accredited laboratory near you and get results in your medical record."
+        lede="Book tests at an approved laboratory near you and get results in your medical record."
         action={
           <div className="flex shrink-0 gap-1 rounded-xl border border-slate-200 bg-white p-1">
           <button onClick={() => setView("browse")} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${view === "browse" ? "bg-teal-600 text-white" : "text-slate-600"}`}>Browse</button>

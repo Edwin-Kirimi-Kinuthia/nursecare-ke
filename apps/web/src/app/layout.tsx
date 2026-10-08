@@ -17,16 +17,16 @@ export const metadata: Metadata = {
   // domain per environment instead of being pinned to one deploy's host.
   metadataBase: new URL(SITE_URL),
   title: {
-    default: "Care Bora Kenya — Telehealth, ambulance & medical reports in Kenya",
+    default: "Online Doctor Kenya — Video Consultations | Care Bora",
     template: "%s · Care Bora Kenya",
   },
   description:
-    "Kenya's telehealth platform: video consultations with verified doctors and nurses, 24/7 emergency ambulance, yellow fever and travel certificates, school and employment medical forms, home visits, lab tests and pharmacy delivery — paid with M-Pesa.",
+    "Online doctor consultations in Kenya: video visits with licence-checked doctors, sick-off sheets, home visits, lab tests, pharmacy delivery and an ambulance line — paid with M-Pesa.",
   applicationName: SITE_NAME,
   keywords: [
-    "telehealth Kenya", "online doctor Kenya", "yellow fever certificate Kenya",
-    "medical certificate Kenya", "sick off sheet", "school medical form Kenya",
-    "ambulance Nairobi", "home nursing care Kenya", "online pharmacy Kenya", "M-Pesa health",
+    "online doctor Kenya", "telemedicine Kenya", "telehealth Kenya", "consult a doctor online Kenya",
+    "sick off sheet online Kenya", "medical certificate online Kenya", "ambulance Nairobi",
+    "home nursing Nairobi", "lab tests Kenya", "online pharmacy Kenya", "M-Pesa health",
   ],
   authors: [{ name: SITE_NAME, url: SITE_URL }],
   creator: SITE_NAME,
@@ -48,7 +48,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Care Bora Kenya — Quality care, made accessible",
     description:
-      "Consult verified doctors and nurses by video, call an ambulance, get medical reports and certificates, book home visits, and order from the pharmacy nearest you — all paid with M-Pesa.",
+      "See a licence-checked doctor by video, get a sick-off sheet, book a home visit or lab test, order medicine and reach an ambulance line — all paid with M-Pesa.",
     url: SITE_URL,
     siteName: SITE_NAME,
     images: [{ url: "/og-image.png", width: 1200, height: 630, alt: "Care Bora Kenya" }],
@@ -67,7 +67,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.className}>
+    <html lang="en-KE" className={inter.className}>
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased" suppressHydrationWarning>
         <AuthProvider>
           <LocationProvider>

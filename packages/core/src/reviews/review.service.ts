@@ -61,6 +61,44 @@ export const reviewService = {
     return { reviews, total, limit: query.limit, offset: query.offset };
   },
 
+  /**
+   * The most recent genuinely positive reviews, for the home page.
+   *
+   * Every one is a patient's review of a completed appointment — the home page
+   * used to show hard-coded testimonials from people who did not exist. Only
+   * 4★ and above with some words are returned, visible ones only (an admin can
+   * hide a review), and the reviewer is reduced to a first name and surname
+   * initial because this is shown to anyone, signed in or not.
+   */
+  async featured(limit = 3) {
+    const rows = await db.review.findMany({
+      where: { isVisible: true, rating: { gte: 4 }, comment: { not: null } },
+      orderBy: { createdAt: "desc" },
+      take: limit * 3,
+      select: {
+        id: true, rating: true, comment: true, createdAt: true,
+        patient: { select: { fullName: true } },
+        provider: { select: { userId: true, user: { select: { fullName: true } } } },
+      },
+    });
+    const short = (full: string) => {
+      const parts = full.trim().split(/\s+/);
+      return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1]![0]}.` : parts[0] ?? "A patient";
+    };
+    return rows
+      .filter((r) => (r.comment ?? "").trim().length >= 10)
+      .slice(0, limit)
+      .map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment!.trim(),
+        reviewer: short(r.patient.fullName),
+        providerId: r.provider.userId,
+        providerName: r.provider.user.fullName,
+        createdAt: r.createdAt,
+      }));
+  },
+
   async adminList(query: ReviewsQuery) {
     const where = query.isVisible !== undefined ? { isVisible: query.isVisible } : {};
     const [reviews, total] = await Promise.all([

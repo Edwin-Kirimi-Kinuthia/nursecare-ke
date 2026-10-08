@@ -152,7 +152,7 @@ export default function AmbulancePage() {
         Icon={Siren}
         tone="rose"
         title="Ambulance"
-        lede="Dispatch a crew to your location and track it to your door."
+        lede="Send your location to an ambulance operator and follow the status of your request."
         action={view === "list" && (
           <button onClick={() => setView("request")} className="shrink-0 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700">
             Request ambulance
