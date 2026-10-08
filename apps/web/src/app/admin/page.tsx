@@ -14,7 +14,7 @@ import type {
 } from "@carebora/api-client";
 import type { AdminCreateDrugInput, TillVerificationItem, AdminCreateProviderInput, AdminPatchUserInput, LaunchResetPreview } from "@carebora/shared";
 import {
-  LAUNCH_RESET_CONFIRM_PHRASE,
+  LAUNCH_RESET_CONFIRM_PHRASE, nameInitial,
   SUPPORT_CATEGORY_LABELS, SUPPORT_DOCUMENT_LABELS, SUPPORT_STATUS_LABELS,
   type SupportStatus,
 } from "@carebora/shared";
@@ -316,7 +316,7 @@ function UsersTab() {
                       {u.avatarUrl
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={u.avatarUrl} alt="" className="h-full w-full object-cover object-top" />
-                        : u.fullName.charAt(0)}
+                        : nameInitial(u.fullName)}
                     </span>
                     <span className="truncate underline-offset-2 hover:underline">{u.fullName}</span>
                   </button>
@@ -391,6 +391,7 @@ function CreateProviderModal({ onClose, onCreated }: { onClose: () => void; onCr
         </p>
         <form onSubmit={submit} className="mt-4 space-y-3">
           <NameFields
+            showTitle
             value={name} onChange={setName}
             inputClassName="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
             labelClassName="text-xs font-medium text-slate-500"
@@ -460,7 +461,7 @@ function VerificationsTab() {
                   <img src={v.user.avatarUrl} alt={v.user.fullName} className="h-12 w-12 shrink-0 rounded-xl border border-slate-200 object-cover" />
                 ) : (
                   <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 text-lg font-bold text-teal-700">
-                    {v.user.fullName.charAt(0)}
+                    {nameInitial(v.user.fullName)}
                   </div>
                 )}
                 <div>
@@ -1560,7 +1561,7 @@ function UserModal({ userId, onClose, onSaved }: { userId: string; onClose: () =
                   {user.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover object-top" />
-                    : user.fullName.charAt(0)}
+                    : nameInitial(user.fullName)}
                 </div>
                 <button type="button" onClick={() => fileRef.current?.click()} disabled={photoBusy}
                   aria-label="Change photo"
@@ -1585,7 +1586,7 @@ function UserModal({ userId, onClose, onSaved }: { userId: string; onClose: () =
             </div>
 
             <form onSubmit={save} className="mt-5 space-y-4 border-t border-slate-100 pt-5">
-              <NameFields value={name} onChange={setName} />
+              <NameFields value={name} onChange={setName} showTitle={!!user.providerProfile} />
               <PhoneField label="Phone" value={phone} onChange={setPhone} />
               <p className="text-xs text-slate-400">
                 Email is the login identity and where every security code goes, so it isn&apos;t

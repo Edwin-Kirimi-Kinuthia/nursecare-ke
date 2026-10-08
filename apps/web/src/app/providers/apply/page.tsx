@@ -96,7 +96,7 @@ export default function ProviderApplyPage() {
       </div>
 
       <form onSubmit={submit} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <NameFields value={name} onChange={setName} />
+        <NameFields value={name} onChange={setName} showTitle />
         <div>
           <label className="mb-1 block text-sm font-medium text-slate-700">Profession</label>
           <select value={form.role} onChange={(e) => set("role", e.target.value as ProviderApplicationInput["role"])}

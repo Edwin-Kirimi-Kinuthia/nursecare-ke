@@ -4,6 +4,7 @@ import type { ProviderPublicProfile } from "@carebora/api-client";
 import { kes } from "@/lib/api";
 import Stars from "@/components/Stars";
 import AvailabilityBadge from "@/components/AvailabilityBadge";
+import { nameInitial } from "@carebora/shared";
 
 export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
   const location = [p.town, p.county].filter(Boolean).join(", ") || "Kenya";
@@ -37,7 +38,7 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
           />
         ) : (
           <div className="-mt-10 grid h-[72px] w-[72px] place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
-            {p.user.fullName.charAt(0)}
+            {nameInitial(p.user.fullName)}
           </div>
         )}
       </div>

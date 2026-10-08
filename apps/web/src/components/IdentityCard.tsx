@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { Camera, Loader2, Pencil, Check, X, Trash2 } from "lucide-react";
 import type { PublicUser } from "@carebora/shared";
-import { ApiError, PROVIDER_ROLES } from "@carebora/shared";
+import { ApiError, PROVIDER_ROLES, nameInitial } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { fileToDataUrl } from "@/lib/files";
 import { PhoneField } from "@/components/PhoneField";
@@ -104,7 +104,7 @@ export default function IdentityCard({
               {user.avatarUrl
                 // eslint-disable-next-line @next/next/no-img-element
                 ? <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover object-top" />
-                : user.fullName.charAt(0)}
+                : nameInitial(user.fullName)}
             </div>
             <button
               type="button"
@@ -162,7 +162,7 @@ export default function IdentityCard({
 
         {editing && (
           <form onSubmit={save} className="mt-5 space-y-4 border-t border-slate-100 pt-5">
-            <NameFields value={name} onChange={setName} />
+            <NameFields value={name} onChange={setName} showTitle={isProvider} />
             <PhoneField label="Phone" value={phone} onChange={setPhone} />
             <p className="text-xs text-slate-400">
               To change the email you sign in with, message us from the Contact page — it&apos;s

@@ -10,6 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import NotificationBell from "@/components/NotificationBell";
 import type { PublicUser } from "@carebora/shared";
+import { nameInitial } from "@carebora/shared";
 
 interface NavLink {
   href: string;
@@ -136,7 +137,7 @@ export default function Nav() {
                   {user.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-                    : user.fullName.charAt(0)}
+                    : nameInitial(user.fullName)}
                 </span>
                 <span className="max-w-[8rem] truncate text-sm font-medium text-slate-700">{user.fullName.split(" ")[0]}</span>
               </Link>
@@ -179,7 +180,7 @@ export default function Nav() {
                 {user.avatarUrl
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-                  : user.fullName.charAt(0)}
+                  : nameInitial(user.fullName)}
               </span>
               <span className="min-w-0">
                 <span className="block truncate font-semibold text-slate-900">{user.fullName}</span>

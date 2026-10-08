@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { greetingName } from "@carebora/shared";
 import { renderEmail, p, otp, panel, rows } from "./email-layout";
 
 // Instantiate lazily so a missing RESEND_API_KEY never crashes module import
@@ -67,9 +68,13 @@ function esc(value: string): string {
     .replace(/"/g, "&quot;");
 }
 
-/** "Edwin Kirimi Kinuthia" -> "Edwin". A greeting reads better with one name. */
+/**
+ * "Edwin Kirimi Kinuthia" -> "Edwin"; "Dr. Mercy Chebet Limo" -> "Dr. Mercy".
+ * A greeting reads better with one name, and a doctor is greeted as one — the
+ * naive first word would give "Hi Dr.,".
+ */
 function firstName(fullName: string): string {
-  return esc(fullName.trim().split(/\s+/)[0] || "there");
+  return esc(greetingName(fullName));
 }
 
 function nairobi(date: Date): string {

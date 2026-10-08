@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2, Star } from "lucide-react";
 import type { Appointment } from "@carebora/api-client";
-import { ApiError } from "@carebora/shared";
+import { ApiError, nameInitial } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
@@ -174,7 +174,7 @@ export default function AppointmentsPage() {
             return (
               <div key={a.id} className="card-lift flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 font-bold text-teal-700">
-                  {a.provider?.user?.fullName?.charAt(0) ?? "?"}
+                  {nameInitial(a.provider?.user?.fullName)}
                 </div>
                 <div className="min-w-0">
                   <div className="font-bold text-slate-900">{a.provider?.user?.fullName ?? "Provider"}</div>

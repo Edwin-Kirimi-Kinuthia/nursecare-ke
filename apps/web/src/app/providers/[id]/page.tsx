@@ -4,7 +4,7 @@ import { use, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { MapPin, BadgeCheck, Languages, Stethoscope, CalendarCheck, CheckCircle2, AlertCircle } from "lucide-react";
 import type { ProviderPublicProfile, Slot } from "@carebora/api-client";
-import { ApiError } from "@carebora/shared";
+import { ApiError, nameInitial } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import Stars from "@/components/Stars";
@@ -99,7 +99,7 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
               />
             ) : (
               <div className="-mt-12 grid h-24 w-24 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
-                {provider.user.fullName.charAt(0)}
+                {nameInitial(provider.user.fullName)}
               </div>
             )}
             <div className="flex-1">

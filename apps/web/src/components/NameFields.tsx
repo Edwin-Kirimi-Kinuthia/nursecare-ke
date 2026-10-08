@@ -1,17 +1,26 @@
 "use client";
 
+import { NAME_TITLES, joinTitle, splitTitle } from "@carebora/shared";
+
 /** Every form that collects a person's name does it this way: Surname, First name, Middle name (optional). */
 export interface NameParts {
   surname: string;
   firstName: string;
   middleName: string;
+  /** Optional, and only asked for on care-provider forms. */
+  title?: string;
 }
 
-export const EMPTY_NAME: NameParts = { surname: "", firstName: "", middleName: "" };
+export const EMPTY_NAME: NameParts = { surname: "", firstName: "", middleName: "", title: "" };
 
-/** Assembled in natural reading order for storage/display — the form just asks in a different order. */
+/**
+ * Assembled in natural reading order for storage/display — the form just asks
+ * in a different order. A title, when chosen, leads the name ("Dr. Jane Kamau"),
+ * so everywhere the name is shown carries it without needing to know about it.
+ */
 export function composeFullName(parts: NameParts): string {
-  return [parts.firstName, parts.middleName, parts.surname].map((s) => s.trim()).filter(Boolean).join(" ");
+  const name = [parts.firstName, parts.middleName, parts.surname].map((s) => s.trim()).filter(Boolean).join(" ");
+  return joinTitle(parts.title, name);
 }
 
 const DEFAULT_INPUT_CLASS =
@@ -27,10 +36,13 @@ const DEFAULT_LABEL_CLASS = "mb-1 block text-sm font-medium text-slate-700";
  * and degrades sensibly on a one-word name.
  */
 export function splitFullName(fullName: string): NameParts {
-  const parts = fullName.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { ...EMPTY_NAME };
-  if (parts.length === 1) return { ...EMPTY_NAME, firstName: parts[0] };
+  // The title comes off first, or "Dr." would be read as the first name.
+  const { title, name } = splitTitle(fullName);
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { ...EMPTY_NAME, title };
+  if (parts.length === 1) return { ...EMPTY_NAME, title, firstName: parts[0] };
   return {
+    title,
     firstName: parts[0],
     middleName: parts.slice(1, -1).join(" "),
     surname: parts[parts.length - 1],
@@ -38,15 +50,34 @@ export function splitFullName(fullName: string): NameParts {
 }
 
 export function NameFields({
-  value, onChange, inputClassName = DEFAULT_INPUT_CLASS, labelClassName = DEFAULT_LABEL_CLASS,
+  value, onChange, inputClassName = DEFAULT_INPUT_CLASS, labelClassName = DEFAULT_LABEL_CLASS, showTitle = false,
 }: {
   value: NameParts;
   onChange: (v: NameParts) => void;
   inputClassName?: string;
   labelClassName?: string;
+  /** Ask for an optional title (Dr., Prof., …). For care-provider forms. */
+  showTitle?: boolean;
 }) {
   const set = (k: keyof NameParts, v: string) => onChange({ ...value, [k]: v });
   return (
+    <div className="space-y-3">
+      {showTitle && (
+        <div className="sm:w-40">
+          {/* "No title" lives in the option, not the label, for the same reason
+              "(optional)" is in the placeholder below: a longer label wraps and
+              pushes the control out of line with its neighbours. */}
+          <label className={labelClassName}>Title</label>
+          <select
+            value={value.title ?? ""}
+            onChange={(e) => set("title", e.target.value)}
+            className={inputClassName}
+          >
+            <option value="">No title</option>
+            {NAME_TITLES.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        </div>
+      )}
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       <div>
         <label className={labelClassName}>Surname</label>
@@ -63,6 +94,7 @@ export function NameFields({
         <label className={labelClassName}>Middle name</label>
         <input value={value.middleName} onChange={(e) => set("middleName", e.target.value)} placeholder="Wanjiru (optional)" className={inputClassName} />
       </div>
+    </div>
     </div>
   );
 }
