@@ -60,6 +60,18 @@ export default function AboutPage() {
         </ul>
       </section>
 
+      {f.parentOrgName && f.parentOrgUrl && (
+        <section className="mt-12" aria-labelledby="nonprofit">
+          <h2 id="nonprofit" className="text-2xl font-extrabold tracking-tight text-slate-900">Our non-profit</h2>
+          <p className="mt-4 leading-relaxed text-slate-600">
+            Care Bora sits alongside{" "}
+            <a href={f.parentOrgUrl} className="font-semibold text-teal-700 underline-offset-2 hover:underline">{f.parentOrgName}, our non-profit organisation</a>,
+            a youth-led organisation working to advance health equity and community health across Kenya. Its programmes, impact and team are
+            described on its own website.
+          </p>
+        </section>
+      )}
+
       <section className="mt-12" aria-labelledby="limits">
         <h2 id="limits" className="text-2xl font-extrabold tracking-tight text-slate-900">What Care Bora is not</h2>
         <p className="mt-4 leading-relaxed text-slate-600">
@@ -70,7 +82,7 @@ export default function AboutPage() {
       </section>
 
       {/* Organisation details — only what has actually been supplied. */}
-      {(f.legalName || f.registrationNumber || f.parentOrgName) && (
+      {(f.legalName || f.registrationNumber) && (
         <section className="mt-12" aria-labelledby="org">
           <h2 id="org" className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900">
             <Building2 className="h-6 w-6 text-teal-600" aria-hidden /> Organisation
@@ -78,16 +90,6 @@ export default function AboutPage() {
           <dl className="mt-4 grid gap-x-6 gap-y-3 text-sm sm:grid-cols-[auto_1fr]">
             {f.legalName && (<><dt className="font-semibold text-slate-500">Registered name</dt><dd className="text-slate-800">{f.legalName}</dd></>)}
             {f.registrationNumber && (<><dt className="font-semibold text-slate-500">Registration number</dt><dd className="text-slate-800">{f.registrationNumber}</dd></>)}
-            {f.parentOrgName && (
-              <>
-                <dt className="font-semibold text-slate-500">Part of</dt>
-                <dd className="text-slate-800">
-                  {f.parentOrgUrl
-                    ? <a href={f.parentOrgUrl} className="font-semibold text-teal-700 hover:underline" rel="noopener">{f.parentOrgName}</a>
-                    : f.parentOrgName}
-                </dd>
-              </>
-            )}
           </dl>
         </section>
       )}

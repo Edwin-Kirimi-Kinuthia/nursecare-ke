@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SITE_FACTS } from "@/lib/site-facts";
 import { Phone, Mail, MapPin, Facebook, Instagram, Ambulance, MessageSquare } from "lucide-react";
 import {
   AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY,
@@ -28,6 +29,15 @@ export default function Footer() {
           <p className="mt-2 max-w-xs text-sm text-slate-500">
             Kenya&apos;s telehealth platform — verified care, home visits, pharmacy delivery, and M-Pesa payments.
           </p>
+          {/* The non-profit this belongs to, linked from every page of the site. */}
+          {SITE_FACTS.parentOrgName && SITE_FACTS.parentOrgUrl && (
+            <p className="mt-3 max-w-xs text-sm text-slate-500">
+              Connected to{" "}
+              <a href={SITE_FACTS.parentOrgUrl} className="font-semibold text-teal-700 hover:underline">
+                {SITE_FACTS.parentOrgName}, our non-profit
+              </a>.
+            </p>
+          )}
           {/* Each platform keeps its own brand colour so it's recognisable at a glance. */}
           <div className="mt-4 flex gap-2">
             <a href="https://www.facebook.com/share/1GneyXiB15/" target="_blank" rel="noreferrer" aria-label="Facebook"

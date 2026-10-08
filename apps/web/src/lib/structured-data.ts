@@ -1,5 +1,6 @@
 import { AMBULANCE_PHONE, SUPPORT_PHONE, SUPPORT_EMAIL } from "@/lib/contact";
 import { SITE_NAME, SITE_URL, absoluteUrl, tidy } from "@/lib/seo";
+import { SITE_FACTS } from "@/lib/site-facts";
 
 /**
  * schema.org descriptions of the business.
@@ -65,6 +66,12 @@ export function organizationSchema() {
       "https://www.facebook.com/share/1GneyXiB15/",
       "https://www.instagram.com/carebora_ke/",
     ],
+    // The non-profit this platform belongs to. Declared in markup as well as
+    // linked in the page, so search engines can connect the two sites as one
+    // organisation rather than treating them as strangers sharing a name.
+    ...(SITE_FACTS.parentOrgName && SITE_FACTS.parentOrgUrl
+      ? { parentOrganization: { "@type": "NGO", name: SITE_FACTS.parentOrgName, url: SITE_FACTS.parentOrgUrl } }
+      : {}),
     // Services, not procedures: an ambulance line or a pharmacy isn't a
     // MedicalProcedure, and mistyping them muddies what the entity is.
     hasOfferCatalog: {
