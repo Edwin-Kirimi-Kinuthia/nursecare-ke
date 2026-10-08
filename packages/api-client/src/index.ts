@@ -241,6 +241,10 @@ export class CareBoraClient {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<ProviderListResult>(`/providers?${params}`);
   }
+  /** Specialties verified providers have supplied — drives the directory filter chips. */
+  listSpecialties() {
+    return this.request<{ specialties: { name: string; count: number }[] }>("/providers/specialties");
+  }
   getProvider(providerId: string) {
     return this.request<ProviderPublicProfile>(`/providers/${providerId}`);
   }
@@ -1553,9 +1557,19 @@ export interface PlatformStats {
   appointments: { total: number; byStatus: Record<string, number> };
   payments: {
     completedCount: number;
-    totalRevenueKes: number;
-    platformFeeKes: number;
-    breakdown?: { consultationsKes: number; pharmacyKes: number; homeVisitsKes: number };
+    /** Everything paid in, net of refunds. Most of it belongs to providers and vendors. */
+    collectedKes: number;
+    /** What Care Bora keeps — commission, plus the whole of its own pharmacy's sales. */
+    earningsKes: number;
+    /** The providers'/vendors' share not yet paid out. A liability, not income. */
+    owedKes: number;
+    refundedKes: number;
+    /** Collected, by what was bought. Sums to collectedKes. */
+    bySubject: { appointment: number; home_visit: number; order: number; lab_order: number; ambulance: number };
+    periods: {
+      today: { collectedKes: number; earningsKes: number };
+      last30Days: { collectedKes: number; earningsKes: number };
+    };
   };
   orders: { total: number; byStatus: Record<string, number> };
   homeVisits: { total: number; byStatus: Record<string, number> };

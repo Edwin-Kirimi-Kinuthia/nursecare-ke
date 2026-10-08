@@ -8,13 +8,24 @@ import ProviderCard from "@/components/ProviderCard";
 import PageHeader from "@/components/PageHeader";
 import EmptyState from "@/components/EmptyState";
 
-const FILTERS = ["", "General Practice", "Paediatrics", "Obstetrics", "Nursing"];
-
 export default function ProvidersPage() {
   const [providers, setProviders] = useState<ProviderPublicProfile[]>([]);
   const [specialty, setSpecialty] = useState("");
+  // The filter chips come from what providers have actually entered, not a
+  // fixed list — a chip for "Nursing" with no nurse on the platform is a
+  // dead end. Fetched once and independent of the selected filter, so
+  // choosing one doesn't make the others vanish.
+  const [specialties, setSpecialties] = useState<{ name: string; count: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    api.listSpecialties()
+      .then((r) => { if (active) setSpecialties(r.specialties); })
+      .catch(() => { /* the directory still works without chips */ });
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -41,25 +52,33 @@ export default function ProvidersPage() {
             eyebrow="Care providers"
             Icon={Stethoscope}
             title="Find your provider"
-            lede="Verified doctors, nurses and specialists across Kenya. Every clinician here has had their practice licence checked."
+            lede="Licensed clinicians across Kenya. Every provider here has had their practice licence checked."
           />
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            {FILTERS.map((s) => (
-              <button
-                key={s || "all"}
-                onClick={() => setSpecialty(s)}
-                className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition ${
-                  specialty === s
-                    ? "border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-500/30"
-                    : "border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700"
-                }`}
-              >
-                {s === "" && <Search className="h-3.5 w-3.5" />}
-                {s || "All providers"}
-              </button>
-            ))}
-          </div>
+          {/* One specialty is the same as no filter, so the row only appears
+              once there is something to choose between. */}
+          {specialties.length >= 2 && (
+            <div className="mt-6 flex flex-wrap gap-2" role="group" aria-label="Filter by specialty">
+              {[{ name: "", count: 0 }, ...specialties].map(({ name, count }) => (
+                <button
+                  key={name || "all"}
+                  onClick={() => setSpecialty(name)}
+                  aria-pressed={specialty === name}
+                  className={`inline-flex items-center gap-1.5 rounded-full border px-4 py-2 text-sm font-medium transition ${
+                    specialty === name
+                      ? "border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-500/30"
+                      : "border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700"
+                  }`}
+                >
+                  {name === "" && <Search className="h-3.5 w-3.5" />}
+                  {name || "All providers"}
+                  {name !== "" && (
+                    <span className={`text-xs tabular-nums ${specialty === name ? "text-teal-100" : "text-slate-400"}`}>{count}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 

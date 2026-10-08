@@ -52,6 +52,21 @@ export const consultationService = {
     }
     if (appointment.consultation) return appointment.consultation;
 
+    // Paid before seen. Confirmation alone used to be enough, so a patient
+    // could be taken into a consultation without ever paying for it — and
+    // nothing afterwards chases the money. Checked here, at the one place a
+    // consultation begins, so it holds regardless of which screen or client
+    // asks. A free appointment (no fee) has nothing to pay and passes.
+    if (appointment.feeKes > 0) {
+      const paid = await db.payment.findFirst({
+        where: { subjectType: "appointment", subjectId: appointmentId, status: "completed" },
+        select: { id: true },
+      });
+      if (!paid) {
+        throw ApiError.badRequest("This consultation hasn't been paid for yet. You can start it once the patient has paid.");
+      }
+    }
+
     const consultation = await db.consultation.create({
       data: { appointmentId, roomName: `consult-${appointmentId}` },
     });

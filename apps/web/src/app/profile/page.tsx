@@ -144,9 +144,11 @@ function ChangePasswordCard() {
 
 /* ── shared field ─────────────────────────────────────────────────────────── */
 function Field({
-  label, value, onChange, placeholder, type = "text", revealable,
+  label, value, onChange, placeholder, type = "text", revealable, list,
 }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; revealable?: boolean;
+  /** id of a <datalist> to suggest values from. */
+  list?: string;
 }) {
   const [reveal, setReveal] = useState(false);
   const resolvedType = revealable ? (reveal ? "text" : "password") : type;
@@ -154,7 +156,7 @@ function Field({
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <div className="relative mt-1">
-        <input type={resolvedType} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+        <input type={resolvedType} value={value} placeholder={placeholder} list={list} onChange={(e) => onChange(e.target.value)}
           className={`w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${revealable ? "pr-10" : ""}`} />
         {revealable && (
           <button type="button" tabIndex={-1} onClick={() => setReveal((r) => !r)} aria-label={reveal ? "Hide password" : "Show password"}
@@ -319,12 +321,45 @@ function ProviderSection() {
     return () => { active = false; };
   }, []);
 
+  const [specialtyOptions, setSpecialtyOptions] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    api.listSpecialties()
+      .then((r) => { if (active) setSpecialtyOptions(r.specialties.map((x) => x.name)); })
+      .catch(() => { /* suggestions are optional */ });
+    return () => { active = false; };
+  }, []);
+
+  const [toggleBusy, setToggleBusy] = useState(false);
+  const [toggleErr, setToggleErr] = useState<string | null>(null);
+
+  /**
+   * Flip availability immediately. It's a live status — "I'm free" / "I'm with
+   * another client" — so making it wait for a Save click at the bottom of a
+   * long form defeats it. Optimistic, and put back if the save fails.
+   */
+  async function toggleAvailable(next: boolean) {
+    if (!p) return;
+    const previous = p.isAvailable;
+    setP({ ...p, isAvailable: next });
+    setToggleBusy(true); setToggleErr(null);
+    try {
+      await api.patchProviderProfile({ isAvailable: next });
+    } catch (e) {
+      setP((cur) => (cur ? { ...cur, isAvailable: previous } : cur));
+      setToggleErr(e instanceof Error ? e.message : "Could not update your availability.");
+    } finally {
+      setToggleBusy(false);
+    }
+  }
+
   async function save() {
     if (!p) return;
     setSaving(true); setSaved(false);
     try {
       const updated = await api.patchProviderProfile({
         specialty: p.specialty ?? undefined,
+        subSpecialty: p.subSpecialty ?? undefined,
         bio: p.bio ?? undefined,
         county: p.county ?? undefined,
         town: p.town ?? undefined,
@@ -332,7 +367,6 @@ function ProviderSection() {
         services: list(servicesText),
         consultationFeeKes: p.consultationFeeKes ?? undefined,
         homeVisitFeeKes: p.homeVisitFeeKes ?? undefined,
-        isAvailable: p.isAvailable,
       });
       setP(updated);
       setLanguagesText(updated.languages.join(", "));
@@ -352,8 +386,15 @@ function ProviderSection() {
         <h2 className="flex items-center gap-2 font-bold text-slate-900"><Stethoscope className="h-5 w-5 text-teal-600" /> Professional profile</h2>
         <Saved show={saved} />
       </div>
+      {/* Suggestions from what's already on the platform, so "Paediatrics" and
+          "Pediatrics" don't end up as two separate filter chips. Free text is
+          still allowed — a new specialty has to be enterable. */}
+      <datalist id="specialty-options">
+        {specialtyOptions.map((n) => <option key={n} value={n} />)}
+      </datalist>
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <Field label="Specialty" value={p.specialty ?? ""} onChange={(v) => set("specialty", v)} />
+        <Field label="Specialty" list="specialty-options" placeholder="e.g. Internal Medicine" value={p.specialty ?? ""} onChange={(v) => set("specialty", v)} />
+        <Field label="Sub-specialty (optional)" list="specialty-options" placeholder="e.g. Cardiology" value={p.subSpecialty ?? ""} onChange={(v) => set("subSpecialty", v)} />
         <Field label="County" value={p.county ?? ""} onChange={(v) => set("county", v)} />
         <Field label="Town" value={p.town ?? ""} onChange={(v) => set("town", v)} />
         <Field label="Consultation fee (KES)" value={String(p.consultationFeeKes ?? "")} onChange={(v) => set("consultationFeeKes", v ? Number(v) : null)} />
@@ -366,32 +407,40 @@ function ProviderSection() {
         <textarea value={p.bio ?? ""} onChange={(e) => set("bio", e.target.value)} rows={3}
           className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
       </label>
-      <div className={`mt-5 rounded-2xl border p-4 transition ${p.isAvailable ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"}`}>
+      <div className={`mt-5 rounded-2xl border p-4 transition ${p.isAvailable ? "border-emerald-200 bg-emerald-50/60" : "border-amber-200 bg-amber-50/60"}`}>
         <label className="flex cursor-pointer items-start justify-between gap-4">
           <span className="min-w-0">
-            <span className="block font-semibold text-slate-900">
-              {p.isAvailable ? "Accepting bookings" : "Not accepting bookings"}
+            <span className="flex items-center gap-2 font-semibold text-slate-900">
+              <span className={`h-2.5 w-2.5 rounded-full ${p.isAvailable ? "bg-emerald-500" : "bg-amber-500"}`} aria-hidden />
+              {p.isAvailable ? "Available" : "Busy"}
             </span>
-            <span className="mt-0.5 block text-sm text-slate-500">
+            <span className="mt-1 block text-sm text-slate-600">
               {p.isAvailable
-                ? "Patients can book you Mon–Sat, 8am–6pm, in 30-minute consultations. Turn this off to close your calendar — already-booked appointments are kept."
-                : "Turn this on to appear in search and open your calendar for the next 60 days."}
+                ? "New bookings are confirmed instantly, so patients can pay and be ready for their slot without waiting on you."
+                : "Patients can still book you, but each booking waits for your confirmation first. Switch back to Available when you're free."}
             </span>
           </span>
-          {/* Switch rather than a checkbox — this is the one control that decides
-              whether a provider is bookable at all. */}
+          {/* Applies the moment it's flipped — a live status, not a form field. */}
           <span className="relative mt-0.5 inline-flex shrink-0">
             <input
               type="checkbox"
+              role="switch"
+              aria-label="Available for instant bookings"
               checked={p.isAvailable}
-              onChange={(e) => set("isAvailable", e.target.checked)}
+              disabled={toggleBusy}
+              onChange={(e) => toggleAvailable(e.target.checked)}
               className="peer sr-only"
             />
-            <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-teal-600" />
+            <span className="h-6 w-11 rounded-full bg-slate-300 transition peer-checked:bg-emerald-600 peer-disabled:opacity-60" />
             <span className="pointer-events-none absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
           </span>
         </label>
-        <p className="mt-2 text-xs text-slate-400">Takes effect when you save.</p>
+        {toggleErr && <p className="mt-2 text-xs text-rose-600">{toggleErr}</p>}
+        {(!p.consultationFeeKes || p.consultationFeeKes <= 0) && (
+          <p className="mt-3 rounded-lg bg-white/70 px-3 py-2 text-xs text-amber-800">
+            Set a consultation fee below to open your calendar — you can&apos;t be booked until you do.
+          </p>
+        )}
       </div>
       <button onClick={save} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
         <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}

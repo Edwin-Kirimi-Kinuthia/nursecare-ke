@@ -3,6 +3,7 @@ import { MapPin, BadgeCheck, ArrowRight } from "lucide-react";
 import type { ProviderPublicProfile } from "@carebora/api-client";
 import { kes } from "@/lib/api";
 import Stars from "@/components/Stars";
+import AvailabilityBadge from "@/components/AvailabilityBadge";
 
 export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
   const location = [p.town, p.county].filter(Boolean).join(", ") || "Kenya";
@@ -44,7 +45,11 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
       {/* Body */}
       <div className="px-5 pb-5 pt-3">
         <h3 className="font-bold text-slate-900">{p.user.fullName}</h3>
-        <p className="text-sm text-teal-700">{p.specialty ?? "Clinician"}</p>
+        <p className="text-sm text-teal-700">
+          {p.specialty ?? "Clinician"}
+          {p.subSpecialty && <span className="text-slate-400"> · {p.subSpecialty}</span>}
+        </p>
+        <AvailabilityBadge available={p.isAvailable} className="mt-1.5" />
 
         <div className="mt-2 flex items-center gap-2">
           <Stars value={p.ratingAvg} />

@@ -3,9 +3,8 @@ import { ApiError, type CreateAvailabilityInput, type CreateSlotInput, type Slot
 import { addDays, startOfDay } from "./date-utils";
 
 /**
- * Default clinic hours applied when a provider simply flips themselves
- * "available", instead of making them hand-build a weekly schedule.
- * Mon–Sat, 08:00–18:00, in 30-minute teleconsult slots.
+ * Default clinic hours, so a provider never has to hand-build a weekly
+ * schedule. Mon–Sat, 08:00–18:00, in 30-minute teleconsult slots.
  */
 const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
 const DEFAULT_START_MINUTE = 8 * 60;
@@ -13,30 +12,42 @@ const DEFAULT_END_MINUTE = 18 * 60;
 const DEFAULT_SLOT_DURATION = 30;
 const SLOT_HORIZON_DAYS = 60;
 
+/** How far ahead a provider's calendar must reach before it is topped up. */
+const TOP_UP_THRESHOLD_DAYS = 14;
+
 export const availabilityService = {
   /**
-   * The whole of a provider's scheduling UX: one switch.
+   * Make sure a bookable provider has a calendar. Idempotent.
    *
-   * On — make sure their default weekly rules exist and are active, then fill
-   * the next two months with bookable slots.
-   * Off — deactivate the rules and clear future slots nobody has booked yet.
-   * Already-booked slots are never touched; those appointments still stand.
+   * The calendar and the availability switch are deliberately separate things.
+   * The calendar is *when* a provider can be booked — a fixed weekly pattern
+   * that exists whenever they are bookable at all. The switch (isAvailable) is
+   * their live state: free right now, or busy with another client. Turning it
+   * off used to delete every open slot, which made a busy provider
+   * unbookable and so defeated the point of marking oneself busy.
+   *
+   * Two conditions guard it. The provider must be verified, since the
+   * directory only shows verified providers. And they must have set a
+   * consultation fee: a slot with no fee is a free appointment, which nobody
+   * intended and which pay-before-consultation would then wave straight
+   * through.
    */
-  async setAvailability(providerId: string, available: boolean) {
-    if (!available) {
-      await db.availability.updateMany({ where: { providerId }, data: { isActive: false } });
-      const { count } = await db.slot.deleteMany({
-        where: { providerId, isBooked: false, startsAt: { gt: new Date() } },
-      });
-      return { available, slotsRemoved: count };
-    }
+  async ensureSchedule(providerId: string) {
+    const profile = await db.providerProfile.findUnique({
+      where: { userId: providerId },
+      select: { verificationStatus: true, consultationFeeKes: true },
+    });
+    if (!profile || profile.verificationStatus !== "verified") return { eligible: false as const };
+    if (!profile.consultationFeeKes || profile.consultationFeeKes <= 0) return { eligible: false as const };
 
     for (const dayOfWeek of DEFAULT_WORKING_DAYS) {
       const existing = await db.availability.findFirst({
         where: { providerId, appointmentType: "teleconsult", dayOfWeek },
       });
       const rule = existing
-        ? await db.availability.update({ where: { id: existing.id }, data: { isActive: true } })
+        ? existing.isActive
+          ? existing
+          : await db.availability.update({ where: { id: existing.id }, data: { isActive: true } })
         : await db.availability.create({
             data: {
               providerId,
@@ -53,7 +64,22 @@ export const availabilityService = {
     const slotsOpen = await db.slot.count({
       where: { providerId, isBooked: false, startsAt: { gt: new Date() } },
     });
-    return { available, slotsOpen };
+    return { eligible: true as const, slotsOpen };
+  },
+
+  /**
+   * Keep a calendar from quietly running dry. Slots are generated 60 days out
+   * and nothing else runs on a schedule, so without this a provider's calendar
+   * would simply end. Checked whenever slots are listed, and only does work
+   * when nothing is booked-out beyond the next two weeks.
+   */
+  async topUpIfNeeded(providerId: string) {
+    const horizon = new Date(Date.now() + TOP_UP_THRESHOLD_DAYS * 86_400_000);
+    const farSlot = await db.slot.findFirst({
+      where: { providerId, startsAt: { gte: horizon } },
+      select: { id: true },
+    });
+    if (!farSlot) await this.ensureSchedule(providerId);
   },
 
   /** List a provider's recurring schedule rules. */
@@ -87,6 +113,7 @@ export const availabilityService = {
 
   /** List open slots for a provider (unbooked, in the future). */
   async listSlots(providerId: string, query: SlotsQuery) {
+    await this.topUpIfNeeded(providerId);
     const now = new Date();
     return db.slot.findMany({
       where: {

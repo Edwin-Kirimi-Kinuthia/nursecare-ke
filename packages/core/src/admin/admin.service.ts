@@ -276,11 +276,37 @@ export const adminService = {
   // ── Platform stats ────────────────────────────────────────────────────────
 
   async getStats() {
+    // "Today" and "last 30 days" in Nairobi time (UTC+3, no DST) — an admin
+    // looking at "today" at 1am Nairobi shouldn't be shown yesterday's UTC day.
+    const EAT_OFFSET_MS = 3 * 3_600_000;
+    const nowMs = Date.now();
+    const startOfToday = new Date(Math.floor((nowMs + EAT_OFFSET_MS) / 86_400_000) * 86_400_000 - EAT_OFFSET_MS);
+    const thirtyDaysAgo = new Date(nowMs - 30 * 86_400_000);
+
+    const sumCollected = (since?: Date) =>
+      db.payment.aggregate({
+        where: { status: "completed", ...(since ? { paidAt: { gte: since } } : {}) },
+        _count: { _all: true },
+        _sum: { amountKes: true },
+      });
+    const sumLedger = (types: ("platform_fee" | "vendor_payout" | "provider_payout" | "payout_settled")[], since?: Date) =>
+      db.ledgerEntry.aggregate({
+        where: { type: { in: types }, ...(since ? { createdAt: { gte: since } } : {}) },
+        _sum: { amountKes: true },
+      });
+
     const [
       userGroups,
       appointmentGroups,
-      paymentCompleted,
-      platformFees,
+      collectedAll,
+      collectedToday,
+      collected30,
+      earningsAll,
+      earningsToday,
+      earnings30,
+      payableAll,
+      settledAll,
+      refunded,
       orderCount,
       vendorOrderGroups,
       homeVisitGroups,
@@ -288,22 +314,39 @@ export const adminService = {
     ] = await Promise.all([
       db.user.groupBy({ by: ["role"], _count: { _all: true } }),
       db.appointment.groupBy({ by: ["status"], _count: { _all: true } }),
-      db.payment.aggregate({ where: { status: "completed" }, _count: { _all: true }, _sum: { amountKes: true } }),
-      db.ledgerEntry.aggregate({ where: { type: "platform_fee" }, _sum: { amountKes: true } }),
+      sumCollected(),
+      sumCollected(startOfToday),
+      sumCollected(thirtyDaysAgo),
+      sumLedger(["platform_fee"]),
+      sumLedger(["platform_fee"], startOfToday),
+      sumLedger(["platform_fee"], thirtyDaysAgo),
+      sumLedger(["vendor_payout", "provider_payout"]),
+      sumLedger(["payout_settled"]),
+      db.payment.aggregate({ where: { status: "refunded" }, _sum: { refundedKes: true } }),
       db.order.count(),
       // Fulfilment status lives per vendor slice of a checkout now (a cart can span orgs).
       db.vendorOrder.groupBy({ by: ["status"], _count: { _all: true } }),
       db.homeVisit.groupBy({ by: ["status"], _count: { _all: true } }),
-      // Revenue by subject type, straight off the single polymorphic Payment
-      // table — every subject (appointment/order/home visit/…) is counted the
-      // same way, so a new subject type in a later phase needs no new query here.
+      // Collected, by what was bought — straight off the single polymorphic
+      // Payment table, so every subject is counted the same way.
       db.payment.groupBy({ by: ["subjectType"], where: { status: "completed" }, _sum: { amountKes: true } }),
     ]);
 
     const bySubject = Object.fromEntries(revenueBySubject.map((r) => [r.subjectType, r._sum.amountKes ?? 0]));
-    const consultationsKes = bySubject.appointment ?? 0;
-    const pharmacyKes = bySubject.order ?? 0;
-    const homeVisitsKes = bySubject.home_visit ?? 0;
+
+    // Three different numbers that used to be reported as one "revenue":
+    //
+    //   collected — every shilling paid in (net of refunds, which leave
+    //               "completed"). Most of it is not Care Bora's.
+    //   earnings  — what Care Bora keeps: platform commission, plus the whole
+    //               of any sale it makes itself. This is revenue.
+    //   owed      — the share belonging to providers and vendors, not yet paid
+    //               out. A liability, not income.
+    //
+    // collected = earnings + owed + already paid out, which is also the check
+    // that these figures agree with each other.
+    const earningsKes = earningsAll._sum.amountKes ?? 0;
+    const owedKes = (payableAll._sum.amountKes ?? 0) - Math.abs(settledAll._sum.amountKes ?? 0);
 
     const toMap = (groups: { _count: { _all: number }; [k: string]: unknown }[], key: string) =>
       Object.fromEntries(groups.map((g) => [g[key] as string, g._count._all]));
@@ -318,13 +361,21 @@ export const adminService = {
         byStatus: toMap(appointmentGroups, "status"),
       },
       payments: {
-        completedCount: paymentCompleted._count._all,
-        totalRevenueKes: paymentCompleted._sum.amountKes ?? 0,
-        platformFeeKes: platformFees._sum.amountKes ?? 0,
-        breakdown: {
-          consultationsKes,
-          pharmacyKes,
-          homeVisitsKes,
+        completedCount: collectedAll._count._all,
+        collectedKes: collectedAll._sum.amountKes ?? 0,
+        earningsKes,
+        owedKes,
+        refundedKes: refunded._sum.refundedKes ?? 0,
+        bySubject: {
+          appointment: bySubject.appointment ?? 0,
+          home_visit: bySubject.home_visit ?? 0,
+          order: bySubject.order ?? 0,
+          lab_order: bySubject.lab_order ?? 0,
+          ambulance: bySubject.ambulance ?? 0,
+        },
+        periods: {
+          today: { collectedKes: collectedToday._sum.amountKes ?? 0, earningsKes: earningsToday._sum.amountKes ?? 0 },
+          last30Days: { collectedKes: collected30._sum.amountKes ?? 0, earningsKes: earnings30._sum.amountKes ?? 0 },
         },
       },
       orders: {

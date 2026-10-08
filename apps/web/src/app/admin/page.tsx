@@ -83,7 +83,7 @@ export default function AdminPage() {
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             <Stat Icon={Users} label="Users" value={stats?.users.total} tone="teal" loading={statsSec.loading} />
             <Stat Icon={CalendarDays} label="Appointments" value={stats?.appointments.total} tone="indigo" loading={statsSec.loading} />
-            <Stat Icon={Wallet} label="Revenue" value={stats ? kes(stats.payments.totalRevenueKes) : undefined} tone="emerald" loading={statsSec.loading} />
+            <Stat Icon={Wallet} label="Earnings" value={stats ? kes(stats.payments.earningsKes) : undefined} tone="emerald" loading={statsSec.loading} />
             <Stat Icon={ShoppingBag} label="Orders" value={stats?.orders.total} tone="amber" loading={statsSec.loading} />
             <Stat Icon={HomeIcon} label="Home visits" value={stats?.homeVisits.total} tone="rose" loading={statsSec.loading} />
           </div>
@@ -176,19 +176,84 @@ function OverviewTab({ stats, loading, error, onRetry }: { stats: PlatformStats 
               </div>
             </div>
           ))}
-          <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-teal-600 to-emerald-700 p-5 text-white sm:col-span-2">
-            <h3 className="font-bold">Total revenue</h3>
-            <div className="mt-1 text-3xl font-extrabold">{kes(stats.payments.totalRevenueKes)}</div>
-            <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.consultationsKes ?? 0)}</div><div className="text-xs text-teal-100">Consultations</div></div>
-              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.pharmacyKes ?? 0)}</div><div className="text-xs text-teal-100">Pharmacy</div></div>
-              <div><div className="text-lg font-extrabold">{kes(stats.payments.breakdown?.homeVisitsKes ?? 0)}</div><div className="text-xs text-teal-100">Home visits</div></div>
-              <div><div className="text-lg font-extrabold">{kes(stats.payments.platformFeeKes)}</div><div className="text-xs text-teal-100">Platform fees</div></div>
-            </div>
-          </div>
+          <RevenueCard payments={stats.payments} />
         </div>
       )}
     </SectionShell>
+  );
+}
+
+/* ── Revenue ──────────────────────────────────────────────────────────────── */
+const SUBJECT_ROWS: { key: keyof PlatformStats["payments"]["bySubject"]; label: string }[] = [
+  { key: "appointment", label: "Consultations" },
+  { key: "home_visit", label: "Home visits" },
+  { key: "order", label: "Pharmacy" },
+  { key: "lab_order", label: "Lab tests" },
+  { key: "ambulance", label: "Ambulance" },
+];
+
+/**
+ * Money, split the way it actually behaves. What patients paid in is mostly
+ * not Care Bora's: a provider's consultation fee is theirs, less commission.
+ * Showing that whole figure as "revenue" overstated the business, so it is
+ * broken into what the company keeps, what it owes on, and what came in.
+ */
+function RevenueCard({ payments: p }: { payments: PlatformStats["payments"] }) {
+  const [period, setPeriod] = useState<"all" | "30" | "today">("all");
+  const view =
+    period === "today" ? p.periods.today
+    : period === "30" ? p.periods.last30Days
+    : { collectedKes: p.collectedKes, earningsKes: p.earningsKes };
+  const largest = Math.max(1, ...SUBJECT_ROWS.map((r) => p.bySubject[r.key]));
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-gradient-to-br from-teal-600 to-emerald-700 p-5 text-white sm:col-span-2">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h3 className="font-bold">Care Bora earnings</h3>
+          <p className="text-xs text-teal-100">Commission, plus the full value of sales made by Care Bora Pharmacy.</p>
+        </div>
+        <div className="flex gap-1 rounded-lg bg-white/15 p-0.5 text-xs font-semibold" role="group" aria-label="Period">
+          {([["today", "Today"], ["30", "30 days"], ["all", "All time"]] as const).map(([id, label]) => (
+            <button key={id} onClick={() => setPeriod(id)} aria-pressed={period === id}
+              className={`rounded-md px-2.5 py-1 transition ${period === id ? "bg-white text-teal-800" : "text-teal-50 hover:bg-white/10"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2 text-3xl font-extrabold tabular-nums">{kes(view.earningsKes)}</div>
+      <div className="text-sm text-teal-100">from {kes(view.collectedKes)} collected</div>
+
+      <div className="mt-5 grid grid-cols-1 gap-3 border-t border-white/20 pt-4 sm:grid-cols-3">
+        <div>
+          <div className="text-lg font-extrabold tabular-nums">{kes(p.collectedKes)}</div>
+          <div className="text-xs text-teal-100">Collected, all time</div>
+        </div>
+        <div>
+          <div className="text-lg font-extrabold tabular-nums">{kes(p.owedKes)}</div>
+          <div className="text-xs text-teal-100">Owed to providers &amp; vendors</div>
+        </div>
+        <div>
+          <div className="text-lg font-extrabold tabular-nums">{kes(p.refundedKes)}</div>
+          <div className="text-xs text-teal-100">Refunded</div>
+        </div>
+      </div>
+
+      <div className="mt-5 space-y-2 border-t border-white/20 pt-4">
+        <div className="text-xs font-semibold uppercase tracking-wide text-teal-100">Collected by service</div>
+        {SUBJECT_ROWS.map(({ key, label }) => (
+          <div key={key} className="flex items-center gap-3 text-sm">
+            <span className="w-28 shrink-0 text-teal-50">{label}</span>
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/15">
+              <div className="h-full rounded-full bg-white/80" style={{ width: `${(p.bySubject[key] / largest) * 100}%` }} />
+            </div>
+            <span className="w-24 shrink-0 text-right font-semibold tabular-nums">{kes(p.bySubject[key])}</span>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 

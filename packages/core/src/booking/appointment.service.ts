@@ -72,6 +72,13 @@ export const appointmentService = {
       throw ApiError.badRequest("A contact phone number is required for a home visit");
     }
 
+    // The provider's switch decides what a booking means. Available: it is
+    // confirmed on the spot, so the patient can pay straight away and be seen
+    // at their slot. Busy (with another client, say): the booking still goes
+    // through, but as a request the provider confirms first — and the patient
+    // pays only once it is, so nobody is charged for a time that gets declined.
+    const autoConfirm = provider.isAvailable && slot.appointmentType === "teleconsult";
+
     try {
       const [appointment] = await db.$transaction([
         db.appointment.create({
@@ -80,6 +87,7 @@ export const appointmentService = {
             providerId: slot.providerId,
             slotId: slot.id,
             appointmentType: slot.appointmentType,
+            status: autoConfirm ? "confirmed" : "requested",
             feeKes,
             patientNotes: input.patientNotes ?? null,
             contactPhone: input.contactPhone ?? null,
@@ -88,22 +96,41 @@ export const appointmentService = {
         }),
         db.slot.update({ where: { id: slot.id }, data: { isBooked: true } }),
       ]);
-      void notificationService.appointmentBooked({
-        patientEmail: appointment.patient.email,
-        patientPhone: appointment.patient.phone,
-        patientName: appointment.patient.fullName,
-        providerName: appointment.provider.user.fullName,
-        specialty: appointment.provider.specialty,
-        slotTime: slot.startsAt,
-        feeKes: appointment.feeKes,
-      });
-      // Notify the provider in-app that a new request needs their action.
-      void inAppNotifications.create(appointment.providerId, {
-        type: "appointment_requested",
-        title: "New appointment request",
-        body: `${appointment.patient.fullName} requested a ${appointment.appointmentType === "teleconsult" ? "teleconsultation" : "home visit"}.`,
-        link: "/appointments",
-      });
+      const providerName = appointment.provider.user.fullName;
+      if (autoConfirm) {
+        // Already confirmed: tell the patient to pay, not to wait.
+        void notificationService.appointmentConfirmed({
+          patientEmail: appointment.patient.email,
+          patientPhone: appointment.patient.phone,
+          patientName: appointment.patient.fullName,
+          providerName,
+          slotTime: slot.startsAt,
+          feeKes: appointment.feeKes,
+        });
+        void inAppNotifications.create(appointment.providerId, {
+          type: "appointment_booked",
+          title: "New booking",
+          body: `${appointment.patient.fullName} booked a teleconsultation. You can start it once they've paid.`,
+          link: "/appointments",
+        });
+      } else {
+        void notificationService.appointmentBooked({
+          patientEmail: appointment.patient.email,
+          patientPhone: appointment.patient.phone,
+          patientName: appointment.patient.fullName,
+          providerName,
+          specialty: appointment.provider.specialty,
+          slotTime: slot.startsAt,
+          feeKes: appointment.feeKes,
+        });
+        // Notify the provider in-app that a new request needs their action.
+        void inAppNotifications.create(appointment.providerId, {
+          type: "appointment_requested",
+          title: "New appointment request",
+          body: `${appointment.patient.fullName} requested a ${appointment.appointmentType === "teleconsult" ? "teleconsultation" : "home visit"}. Confirm it to let them pay.`,
+          link: "/appointments",
+        });
+      }
       return attachPayment(appointment);
     } catch (err) {
       if (

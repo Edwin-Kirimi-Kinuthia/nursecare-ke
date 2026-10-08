@@ -36,10 +36,26 @@ export default function PharmacyPage() {
     return () => { active = false; };
   }, [category, search, lat, lng, county]);
 
-  const categories = useMemo(
-    () => ["", ...Array.from(new Set(drugs.map((d) => d.category))).sort()],
-    [drugs],
-  );
+  // Categories come from an unfiltered look at what's on sale in the user's
+  // area — not from `drugs`, which is already narrowed by the selected
+  // category and the search box. Deriving them from the filtered list meant
+  // choosing a category made every other chip disappear, and typing in the
+  // search shrank the row again. Only the location changes this set.
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+  useEffect(() => {
+    let active = true;
+    api.searchDrugs({
+      limit: 50,
+      ...(lat != null && lng != null ? { lat, lng } : county ? { county } : {}),
+    })
+      .then((res) => {
+        if (active) setAllCategories(Array.from(new Set(res.drugs.map((d) => d.category))).sort());
+      })
+      .catch(() => { /* chips are optional; the grid reports its own errors */ });
+    return () => { active = false; };
+  }, [lat, lng, county]);
+
+  const categories = useMemo(() => ["", ...allCategories], [allCategories]);
 
   return (
     <div>

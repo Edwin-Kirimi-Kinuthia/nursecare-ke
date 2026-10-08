@@ -9,6 +9,7 @@ import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import Stars from "@/components/Stars";
 import ProviderReviews from "@/components/ProviderReviews";
+import AvailabilityBadge from "@/components/AvailabilityBadge";
 
 function groupByDay(slots: Slot[]) {
   const map = new Map<string, Slot[]>();
@@ -50,9 +51,21 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
     setBooking(slot.id);
     setMsg(null);
     try {
-      await api.createAppointment({ slotId: slot.id });
+      const appt = await api.createAppointment({ slotId: slot.id });
       setSlots((prev) => prev.filter((s) => s.id !== slot.id));
-      setMsg({ kind: "ok", text: "Booked! Find it under My appointments." });
+      if (appt.status === "confirmed" && appt.feeKes > 0) {
+        // Confirmed on the spot (the provider is available), so the next step
+        // is paying the consultation fee — that is what lets them be seen.
+        // The appointments page opens the payment prompt for it.
+        router.push(`/appointments?pay=${appt.id}`);
+        return;
+      }
+      setMsg({
+        kind: "ok",
+        text: appt.status === "confirmed"
+          ? "Booked! Find it under My appointments."
+          : `Request sent. ${provider?.user.fullName ?? "The provider"} will confirm it, and we'll email you so you can pay and be seen.`,
+      });
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Booking failed" });
     } finally {
@@ -94,7 +107,11 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
                 <h1 className="text-2xl font-extrabold text-slate-900">{provider.user.fullName}</h1>
                 {provider.verificationStatus === "verified" && <BadgeCheck className="h-5 w-5 text-teal-600" />}
               </div>
-              <p className="text-teal-700">{provider.specialty ?? "Clinician"}</p>
+              <p className="text-teal-700">
+                {provider.specialty ?? "Clinician"}
+                {provider.subSpecialty && <span className="text-slate-400"> · {provider.subSpecialty}</span>}
+              </p>
+              <AvailabilityBadge available={provider.isAvailable} size="md" className="mt-1" />
               <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-slate-500">
                 <span className="flex items-center gap-1"><Stars value={provider.ratingAvg} />
                   {provider.ratingCount > 0 && <span className="ml-1">{provider.ratingAvg} ({provider.ratingCount})</span>}
@@ -132,6 +149,14 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
         </h2>
         {!user && <p className="mt-1 text-sm text-slate-500">You&apos;ll be asked to log in when you book.</p>}
 
+        {/* Say what booking means *for this provider*, before the client picks
+            a time: instant and pay-now, or a request that needs a yes first. */}
+        <p className="mt-2 text-sm text-slate-500">
+          {provider.isAvailable
+            ? `Pick a time and pay the ${kes(provider.consultationFeeKes)} consultation fee to confirm — you'll be seen at your slot.`
+            : `${provider.user.fullName} is with another patient right now. You can still pick a time; they'll confirm it, then you pay the ${kes(provider.consultationFeeKes)} fee and are seen at your slot.`}
+        </p>
+
         {msg && (
           <div className={`mt-4 flex items-center gap-2 rounded-xl px-4 py-3 text-sm ${msg.kind === "ok" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"}`}>
             {msg.kind === "ok" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
@@ -140,7 +165,7 @@ export default function ProviderDetailPage({ params }: { params: Promise<{ id: s
         )}
 
         {groups.length === 0 ? (
-          <p className="mt-4 text-slate-400">No open slots right now.</p>
+          <p className="mt-4 text-slate-400">No open times right now. Check back soon.</p>
         ) : (
           <div className="mt-5 space-y-5">
             {groups.map(([day, daySlots]) => (

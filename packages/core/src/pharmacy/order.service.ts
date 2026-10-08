@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { HOUSE_ORG_SLUG } from "./house-pharmacy";
 import { db } from "@carebora/db";
 import {
   ApiError,
@@ -182,8 +183,13 @@ export const orderService = {
 
     const defaultCommission = Number(getEnv().PLATFORM_FEE_PERCENT);
     for (const vo of vendorOrders) {
-      const org = await db.organization.findUnique({ where: { id: vo.orgId }, select: { commissionPercent: true } });
-      const commissionPercent = org?.commissionPercent ?? defaultCommission;
+      const org = await db.organization.findUnique({ where: { id: vo.orgId }, select: { commissionPercent: true, slug: true } });
+      // Care Bora's own pharmacy: the platform *is* the seller, so the whole
+      // sale is its revenue. Run through the normal split it would book 10% as
+      // commission and 90% as a payout owed to "Care Bora Pharmacy" — money the
+      // company would owe itself, and revenue understated by nine tenths.
+      const isHouse = org?.slug === HOUSE_ORG_SLUG;
+      const commissionPercent = isHouse ? 100 : (org?.commissionPercent ?? defaultCommission);
       const platformFee = Math.round((vo.subtotalKes * commissionPercent) / 100);
       const vendorNet = vo.subtotalKes - platformFee;
 
@@ -195,18 +201,24 @@ export const orderService = {
             type: "platform_fee",
             orgId: vo.orgId,
             amountKes: platformFee,
-            description: `${commissionPercent}% platform commission (vendor order ${vo.id.slice(0, 8)})`,
+            description: isHouse
+              ? `Care Bora Pharmacy sale, kept in full (vendor order ${vo.id.slice(0, 8)})`
+              : `${commissionPercent}% platform commission (vendor order ${vo.id.slice(0, 8)})`,
           },
         }),
-        db.ledgerEntry.create({
-          data: {
-            paymentId,
-            type: "vendor_payout",
-            orgId: vo.orgId,
-            amountKes: vendorNet,
-            description: `Vendor net payout (vendor order ${vo.id.slice(0, 8)})`,
-          },
-        }),
+        ...(vendorNet > 0
+          ? [
+              db.ledgerEntry.create({
+                data: {
+                  paymentId,
+                  type: "vendor_payout",
+                  orgId: vo.orgId,
+                  amountKes: vendorNet,
+                  description: `Vendor net payout (vendor order ${vo.id.slice(0, 8)})`,
+                },
+              }),
+            ]
+          : []),
       ]);
     }
   },

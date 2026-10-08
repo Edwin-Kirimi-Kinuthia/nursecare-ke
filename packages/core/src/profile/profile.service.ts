@@ -45,16 +45,22 @@ export const profileService = {
   async patchProvider(userId: string, data: PatchProviderProfileInput) {
     const profile = await db.providerProfile.findUnique({ where: { userId } });
     if (!profile) throw ApiError.notFound("Provider profile not found");
-    const updated = await db.providerProfile.update({ where: { userId }, data });
+    // Specialties drive the public filter chips, so store them tidy.
+    const tidy = (v?: string) => (v === undefined ? undefined : v.trim().replace(/\s+/g, " "));
+    const updated = await db.providerProfile.update({
+      where: { userId },
+      data: {
+        ...data,
+        ...(data.specialty !== undefined ? { specialty: tidy(data.specialty) } : {}),
+        ...(data.subSpecialty !== undefined ? { subSpecialty: tidy(data.subSpecialty) } : {}),
+      },
+    });
 
-    // The availability switch is what opens or closes their calendar — providers
-    // never touch slots directly. Reconciled on every save rather than only on a
-    // change of value: both directions are idempotent, and an account already
-    // marked available but holding no slots (as every provider was before this
-    // existed) heals itself on the next save instead of staying unbookable.
-    if (data.isAvailable !== undefined) {
-      await availabilityService.setAvailability(userId, data.isAvailable);
-    }
+    // The switch itself (isAvailable) was just saved above and needs nothing
+    // more. What a save does do is make sure a provider who is now bookable —
+    // verified, with a fee set — actually has a calendar. Setting the fee for
+    // the first time is the usual trigger. Idempotent, so every save is safe.
+    await availabilityService.ensureSchedule(userId);
     return updated;
   },
 

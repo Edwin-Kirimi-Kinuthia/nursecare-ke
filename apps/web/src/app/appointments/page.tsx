@@ -56,8 +56,10 @@ export default function AppointmentsPage() {
     try {
       const res = await api.listAppointments();
       setAppts(res.appointments);
+      return res.appointments;
     } catch {
       setAppts([]);
+      return [] as Appointment[];
     } finally {
       setLoading(false);
     }
@@ -66,7 +68,22 @@ export default function AppointmentsPage() {
   useEffect(() => {
     if (authLoading) return;
     if (!user) { router.push("/login"); return; }
-    queueMicrotask(() => { load(); });
+    queueMicrotask(async () => {
+      const list = await load();
+
+      // Arriving from a fresh booking (?pay=<id>): go straight to paying, since
+      // the fee is what lets the patient be seen. One-shot — the param is
+      // removed so a refresh doesn't reopen it.
+      const payId = new URLSearchParams(window.location.search).get("pay");
+      if (!payId) return;
+      window.history.replaceState(null, "", window.location.pathname);
+      const target = list.find((a) => a.id === payId);
+      if (target && target.status === "confirmed" && target.feeKes > 0
+          && target.payment?.status !== "completed" && target.providerId !== user.id) {
+        setPayAppt(target); setPayMsg(null); setSimCheckoutId(null);
+        setPendingPaymentId(null); setPayPhone(user.phone ?? "");
+      }
+    });
   }, [user, authLoading, router]);
 
   async function confirmAppt(id: string) {
@@ -217,7 +234,13 @@ export default function AppointmentsPage() {
                       </button>
                     )}
                     {/* Doctor starts / resumes the consultation */}
-                    {isProvider && a.status === "confirmed" && (
+                    {isProvider && a.status === "confirmed" && a.feeKes > 0 && a.payment?.status !== "completed" && !a.consultation && (
+                      // Paid before seen: nothing to start until the fee is in.
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
+                        <Clock className="h-3.5 w-3.5" /> Waiting for the patient to pay
+                      </span>
+                    )}
+                    {isProvider && a.status === "confirmed" && (a.feeKes <= 0 || a.payment?.status === "completed" || !!a.consultation) && (
                       <button
                         onClick={() => startConsult(a)}
                         disabled={busyId === a.id}
@@ -254,8 +277,14 @@ export default function AppointmentsPage() {
                         <Video className="h-4 w-4" /> Join consultation
                       </button>
                     )}
-                    {!isProvider && a.status === "confirmed" && !a.consultation && !a.payment && (
-                      <span className="text-xs text-slate-400">Waiting for the doctor to start…</span>
+                    {!isProvider && a.status === "requested" && (
+                      <span className="text-xs text-slate-500">
+                        Waiting for {a.provider?.user?.fullName ?? "the provider"} to confirm — you&apos;ll pay once they do.
+                      </span>
+                    )}
+                    {/* Only once paid — before that the next step is paying, not waiting. */}
+                    {!isProvider && a.status === "confirmed" && !a.consultation && a.payment?.status === "completed" && (
+                      <span className="text-xs text-slate-500">Paid — waiting for the doctor to start…</span>
                     )}
                   </div>
                 )}
