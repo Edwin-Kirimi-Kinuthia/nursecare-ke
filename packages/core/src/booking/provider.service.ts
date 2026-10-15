@@ -21,7 +21,7 @@ function publicAvatar(userId: string, avatarUrl: string | null, updatedAt: Date)
   return avatarUrl.startsWith("data:") ? `/api/v1/providers/${userId}/avatar?v=${updatedAt.getTime()}` : avatarUrl;
 }
 
-const PUBLIC_USER = { select: { id: true, fullName: true, avatarUrl: true, role: true, updatedAt: true } } as const;
+const PUBLIC_USER = { select: { id: true, fullName: true, avatarUrl: true, role: true, updatedAt: true, deletedAt: true } } as const;
 
 function withPublicAvatar<T extends { user: { id: string; avatarUrl: string | null; updatedAt: Date } }>(p: T) {
   const { updatedAt, ...user } = p.user;
@@ -124,7 +124,7 @@ export const providerService = {
       where: { userId: providerId },
       include: { user: PUBLIC_USER },
     });
-    if (!profile) throw ApiError.notFound("Provider not found");
+    if (!profile || profile.user.deletedAt) throw ApiError.notFound("Provider not found");
     return withPublicAvatar(profile);
   },
 };

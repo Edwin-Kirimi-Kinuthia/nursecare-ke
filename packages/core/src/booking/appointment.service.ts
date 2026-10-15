@@ -52,6 +52,11 @@ export const appointmentService = {
       where: { userId: slot.providerId },
     });
     if (!provider) throw ApiError.notFound("Provider not found");
+    // Only listed (verified) providers can be booked. Also what stops a slot
+    // that was left over from an account that has since been deleted.
+    if (provider.verificationStatus !== "verified") {
+      throw ApiError.badRequest("This provider isn't available for booking");
+    }
 
     // Any signed-in account can book care, providers included — but not from
     // itself. Doing so would take a real slot out of circulation and create an

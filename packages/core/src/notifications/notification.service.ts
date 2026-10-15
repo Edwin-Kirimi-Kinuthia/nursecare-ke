@@ -295,6 +295,19 @@ export const notificationService = {
       button: { label: "See your profile", url: `${appBase()}/providers` },
     }));
   },
+  /** Sent to the old address after a self-service deletion — the owner's alarm if it wasn't them. */
+  async accountDeleted(opts: { email: string; fullName: string }) {
+    await sendEmail(opts.email, "Your Care Bora account was deleted", renderEmail({
+      preheader: "Your account and personal details have been removed.",
+      heading: "Your account has been deleted",
+      body:
+        p(`Hi ${firstName(opts.fullName)}, your Care Bora account has been deleted and you have been signed out everywhere.`)
+        + p("We removed your profile, contact details and the health information you recorded yourself. Clinical notes, prescriptions and payment records are kept without your name for as long as the law requires, and are then deleted.")
+        + panel("If you didn't do this, contact us straight away on the number below. We may be able to help if you tell us within a few days."),
+      footnote: "You can create a new account with this address at any time.",
+    }));
+  },
+
   // ── Support: client messages and document requests ────────────────────────
 
   /** Acknowledge a new ticket to the client, so they know it landed. */

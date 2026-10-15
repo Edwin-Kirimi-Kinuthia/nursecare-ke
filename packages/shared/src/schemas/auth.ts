@@ -206,6 +206,18 @@ export const forgotPasswordSchema = z.object({
 });
 export type ForgotPasswordInput = z.infer<typeof forgotPasswordSchema>;
 
+/**
+ * Delete your own account. `password` is required whenever the account has one
+ * (it proves it is really you, not someone holding a lost phone); accounts that
+ * only ever signed in with Google or Facebook have none, and confirm with the
+ * phrase alone. The phrase exists so a mis-tap can't do it.
+ */
+export const deleteAccountSchema = z.object({
+  password: z.string().min(1).max(128).optional(),
+  confirm: z.literal("DELETE"),
+});
+export type DeleteAccountInput = z.infer<typeof deleteAccountSchema>;
+
 /** Confirmation phrase required to run the one-time launch reset. */
 export const LAUNCH_RESET_CONFIRM_PHRASE = "RESET TO LAUNCH";
 export const launchResetSchema = z.object({

@@ -15,6 +15,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { PhoneField } from "@/components/PhoneField";
 import { PasswordField } from "@/components/PasswordField";
 import IdentityCard from "@/components/IdentityCard";
+import DeleteAccountSection from "@/components/DeleteAccountSection";
 
 export default function ProfilePage() {
   const { user, loading: authLoading, refresh } = useAuth();
@@ -48,6 +49,7 @@ export default function ProfilePage() {
       )}
 
       <ChangePasswordCard />
+      <DeleteAccountSection />
     </div>
   );
 }

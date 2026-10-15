@@ -2845,6 +2845,68 @@
         }
       }
     },
+    "/auth/delete-account": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Permanently delete your own account.",
+        "description": "Permanently delete your own account.\n Required by the Apple App Store and Google Play. Personal data is removed and the record is anonymised; clinical and payment records that must be retained stay, without your name. Upcoming appointments are cancelled. Irreversible.\n A POST rather than DELETE /auth/me because some proxies and mobile HTTP stacks drop the body of a DELETE, and the password is in the body.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "password": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128
+                  },
+                  "confirm": {
+                    "type": "string",
+                    "enum": [
+                      "DELETE"
+                    ]
+                  }
+                },
+                "required": [
+                  "confirm"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/auth/forgot-password": {
       "post": {
         "tags": [

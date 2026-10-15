@@ -163,7 +163,7 @@ export default function PrivacyPolicyPage() {
           <ul className="list-disc space-y-2 pl-5">
             <li>Know what personal data we hold about you, and request a copy of it.</li>
             <li>Ask us to correct inaccurate or outdated information.</li>
-            <li>Ask us to delete your data, subject to the retention obligations described above.</li>
+            <li>Delete your account and data yourself, from the app or the website — see <Link href="/delete-account" className="font-semibold text-teal-700 hover:underline">how to delete your account</Link> — subject to the retention obligations described above.</li>
             <li>Object to, or ask us to restrict, certain processing.</li>
             <li>Receive your data in a portable format.</li>
             <li>Lodge a complaint with the Office of the Data Protection Commissioner (ODPC) Kenya if you believe we&apos;ve mishandled your data.</li>

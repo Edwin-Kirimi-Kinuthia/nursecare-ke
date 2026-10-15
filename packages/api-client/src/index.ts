@@ -62,6 +62,7 @@ import type {
   SupportStatus,
   SymptomCheckInput,
   PatchMeInput,
+  DeleteAccountInput,
   CreateDrugInput,
   AdminCreateDrugInput,
   AdminUpdateDrugInput,
@@ -386,6 +387,10 @@ export class CareBoraClient {
   listPayments(query?: Partial<PaymentsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<PaymentListResult>(`/payments?${params}`);
+  }
+  /** Permanently delete your own account. Irreversible; needs your password if the account has one. */
+  deleteAccount(input: DeleteAccountInput) {
+    return this.post<{ deleted: true; appointmentsCancelled: number }>("/auth/delete-account", input);
   }
   /** Update your own name, phone or profile photo. Works for every role. */
   patchMe(input: PatchMeInput) {

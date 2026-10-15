@@ -21,6 +21,7 @@ import {
 import { generateUniqueOrgSlug } from "../org/org.service";
 import { notificationService } from "../notifications/notification.service";
 import { putFile } from "../storage/storage";
+import { deleteAccount } from "./account-deletion";
 
 const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
@@ -529,6 +530,9 @@ export const authService = {
     }
     return this.getProfile(userId);
   },
+
+  /** Delete the signed-in user's account (anonymise in place). See account-deletion.ts. */
+  deleteAccount,
 
   /** Rotate a refresh token: revoke the old session and mint a new one. */
   async refresh(rawToken: string | null, meta?: RequestMeta) {

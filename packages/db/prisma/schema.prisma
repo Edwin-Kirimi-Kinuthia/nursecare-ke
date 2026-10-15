@@ -152,6 +152,10 @@ model User {
   emailVerifiedAt DateTime? @map("email_verified_at") @db.Timestamptz(6)
   phoneVerifiedAt DateTime? @map("phone_verified_at") @db.Timestamptz(6)
   isActive        Boolean   @default(true) @map("is_active")
+  /// Set when the person deletes their account. The row itself is kept (anonymised)
+  /// because appointments, payments and prescriptions reference it and must be
+  /// retained for medical-record and tax law; see account-deletion.ts.
+  deletedAt       DateTime? @map("deleted_at") @db.Timestamptz(6)
   createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
