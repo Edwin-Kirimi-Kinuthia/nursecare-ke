@@ -199,6 +199,7 @@ model User {
   clientSupportTickets       SupportTicket[]        @relation("ClientSupportTickets")
   assignedSupportTickets     SupportTicket[]        @relation("AssignedSupportTickets")
   sentSupportMessages        SupportMessage[]       @relation("SentSupportMessages")
+  pushDevices                PushDevice[]
 
   @@index([role])
   @@map("users")
@@ -1417,4 +1418,25 @@ model SupportMessage {
 
   @@index([ticketId, createdAt])
   @@map("support_messages")
+}
+
+// ─── Push notifications (mobile app) ──────────────────────────────────────────
+
+/// A phone that has agreed to receive notifications for a user. One user can
+/// have several (phone and tablet); one token belongs to exactly one user — if
+/// someone else signs in on the same handset the token moves to them, so the
+/// previous person's notifications can't keep arriving there.
+model PushDevice {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  /// Expo push token, e.g. ExponentPushToken[xxxx].
+  token      String   @unique
+  platform   String // "ios" | "android"
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_devices")
 }

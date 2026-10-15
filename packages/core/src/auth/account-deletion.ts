@@ -18,7 +18,7 @@ import { inAppNotifications } from "../notifications/inapp.service";
  * consistent. Everything personal that does not have to be kept is deleted.
  *
  * Removed outright: credentials, sessions, one-time codes, social logins,
- * notifications, the patient profile (address, blood group, emergency contact),
+ * notifications, push-notification devices, the patient profile (address, blood group, emergency contact),
  * the health information the person recorded themselves (allergies, conditions,
  * medications, vitals, immunisations, documents they uploaded), access grants,
  * business memberships, licence documents, name, email, phone and photo.
@@ -108,6 +108,7 @@ export async function deleteAccount(userId: string, input: DeleteAccountInput) {
     await tx.verificationCode.deleteMany({ where: { userId } });
     await tx.oAuthAccount.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
+    await tx.pushDevice.deleteMany({ where: { userId } });
     await tx.orgMember.deleteMany({ where: { userId } });
     await tx.verificationDocument.deleteMany({ where: { userId } });
     await tx.recordAccessGrant.deleteMany({ where: { OR: [{ patientId: userId }, { granteeUserId: userId }] } });

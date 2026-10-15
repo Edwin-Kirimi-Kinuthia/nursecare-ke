@@ -63,6 +63,8 @@ import type {
   SymptomCheckInput,
   PatchMeInput,
   DeleteAccountInput,
+  RegisterPushDeviceInput,
+  UnregisterPushDeviceInput,
   CreateDrugInput,
   AdminCreateDrugInput,
   AdminUpdateDrugInput,
@@ -114,6 +116,15 @@ export interface ClientOptions {
   baseUrl: string;
   getToken?: () => string | null | Promise<string | null>;
   /**
+   * Whether requests carry the browser's cookies. Defaults to "include", which
+   * the web needs (its session lives in httpOnly cookies). Mobile must pass
+   * "omit": React Native's networking layer keeps its own cookie jar, and the
+   * server sets session cookies on login, so left on it would go on
+   * authenticating requests after the app has signed out and discarded its
+   * tokens, and let a stale refresh cookie override the token the app sends.
+   */
+  credentials?: RequestCredentials;
+  /**
    * Mobile: called when a request made with an access token comes back 401 —
    * the access token has expired (they last 15 minutes). Use the stored refresh
    * token to get a new pair (`client.refresh(refreshToken)`), save it so
@@ -151,7 +162,7 @@ export class CareBoraClient {
     const token = (await this.opts.getToken?.()) ?? null;
     const res = await fetch(`${this.opts.baseUrl}${path}`, {
       ...init,
-      credentials: "include",
+      credentials: this.opts.credentials ?? "include",
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -387,6 +398,14 @@ export class CareBoraClient {
   listPayments(query?: Partial<PaymentsQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<PaymentListResult>(`/payments?${params}`);
+  }
+  /** Register this phone for push notifications (mobile). Safe to repeat. */
+  registerPushDevice(input: RegisterPushDeviceInput) {
+    return this.post<{ registered: true }>("/push/devices", input);
+  }
+  /** Stop notifying this phone. Call on sign-out, while still authenticated. */
+  unregisterPushDevice(input: UnregisterPushDeviceInput) {
+    return this.post<{ unregistered: true }>("/push/devices/unregister", input);
   }
   /** Permanently delete your own account. Irreversible; needs your password if the account has one. */
   deleteAccount(input: DeleteAccountInput) {

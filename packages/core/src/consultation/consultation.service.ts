@@ -200,7 +200,22 @@ export const consultationService = {
       if (input.status === "ended" && !c.endedAt) data.endedAt = new Date();
     }
 
-    return db.consultation.update({ where: { id: consultationId }, data });
+    const updated = await db.consultation.update({ where: { id: consultationId }, data });
+
+    // Ending the consultation completes the appointment. This used to be a
+    // second call the web page made from the browser after the first, which
+    // meant any other client — the mobile app — had to know to repeat it, and
+    // an interrupted connection between the two left a finished consultation
+    // with a "confirmed" appointment that patients couldn't review. It belongs
+    // here, where every client gets it. Idempotent, and only moves an appointment
+    // that was actually in progress.
+    if (input.status === "ended") {
+      await db.appointment.updateMany({
+        where: { id: c.appointmentId, status: "confirmed" },
+        data: { status: "completed" },
+      });
+    }
+    return updated;
   },
 
   /** Generate a LiveKit join token for the caller. */

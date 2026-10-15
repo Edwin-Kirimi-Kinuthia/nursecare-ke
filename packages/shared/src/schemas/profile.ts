@@ -67,3 +67,13 @@ export const patchProviderProfileSchema = z.object({
 });
 
 export type PatchProviderProfileInput = z.infer<typeof patchProviderProfileSchema>;
+
+/** Register a phone for push notifications. The token comes from expo-notifications on the device. */
+export const registerPushDeviceSchema = z.object({
+  token: z.string().trim().regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/, "Not a valid push token"),
+  platform: z.enum(["ios", "android"]),
+});
+export type RegisterPushDeviceInput = z.infer<typeof registerPushDeviceSchema>;
+
+export const unregisterPushDeviceSchema = z.object({ token: z.string().trim().min(1).max(200) });
+export type UnregisterPushDeviceInput = z.infer<typeof unregisterPushDeviceSchema>;

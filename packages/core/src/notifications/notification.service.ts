@@ -1,5 +1,6 @@
 import { Resend } from "resend";
 import { greetingName } from "@carebora/shared";
+import { backgrounded } from "../lib/background";
 import { renderEmail, p, otp, panel, rows } from "./email-layout";
 
 // Instantiate lazily so a missing RESEND_API_KEY never crashes module import
@@ -89,7 +90,7 @@ function money(kes: number): string {
   return `KES ${kes.toLocaleString("en-KE")}`;
 }
 
-export const notificationService = {
+export const notificationService = backgrounded({
   async emailVerificationCode(opts: { email: string; fullName: string; code: string }) {
     await sendEmail(opts.email, "Verify your email — CareBora", renderEmail({
       preheader: `Your verification code is ${opts.code}`,
@@ -378,4 +379,4 @@ export const notificationService = {
       button: { label: "View the conversation", url: `${appBase()}/contact` },
     }));
   },
-};
+});

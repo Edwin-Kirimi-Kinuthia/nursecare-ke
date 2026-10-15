@@ -56,6 +56,7 @@ export { homeVisitService } from "./homevisit/homevisit.service";
 export { adminService } from "./admin/admin.service";
 export { notificationService } from "./notifications/notification.service";
 export { inAppNotifications } from "./notifications/inapp.service";
+export { pushService, isExpoPushToken } from "./notifications/push.service";
 export { reviewService } from "./reviews/review.service";
 export { orgService, resolveMembership } from "./org/org.service";
 export { ambulanceService } from "./ambulance/ambulance.service";

@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "Care Bora",
+    "slug": "carebora",
+    "scheme": "carebora",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "userInterfaceStyle": "automatic",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "ios": {
+      "bundleIdentifier": "ke.co.carebora.app",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Care Bora uses your camera so your doctor can see you during a video consultation.",
+        "NSMicrophoneUsageDescription": "Care Bora uses your microphone so your doctor can hear you during a video consultation.",
+        "NSPhotoLibraryUsageDescription": "Care Bora lets you choose a photo from your library as your profile picture.",
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "ke.co.carebora.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#034D30",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.MODIFY_AUDIO_SETTINGS",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW"
+      ],
+      "predictiveBackGestureEnabled": true
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#034D30",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 200
+        }
+      ],
+      "expo-secure-store",
+      "expo-localization",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Care Bora lets you choose a photo from your library as your profile picture.",
+          "cameraPermission": "Care Bora uses your camera so your doctor can see you during a video consultation.",
+          "microphonePermission": "Care Bora uses your microphone so your doctor can hear you during a video consultation."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#034D30"
+        }
+      ],
+      "@livekit/react-native-expo-plugin"
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    }
+  }
+}

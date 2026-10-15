@@ -45,3 +45,41 @@ export function greetingName(fullName: string): string {
   const first = name.split(" ")[0] || "";
   return first ? joinTitle(title, first) : "there";
 }
+
+// ── Name parts ───────────────────────────────────────────────────────────────
+
+/** Every form that collects a person's name does it this way: Surname, First name, Middle name (optional). */
+export interface NameParts {
+  surname: string;
+  firstName: string;
+  middleName: string;
+  /** Optional, and only asked for on care-provider forms. */
+  title?: string;
+}
+
+export const EMPTY_NAME: NameParts = { surname: "", firstName: "", middleName: "", title: "" };
+
+/**
+ * Assembled in natural reading order for storage/display — the forms just ask
+ * in a different order. A title, when chosen, leads the name ("Dr. Jane Kamau"),
+ * so everywhere the name is shown carries it without needing to know about it.
+ */
+export function composeFullName(parts: NameParts): string {
+  const name = [parts.firstName, parts.middleName, parts.surname].map((s) => s.trim()).filter(Boolean).join(" ");
+  return joinTitle(parts.title, name);
+}
+
+/**
+ * The inverse of composeFullName, for forms that edit an existing name.
+ * Best effort: the first word is the first name, the last is the surname,
+ * anything between is the middle. Round-trips every name the forms composed
+ * and degrades sensibly on a one-word name.
+ */
+export function splitFullName(fullName: string): NameParts {
+  // The title comes off first, or "Dr." would be read as the first name.
+  const { title, name } = splitTitle(fullName);
+  const parts = name.split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { ...EMPTY_NAME, title };
+  if (parts.length === 1) return { ...EMPTY_NAME, title, firstName: parts[0]! };
+  return { title, firstName: parts[0]!, middleName: parts.slice(1, -1).join(" "), surname: parts[parts.length - 1]! };
+}

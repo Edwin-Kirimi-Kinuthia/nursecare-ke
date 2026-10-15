@@ -4,6 +4,7 @@ export * from "./schemas";
 export * from "./clinical";
 export * from "./geo";
 export * from "./names";
+export * from "./countries";
 
 /** Roles a CareBora account can hold. Mirrors the DB enum in @carebora/db. */
 export const UserRole = {

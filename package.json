@@ -4,7 +4,7 @@
   "private": true,
   "description": "CareBora \u2014 API-first telehealth platform for Kenya",
   "workspaces": [
-    "apps/*",
+    "apps/web",
     "packages/*"
   ],
   "scripts": {

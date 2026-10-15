@@ -1,53 +1,14 @@
 "use client";
 
-import { NAME_TITLES, joinTitle, splitTitle } from "@carebora/shared";
+import { NAME_TITLES, type NameParts } from "@carebora/shared";
 
-/** Every form that collects a person's name does it this way: Surname, First name, Middle name (optional). */
-export interface NameParts {
-  surname: string;
-  firstName: string;
-  middleName: string;
-  /** Optional, and only asked for on care-provider forms. */
-  title?: string;
-}
-
-export const EMPTY_NAME: NameParts = { surname: "", firstName: "", middleName: "", title: "" };
-
-/**
- * Assembled in natural reading order for storage/display — the form just asks
- * in a different order. A title, when chosen, leads the name ("Dr. Jane Kamau"),
- * so everywhere the name is shown carries it without needing to know about it.
- */
-export function composeFullName(parts: NameParts): string {
-  const name = [parts.firstName, parts.middleName, parts.surname].map((s) => s.trim()).filter(Boolean).join(" ");
-  return joinTitle(parts.title, name);
-}
+// The data model and the compose/split logic live in @carebora/shared so the
+// mobile app builds names exactly the same way.
+export { EMPTY_NAME, composeFullName, splitFullName, type NameParts } from "@carebora/shared";
 
 const DEFAULT_INPUT_CLASS =
   "w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none transition focus:border-teal-500 focus:ring-2 focus:ring-teal-100";
 const DEFAULT_LABEL_CLASS = "mb-1 block text-sm font-medium text-slate-700";
-
-/**
- * The inverse of composeFullName, for forms that edit an existing name.
- *
- * Names are stored as one "First Middle Surname" string, so this is a best
- * effort: the first word is the first name, the last is the surname, and
- * anything between is the middle. It round-trips every name this app composed
- * and degrades sensibly on a one-word name.
- */
-export function splitFullName(fullName: string): NameParts {
-  // The title comes off first, or "Dr." would be read as the first name.
-  const { title, name } = splitTitle(fullName);
-  const parts = name.split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return { ...EMPTY_NAME, title };
-  if (parts.length === 1) return { ...EMPTY_NAME, title, firstName: parts[0] };
-  return {
-    title,
-    firstName: parts[0],
-    middleName: parts.slice(1, -1).join(" "),
-    surname: parts[parts.length - 1],
-  };
-}
 
 export function NameFields({
   value, onChange, inputClassName = DEFAULT_INPUT_CLASS, labelClassName = DEFAULT_LABEL_CLASS, showTitle = false,
