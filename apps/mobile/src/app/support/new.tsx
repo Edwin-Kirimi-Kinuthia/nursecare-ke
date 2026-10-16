@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { TextInput, View } from "react-native";
+import { Pressable, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import {
   SUPPORT_CATEGORY_LABELS, SUPPORT_DOCUMENT_LABELS, type SupportCategory, type SupportDocumentType,
@@ -13,7 +13,10 @@ import { Screen } from "@/ui/Screen";
 import { Field } from "@/ui/Field";
 import { Button } from "@/ui/Button";
 import { Text } from "@/ui/Text";
-import { Banner, Chip } from "@/ui/parts";
+import { Banner } from "@/ui/parts";
+import { PageHeader } from "@/ui/PageHeader";
+import { Footer } from "@/ui/Footer";
+import { Ambulance, MessageSquare } from "lucide-react-native";
 import { PhoneField } from "@/ui/PhoneField";
 import { radius, useTheme } from "@/ui/theme";
 
@@ -68,25 +71,34 @@ export default function NewSupportMessage() {
 
   const ready = subject.trim().length >= 3 && message.trim().length >= 10 && name.trim().length >= 2 && email.includes("@");
   return (
-    <Screen>
-      <Banner tone="danger">In an emergency, call {ambulancePhone} instead of writing.</Banner>
-      <Button title={`Call ${ambulancePhone}`} variant="danger" size="sm" onPress={() => callNumber(ambulancePhone)} />
-
-      <View style={{ gap: 8 }}>
-        <Text variant="label" tone="muted">What can we help with?</Text>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-          {CATEGORIES.map((c) => <Chip key={c} label={SUPPORT_CATEGORY_LABELS[c]} selected={category === c} onPress={() => setCategory(c)} />)}
+    <Screen contentContainerStyle={{ paddingBottom: 72 }}>
+      <PageHeader eyebrow="Contact us" Icon={MessageSquare} title="Message us directly"
+        lede="Ask us anything, or request a medical document — a sick-off sheet, medical report, fit-to-work or school form. A licensed clinician reviews every document request." />
+      <View style={{ backgroundColor: "#FFF1F2", borderWidth: 1, borderColor: "#FECDD3", borderRadius: 24, padding: 16, gap: 12 }}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
+          <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#E11D48", alignItems: "center", justifyContent: "center" }}>
+            <Ambulance size={22} color="#fff" />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: "Inter_700Bold", color: "#881337", fontSize: 16, lineHeight: 22 }}>Medical emergency? Call {ambulancePhone}</Text>
+            <Text style={{ color: "#BE123C", fontSize: 14 }}>Ambulance dispatch — don&apos;t wait for an email reply.</Text>
+          </View>
         </View>
+        <Button title={`Call ${ambulancePhone}`} variant="danger" size="sm" onPress={() => callNumber(ambulancePhone)} />
+      </View>
+
+      <View style={{ backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: "#E2E8F0", padding: 20, gap: 16 }}>
+      <View style={{ gap: 8 }}>
+        <Text variant="label" style={{ color: "#334155" }}>What can we help with?</Text>
+        {CATEGORIES.map((c) => <Choice key={c} label={SUPPORT_CATEGORY_LABELS[c]} selected={category === c} onPress={() => setCategory(c)} />)}
       </View>
 
       {category === "document_request" && (
         <View style={{ gap: 8 }}>
-          <Text variant="label" tone="muted">Which document?</Text>
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-            {(Object.keys(SUPPORT_DOCUMENT_LABELS) as SupportDocumentType[]).map((d) => (
-              <Chip key={d} label={SUPPORT_DOCUMENT_LABELS[d]} selected={documentType === d} onPress={() => setDocumentType(d)} />
-            ))}
-          </View>
+          <Text variant="label" style={{ color: "#334155" }}>Which document?</Text>
+          {(Object.keys(SUPPORT_DOCUMENT_LABELS) as SupportDocumentType[]).map((d) => (
+            <Choice key={d} label={SUPPORT_DOCUMENT_LABELS[d]} selected={documentType === d} onPress={() => setDocumentType(d)} />
+          ))}
           <Text variant="caption" tone="faint">A licensed clinician reviews every request, and some need a consultation first.</Text>
         </View>
       )}
@@ -106,6 +118,18 @@ export default function NewSupportMessage() {
       <PhoneField label="Phone (optional)" value={phone} onChange={setPhone} />
       {error && <Banner tone="danger">{error}</Banner>}
       <Button title="Send message" onPress={send} loading={busy} disabled={!ready} />
+      </View>
+      <Footer />
     </Screen>
+  );
+}
+
+/** A full-width option button: teal-50 with a teal border when selected, as on the website's contact form. */
+function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected }}
+      style={{ borderWidth: 1.5, borderColor: selected ? "#14B8A6" : "#E2E8F0", backgroundColor: selected ? "#F0FDFA" : "#fff", borderRadius: 14, paddingHorizontal: 14, paddingVertical: 13 }}>
+      <Text style={{ color: selected ? "#0F766E" : "#334155", fontFamily: selected ? "Inter_600SemiBold" : "Inter_500Medium" }}>{label}</Text>
+    </Pressable>
   );
 }

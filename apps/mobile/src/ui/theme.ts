@@ -1,18 +1,16 @@
-import { useColorScheme } from "react-native";
 
 /**
  * Colours match the website (teal on slate) so the product looks like one thing
- * whether someone is on their phone or their laptop. Every colour has a light
- * and a dark value; components read them through useTheme() and never use a
- * literal, which is what keeps dark mode from being half-done.
+ * whether someone is on their phone or their laptop. Components read them
+ * through useTheme() rather than using literals.
  */
 const light = {
   bg: "#F6F8F9",
   surface: "#FFFFFF",
   surfaceAlt: "#F1F5F5",
   border: "#E2E8F0",
-  text: "#0B1F1C",
-  textMuted: "#475569",
+  text: "#0F172A",
+  textMuted: "#64748B",
   textFaint: "#94A3B8",
   primary: "#0D9488",
   primaryPressed: "#0F766E",
@@ -30,36 +28,22 @@ const light = {
   overlay: "rgba(15,23,42,0.5)",
 } as const;
 
-const dark: Record<keyof typeof light, string> = {
-  bg: "#081715",
-  surface: "#0F2321",
-  surfaceAlt: "#16302D",
-  border: "#1E3835",
-  text: "#E8F2F0",
-  textMuted: "#A9BDBA",
-  textFaint: "#6F8A86",
-  primary: "#2DD4BF",
-  primaryPressed: "#5EEAD4",
-  onPrimary: "#04211E",
-  primarySoft: "#0C2B28",
-  primarySoftText: "#5EEAD4",
-  danger: "#FB7185",
-  dangerSoft: "#3B1219",
-  dangerText: "#FDA4AF",
-  warnSoft: "#33260A",
-  warnText: "#FCD34D",
-  okSoft: "#0B2B20",
-  okText: "#6EE7B7",
-  star: "#FBBF24",
-  overlay: "rgba(0,0,0,0.6)",
-};
-
 export type Theme = { [K in keyof typeof light]: string } & { isDark: boolean };
 
+/** The website has no dark mode, so the app is light only and looks the same as the site. */
+const theme: Theme = { ...light, isDark: false };
 export function useTheme(): Theme {
-  const scheme = useColorScheme();
-  return scheme === "dark" ? { ...dark, isDark: true } : { ...light, isDark: false };
+  return theme;
 }
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;
 export const radius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 } as const;
+
+/** Brand gradients, same stops as the website's Tailwind classes. */
+export const gradients = {
+  hero: ["#042F2E", "#134E4A", "#064E3B"] as const, // teal-950 → teal-900 → emerald-900
+  banner: ["#14B8A6", "#0D9488", "#059669"] as const,
+  button: ["#0D9488", "#059669"] as const,
+  page: ["#ECFDF5", "#F0FDFA", "#FFFFFF"] as const,
+} as const;
+export const NAVY = "#0F172A";

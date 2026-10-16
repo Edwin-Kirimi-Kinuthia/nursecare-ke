@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
-import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/useAsync";
-import { Screen } from "@/ui/Screen";
+import { AuthShell } from "@/ui/AuthShell";
 import { Field } from "@/ui/Field";
 import { Button } from "@/ui/Button";
-import { Text } from "@/ui/Text";
 import { Banner } from "@/ui/parts";
 
 export default function OtpScreen() {
@@ -51,11 +49,7 @@ export default function OtpScreen() {
   }
 
   return (
-    <Screen>
-      <View style={{ gap: 6 }}>
-        <Text variant="title">Check your email</Text>
-        <Text tone="muted">We sent a 6-digit code to {email}. It expires in 10 minutes.</Text>
-      </View>
+    <AuthShell title="Check your email" subtitle={`We sent a 6-digit code to ${email}. It expires in 10 minutes.`}>
       {error && <Banner tone="danger">{error}</Banner>}
       {notice && !error && <Banner tone="ok">{notice}</Banner>}
       <Field
@@ -76,6 +70,6 @@ export default function OtpScreen() {
       <Button title="Verify and sign in" onPress={() => verify(code)} loading={busy} disabled={code.length !== 6} />
       <Button title={cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"} variant="ghost" onPress={resend} disabled={cooldown > 0} />
       <Button title="Use a different account" variant="ghost" onPress={() => router.back()} />
-    </Screen>
+    </AuthShell>
   );
 }

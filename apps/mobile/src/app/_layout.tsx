@@ -12,6 +12,8 @@ import { Text } from "@/ui/Text";
 import { useTheme } from "@/ui/theme";
 import { useNotificationTaps } from "@/lib/push";
 import { WhatsAppButton } from "@/features/WhatsAppButton";
+import { AppHeader } from "@/ui/AppHeader";
+import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
 
 // Keep the native splash up until we know whether there is a saved session, so
 // a signed-in person never sees a flash of the signed-out app.
@@ -36,11 +38,12 @@ function Gate() {
   const { status, retry } = useAuth();
   const config = useAppConfig();
   const t = useTheme();
+  const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });
 
-  useEffect(() => { if (status !== "booting") void SplashScreen.hideAsync(); }, [status]);
+  useEffect(() => { if (status !== "booting" && (fontsLoaded || fontError)) void SplashScreen.hideAsync(); }, [status, fontsLoaded, fontError]);
   useNotificationTaps(status === "signedIn");
 
-  if (status === "booting") return null;
+  if (status === "booting" || !(fontsLoaded || fontError)) return null;
 
   // The server can retire old builds (MOBILE_MIN_APP_VERSION) — for example
   // after a breaking API change or a security fix.
@@ -68,22 +71,21 @@ function Gate() {
 
   const isAuthed = status === "signedIn";
   return (
-    <>
-      <StatusBar style="auto" />
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
+      <StatusBar style="dark" />
+      <AppHeader />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: t.surface },
-          headerTintColor: t.text,
-          headerTitleStyle: { fontWeight: "700" },
-          headerShadowVisible: false,
-          headerBackButtonDisplayMode: "minimal",
+          // The back arrow lives in the persistent header (as on the website's nav);
+          // each inner screen only adds a slim title strip under it.
+          header: ({ options }) => <TitleStrip title={typeof options.title === "string" ? options.title : ""} />,
           contentStyle: { backgroundColor: t.bg },
         }}
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="provider/[id]" options={{ title: "Doctor" }} />
+        <Stack.Screen name="provider/[id]" options={{ title: "" }} />
         <Stack.Screen name="support/index" options={{ title: "Messages" }} />
-        <Stack.Screen name="support/new" options={{ title: "Message us" }} />
+        <Stack.Screen name="support/new" options={{ title: "" }} />
         <Stack.Screen name="support/[id]" options={{ title: "Conversation" }} />
         <Stack.Screen name="ambulance" options={{ title: "Ambulance" }} />
 
@@ -99,14 +101,24 @@ function Gate() {
 
         {/* Signed-out only. */}
         <Stack.Protected guard={!isAuthed}>
-          <Stack.Screen name="login" options={{ title: "Sign in" }} />
-          <Stack.Screen name="otp" options={{ title: "Enter your code" }} />
-          <Stack.Screen name="register" options={{ title: "Create account" }} />
-          <Stack.Screen name="forgot" options={{ title: "Reset password" }} />
+          <Stack.Screen name="login" options={{ title: "" }} />
+          <Stack.Screen name="otp" options={{ title: "" }} />
+          <Stack.Screen name="register" options={{ title: "" }} />
+          <Stack.Screen name="forgot" options={{ title: "" }} />
         </Stack.Protected>
       </Stack>
       <WhatsAppButton />
-    </>
+    </View>
+  );
+}
+
+function TitleStrip({ title }: { title: string }) {
+  const t = useTheme();
+  if (!title) return null;
+  return (
+    <View style={{ backgroundColor: t.surface, borderBottomWidth: 1, borderBottomColor: t.border, paddingHorizontal: 20, paddingVertical: 12 }}>
+      <Text style={{ fontFamily: "Inter_700Bold", fontSize: 17 }}>{title}</Text>
+    </View>
   );
 }
 

@@ -125,7 +125,7 @@ Either way, create a review patient and a review doctor so they can see both sid
 
 ```
 src/app/        screens (Expo Router: every file is a route)
-src/ui/         design system (theme with light + dark, Button, Field, PhoneField, ...)
+src/ui/         design system (theme (light only, like the website), Button, Field, PhoneField, ...)
 src/features/   pieces with logic (MpesaPay, VideoRoom, ReviewForm, ...)
 src/lib/        api client wiring, auth, secure token storage, push, config
 scripts/        generate-icons.py rebuilds every icon from assets/brand/logo-source.png

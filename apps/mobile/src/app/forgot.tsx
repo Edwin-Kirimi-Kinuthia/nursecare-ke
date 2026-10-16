@@ -1,12 +1,10 @@
 import { useState } from "react";
-import { View } from "react-native";
 import { router } from "expo-router";
 import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/useAsync";
-import { Screen } from "@/ui/Screen";
+import { AuthShell } from "@/ui/AuthShell";
 import { Field } from "@/ui/Field";
 import { Button } from "@/ui/Button";
-import { Text } from "@/ui/Text";
 import { Banner } from "@/ui/parts";
 
 export default function ForgotScreen() {
@@ -29,11 +27,7 @@ export default function ForgotScreen() {
   }
 
   return (
-    <Screen>
-      <View style={{ gap: 6 }}>
-        <Text variant="title">Reset your password</Text>
-        <Text tone="muted">Enter your email and we&apos;ll send you a link to choose a new one.</Text>
-      </View>
+    <AuthShell title="Reset your password" subtitle="Enter your email and we'll send you a link to choose a new one.">
       {sent ? (
         <>
           <Banner tone="ok">
@@ -48,6 +42,6 @@ export default function ForgotScreen() {
           <Button title="Send reset link" onPress={submit} loading={busy} disabled={!email.includes("@")} />
         </>
       )}
-    </Screen>
+    </AuthShell>
   );
 }

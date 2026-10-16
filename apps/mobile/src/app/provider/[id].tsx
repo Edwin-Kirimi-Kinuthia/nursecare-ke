@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
+import { MapPin, ShieldCheck, Star } from "lucide-react-native";
 import type { Slot } from "@carebora/api-client";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -11,7 +11,9 @@ import { AvailabilityDot } from "@/features/AvailabilityDot";
 import { Screen, Card } from "@/ui/Screen";
 import { Button } from "@/ui/Button";
 import { Text } from "@/ui/Text";
-import { Avatar, Badge, Banner, Chip, Empty, Loading, Stars } from "@/ui/parts";
+import { Badge, Banner, Chip, Empty, Loading, Stars } from "@/ui/parts";
+import { ProviderBanner } from "@/ui/Banner";
+import { Footer } from "@/ui/Footer";
 import { useTheme } from "@/ui/theme";
 
 export default function ProviderScreen() {
@@ -63,37 +65,46 @@ export default function ProviderScreen() {
   }
 
   return (
-    <Screen onRefresh={async () => { await Promise.all([profile.reload(), slots.reload(), reviews.reload()]); }} refreshing={profile.refreshing}>
-      <Card>
-        <View style={{ flexDirection: "row", gap: 16 }}>
-          <Avatar name={p.user.fullName} uri={p.user.avatarUrl} size={76} />
-          <View style={{ flex: 1, gap: 4 }}>
-            <Text variant="heading">{p.user.fullName}</Text>
-            <Text tone="primary" variant="label">{p.specialty ?? "Clinician"}{p.subSpecialty ? ` · ${p.subSpecialty}` : ""}</Text>
-            <AvailabilityDot available={p.isAvailable} />
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              <Stars value={p.ratingAvg} />
-              <Text variant="caption" tone="faint">{p.ratingCount > 0 ? `${p.ratingAvg} (${p.ratingCount})` : "No reviews yet"}</Text>
+    <Screen onRefresh={async () => { await Promise.all([profile.reload(), slots.reload(), reviews.reload()]); }} refreshing={profile.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
+      <View style={{ backgroundColor: "#fff", borderRadius: 24, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
+        <ProviderBanner name={p.user.fullName} uri={p.user.avatarUrl} height={112} />
+        <View style={{ paddingHorizontal: 20, paddingBottom: 20, gap: 8 }}>
+          <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 24, letterSpacing: -0.4 }}>{p.user.fullName}</Text>
+          <Text style={{ color: "#0F766E", fontSize: 16 }}>{p.specialty ?? "Clinician"}{p.subSpecialty ? ` · ${p.subSpecialty}` : ""}</Text>
+          <AvailabilityDot available={p.isAvailable} />
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <View style={{ flexDirection: "row", gap: 2 }}>
+              {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={17} color="#F59E0B" fill={i <= Math.round(p.ratingAvg) ? "#F59E0B" : "transparent"} />)}
             </View>
+            <Text tone="faint" style={{ fontSize: 14 }}>{p.ratingCount > 0 ? `${p.ratingAvg} · ${p.ratingCount} ${p.ratingCount === 1 ? "review" : "reviews"}` : "No reviews yet"}</Text>
           </View>
+          {place ? (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <MapPin size={16} color={t.textMuted} />
+              <Text tone="muted">{place}</Text>
+            </View>
+          ) : null}
+          {(p.licenceBody || p.licenceNumber) && (
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <ShieldCheck size={16} color="#047857" />
+              <Text variant="caption" tone="muted">Licensed{p.licenceBody ? ` by ${p.licenceBody}` : ""}{p.licenceNumber ? ` · No. ${p.licenceNumber}` : ""}</Text>
+            </View>
+          )}
+          <View style={{ backgroundColor: "#F0FDFA", borderRadius: 16, padding: 14, marginTop: 6 }}>
+            <Text style={{ color: "#0F766E", fontSize: 13 }}>Consultation</Text>
+            <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 22 }}>{kes(p.consultationFeeKes)}</Text>
+          </View>
+          {p.bio ? <Text tone="muted" style={{ marginTop: 6, lineHeight: 23 }}>{p.bio}</Text> : null}
+          {(p.languages?.length ?? 0) > 0 && (
+            <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 4 }}>
+              {p.languages.map((l) => <Badge key={l} label={l} />)}
+            </View>
+          )}
         </View>
-        {(p.licenceBody || p.licenceNumber) && (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-            <Ionicons name="shield-checkmark" size={16} color={t.okText} />
-            <Text variant="caption" tone="muted">Licensed{p.licenceBody ? ` by ${p.licenceBody}` : ""}{p.licenceNumber ? ` · No. ${p.licenceNumber}` : ""}</Text>
-          </View>
-        )}
-        {place ? <Text variant="caption" tone="muted">📍 {place}</Text> : null}
-        {p.bio ? <Text style={{ marginTop: 6 }}>{p.bio}</Text> : null}
-        {(p.languages?.length ?? 0) > 0 && (
-          <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6, marginTop: 6 }}>
-            {p.languages.map((l) => <Badge key={l} label={l} />)}
-          </View>
-        )}
-      </Card>
+      </View>
 
       <View style={{ gap: 6 }}>
-        <Text variant="heading">Book a video consultation</Text>
+        <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 22 }}>Book a teleconsultation</Text>
         <Text tone="muted">
           {p.isAvailable
             ? `Pick a time and pay the ${kes(p.consultationFeeKes)} fee with M-Pesa to confirm. You'll be seen at your slot.`
@@ -143,6 +154,7 @@ export default function ProviderScreen() {
       ) : (
         <Text tone="muted">No reviews yet. Patients can review a doctor after a completed consultation.</Text>
       )}
+      <Footer />
     </Screen>
   );
 }
