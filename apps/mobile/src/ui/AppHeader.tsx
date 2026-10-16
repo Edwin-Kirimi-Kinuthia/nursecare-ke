@@ -3,7 +3,7 @@ import { Image, Linking, Modal, Pressable, ScrollView, View } from "react-native
 import { router, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Bell, Building2, Home, Package, ShoppingCart, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
+  Bell, Building2, FileText, FlaskConical, Home, Package, ShoppingCart, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
   Stethoscope, User, X, type LucideIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
@@ -89,6 +89,8 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     ...(user ? [{ label: "My appointments", Icon: CalendarDays, to: "/appointments" }] : []),
     { label: "Pharmacy", Icon: Pill, to: "/pharmacy" },
     { label: "Home visits", Icon: Home, to: "/home-visits" },
+    { label: "Lab tests", Icon: FlaskConical, to: "/labs" },
+    ...(user ? [{ label: "Medical record", Icon: FileText, to: "/records" }] : []),
     ...(user ? [{ label: "My orders", Icon: Package, to: "/orders" }] : []),
     ...(user ? [{ label: "Messages", Icon: MessageCircle, to: "/support" }] : []),
     { label: "Contact us", Icon: Phone, to: "/support/new" },
