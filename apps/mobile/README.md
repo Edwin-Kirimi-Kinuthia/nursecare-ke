@@ -30,7 +30,12 @@ npx expo start         # dev server (needs a development build, see below)
 | Notifications list and **push notifications** | done (needs the Firebase step below for Android) |
 | Edit profile and photo, **delete account**, sign out | done |
 | Ambulance: call screen | done (a phone call, not a form; see below) |
-| Pharmacy, home visits, lab tests, medical records, clinical notes and prescriptions for doctors | **not yet**: use the website |
+| Pharmacy (browse, cart, M-Pesa checkout, prescription upload, orders), home visits, lab tests, medical records (+ access grants), symptom checker | done |
+| Doctor tools in the call: clinical record (autosaved), prescriptions + PDFs, AI fact-check | done |
+| Profile: personal details, professional profile, change password | done |
+| Provider and vendor applications | done |
+| Vendor dashboard (pharmacy, ambulance, lab) and admin dashboard | done, except the admin "launch reset" (deliberately left to the website) |
+| Google / Facebook sign-in | **not in the app** (email + emailed code only) |
 
 Ambulance is a call screen on purpose. The website's request form is handed to
 ambulance operators and none are onboarded, so a form would send an emergency into a
