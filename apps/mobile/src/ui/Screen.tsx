@@ -12,7 +12,7 @@ type Props = ScrollViewProps & {
   gap?: number;
 };
 
-/** Scrolling page with safe-area padding, keyboard avoidance and optional pull-to-refresh. */
+/** Scrolling page with safe-area padding (and room at the bottom for the floating WhatsApp button), keyboard avoidance and optional pull-to-refresh. */
 export function Screen({ children, onRefresh, refreshing, padTop = false, gap = space.lg, contentContainerStyle, ...rest }: Props) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
@@ -23,7 +23,7 @@ export function Screen({ children, onRefresh, refreshing, padTop = false, gap = 
         contentInsetAdjustmentBehavior="automatic"
         refreshControl={onRefresh ? <RefreshControl refreshing={!!refreshing} onRefresh={onRefresh} tintColor={t.primary} /> : undefined}
         contentContainerStyle={[
-          { padding: space.lg, gap, paddingTop: space.lg + (padTop ? insets.top : 0), paddingBottom: space.xxl + insets.bottom },
+          { padding: space.lg, gap, paddingTop: space.lg + (padTop ? insets.top : 0), paddingBottom: space.xxl + 56 + insets.bottom },
           contentContainerStyle,
         ]}
         {...rest}

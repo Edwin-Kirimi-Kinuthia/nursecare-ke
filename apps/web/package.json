@@ -12,7 +12,10 @@
     "e2e:ui": "playwright test --ui",
     "openapi:generate": "tsx scripts/generate-openapi.ts",
     "openapi:check": "tsx scripts/generate-openapi.ts --check",
-    "prebuild": "npm run openapi:generate"
+    "prebuild": "npm run openapi:generate",
+    "review:create": "tsx scripts/review-accounts.ts create",
+    "review:disable": "tsx scripts/review-accounts.ts disable",
+    "calendars:rebuild": "tsx scripts/rebuild-calendars.ts"
   },
   "dependencies": {
     "@carebora/api-client": "*",

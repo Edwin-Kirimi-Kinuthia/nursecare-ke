@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { WHATSAPP_URL, WHATSAPP_DISPLAY } from "@carebora/shared";
 import { SITE_FACTS } from "@/lib/site-facts";
-import { Phone, Mail, MapPin, Facebook, Instagram, Ambulance, MessageSquare } from "lucide-react";
+import { Phone, Mail, MapPin, Facebook, Instagram, Ambulance, MessageSquare, MessageCircle } from "lucide-react";
 import {
   AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY,
   SUPPORT_PHONE, SUPPORT_PHONE_DISPLAY,
@@ -99,6 +100,9 @@ export default function Footer() {
           </a>
           <a href={`mailto:${ADMIN_EMAIL}`} className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
             <Mail className="h-4 w-4 shrink-0" /> {ADMIN_EMAIL}
+          </a>
+          <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-slate-500 hover:text-teal-700">
+            <MessageCircle className="h-4 w-4 shrink-0" /> WhatsApp {WHATSAPP_DISPLAY}
           </a>
           <Link href="/contact" className="flex items-center gap-2 font-medium text-teal-700 hover:underline">
             <MessageSquare className="h-4 w-4 shrink-0" /> Message us / request a document

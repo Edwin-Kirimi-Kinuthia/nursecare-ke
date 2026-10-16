@@ -1,6 +1,6 @@
 import { db } from "@carebora/db";
 import { ApiError, type CreateAvailabilityInput, type CreateSlotInput, type SlotsQuery } from "@carebora/shared";
-import { addDays, startOfDay } from "./date-utils";
+import { addDays, dayOfWeek, startOfDay } from "./date-utils";
 
 /**
  * Default clinic hours, so a provider never has to hand-build a weekly
@@ -174,8 +174,8 @@ async function generateSlotsForRule(
 
   for (let d = 0; d < days; d++) {
     const day = addDays(today, d);
-    // getDay() returns 0 = Sunday … 6 = Saturday
-    if (day.getDay() !== rule.dayOfWeek) continue;
+    // The weekday in Nairobi (0 = Sunday ... 6 = Saturday), not the server's.
+    if (dayOfWeek(day) !== rule.dayOfWeek) continue;
 
     let startMin = rule.startMinute;
     while (startMin + rule.slotDuration <= rule.endMinute) {

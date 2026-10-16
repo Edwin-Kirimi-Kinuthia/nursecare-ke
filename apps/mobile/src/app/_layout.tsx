@@ -11,6 +11,7 @@ import { Button } from "@/ui/Button";
 import { Text } from "@/ui/Text";
 import { useTheme } from "@/ui/theme";
 import { useNotificationTaps } from "@/lib/push";
+import { WhatsAppButton } from "@/features/WhatsAppButton";
 
 // Keep the native splash up until we know whether there is a saved session, so
 // a signed-in person never sees a flash of the signed-out app.
@@ -104,6 +105,7 @@ function Gate() {
           <Stack.Screen name="forgot" options={{ title: "Reset password" }} />
         </Stack.Protected>
       </Stack>
+      <WhatsAppButton />
     </>
   );
 }
