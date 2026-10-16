@@ -57,7 +57,7 @@ export function Footer() {
         <Head>Care Bora</Head>
         <Link label="About us" onPress={() => void openSite("/about")} />
         <Link label="How we verify providers" onPress={() => void openSite("/how-we-verify-providers")} />
-        <Link label="Join as a provider" onPress={() => void openSite("/providers/apply")} />
+        <Link label="Join as a provider" onPress={() => router.navigate("/apply/provider")} />
         <Link label="Privacy policy" onPress={() => void openSite("/privacy")} />
         <Link label="Delete your account" onPress={() => router.navigate("/delete-account")} />
       </View>

@@ -3,7 +3,7 @@ import { Image, Linking, Modal, Pressable, ScrollView, View } from "react-native
 import { router, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Bell, Building2, FileText, FlaskConical, Home, Package, ShoppingCart, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
+  Bell, Brain, Building2, FileText, FlaskConical, Home, Package, ShoppingCart, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
   Stethoscope, User, X, type LucideIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
@@ -88,6 +88,7 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
     { label: "Find providers", Icon: Stethoscope, to: "/doctors" },
     ...(user ? [{ label: "My appointments", Icon: CalendarDays, to: "/appointments" }] : []),
     { label: "Pharmacy", Icon: Pill, to: "/pharmacy" },
+    { label: "Symptom checker", Icon: Brain, to: "/ai" },
     { label: "Home visits", Icon: Home, to: "/home-visits" },
     { label: "Lab tests", Icon: FlaskConical, to: "/labs" },
     ...(user ? [{ label: "Medical record", Icon: FileText, to: "/records" }] : []),
@@ -104,8 +105,8 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
       ]
     : [
         { label: "Log in or sign up", Icon: LogIn, to: "/login" },
-        { label: "Join as a provider", Icon: Stethoscope, site: "/providers/apply" },
-        { label: "Sell on CareBora", Icon: Building2, site: "/vendors/apply" },
+        { label: "Join as a provider", Icon: Stethoscope, to: "/apply/provider" },
+        { label: "Sell on CareBora", Icon: Building2, to: "/apply/vendor" },
       ];
   const legal: Item[] = [{ label: "Privacy policy", Icon: ShieldCheck, site: "/privacy" }];
 

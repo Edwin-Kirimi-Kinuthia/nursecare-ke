@@ -23,6 +23,8 @@ type AuthValue = {
   /** Step 2: the emailed code. Starts the session. */
   completeSignIn: (email: string, code: string) => Promise<void>;
   register: (input: RegisterInput) => Promise<void>;
+  /** Start the session from an auth result returned by another sign-up endpoint (provider / vendor applications). */
+  adoptSession: (res: { accessToken: string; refreshToken: string; user: PublicUser }) => Promise<void>;
   signOut: () => Promise<void>;
   /** Re-fetch the user after a change (name, photo, verification). */
   refreshUser: () => Promise<void>;
@@ -83,6 +85,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setStatus("signedIn");
   }, []);
 
+  const adoptSession = useCallback(async (res: { accessToken: string; refreshToken: string; user: PublicUser }) => {
+    await saveTokens(res);
+    setUser(res.user);
+    setStatus("signedIn");
+  }, []);
+
   const signOut = useCallback(async () => {
     const rt = getRefreshToken();
     // Stop this phone receiving this person's notifications once they've left.
@@ -105,8 +113,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo<AuthValue>(
-    () => ({ status, user, beginSignIn, completeSignIn, register, signOut, refreshUser, retry: boot, afterDeletion }),
-    [status, user, beginSignIn, completeSignIn, register, signOut, refreshUser, boot, afterDeletion],
+    () => ({ status, user, beginSignIn, completeSignIn, register, adoptSession, signOut, refreshUser, retry: boot, afterDeletion }),
+    [status, user, beginSignIn, completeSignIn, register, adoptSession, signOut, refreshUser, boot, afterDeletion],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
