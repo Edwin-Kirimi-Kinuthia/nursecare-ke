@@ -23,7 +23,7 @@ const FEATURES: { Icon: LucideIcon; title: string; desc: string; site?: string; 
   { Icon: Stamp, title: "Medical forms & reports", desc: "Request a sick-off sheet, medical report or school, employment or insurance form — a licensed clinician reviews and signs it.", to: "/support/new" },
   { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", to: "/doctors" },
   { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", to: "/pharmacy" },
-  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", site: "/home-visits-nairobi" },
+  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", to: "/home-visits" },
   { Icon: Users, title: "Licence-checked providers", desc: "Every clinician submits their practice licence for review before they appear.", site: "/how-we-verify-providers" },
   { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", to: "/doctors" },
   { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", site: "/privacy" },

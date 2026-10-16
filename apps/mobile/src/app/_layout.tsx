@@ -94,13 +94,16 @@ function Gate() {
         <Stack.Screen name="pharmacy/index" options={{ title: "" }} />
         <Stack.Screen name="pharmacy/[id]" options={{ title: "Medicine" }} />
         <Stack.Screen name="cart" options={{ title: "" }} />
+        <Stack.Screen name="home-visits/index" options={{ title: "" }} />
+        <Stack.Screen name="home-visits/new" options={{ title: "" }} />
+        <Stack.Screen name="home-visits/[id]" options={{ title: "Home visit" }} />
+        <Stack.Screen name="orders/index" options={{ title: "" }} />
+        <Stack.Screen name="orders/[id]" options={{ title: "Order" }} />
 
         {/* Signed-in only. Signing out while on one of these sends you back to the tabs. */}
         <Stack.Protected guard={isAuthed}>
           <Stack.Screen name="appointment/[id]" options={{ title: "Appointment" }} />
           <Stack.Screen name="consultation/[id]" options={{ headerShown: false, gestureEnabled: false }} />
-          <Stack.Screen name="orders/index" options={{ title: "" }} />
-          <Stack.Screen name="orders/[id]" options={{ title: "Order" }} />
           <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
           <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
           <Stack.Screen name="verify-email" options={{ title: "Verify your email" }} />

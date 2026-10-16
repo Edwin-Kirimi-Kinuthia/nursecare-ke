@@ -69,7 +69,8 @@
           "color": "#034D30"
         }
       ],
-      "@livekit/react-native-expo-plugin"
+      "@livekit/react-native-expo-plugin",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -9,14 +9,18 @@ import { Text } from "@/ui/Text";
 import { Badge, Banner, Empty, Loading } from "@/ui/parts";
 import { PageHeader } from "@/ui/PageHeader";
 import { useTheme } from "@/ui/theme";
+import { useAuth } from "@/lib/auth";
+import { SignInPrompt } from "@/features/SignInPrompt";
 import { orderTone, orderLabel } from "@/features/orderStatus";
 
 export default function OrdersScreen() {
   const t = useTheme();
-  const list = useAsync(() => api.listOrders({ limit: 30 } as never), []);
+  const { user } = useAuth();
+  const list = useAsync(() => (user ? api.listOrders({ limit: 30 } as never) : Promise.resolve(null)), [user?.id]);
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing}>
       <PageHeader eyebrow="Pharmacy" Icon={Package} title="My orders" />
+      {!user ? <SignInPrompt icon="cube-outline" title="Sign in to see your orders" hint="Medicine you order will show up here." /> : <>
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading && !list.data ? <View style={{ height: 200 }}><Loading /></View>
         : list.data && list.data.orders.length === 0 ? <Empty icon="cube-outline" title="No orders yet" hint="Medicine you order will show up here." action={{ label: "Browse pharmacy", onPress: () => router.push("/pharmacy") }} />
@@ -34,6 +38,7 @@ export default function OrdersScreen() {
             </Pressable>
           );
         })}
+      </>}
     </Screen>
   );
 }
