@@ -96,7 +96,7 @@ function Stage({ otherName, canEnd, chatOpen, unread, onToggleChat, onLeave, onE
           onPress={() => void room.localParticipant.setMicrophoneEnabled(!isMicrophoneEnabled)} />
         <Control icon={isCameraEnabled ? "videocam" : "videocam-off"} label={isCameraEnabled ? "Stop video" : "Start video"} off={!isCameraEnabled}
           onPress={() => void room.localParticipant.setCameraEnabled(!isCameraEnabled)} />
-        <Control icon={chatOpen ? "chatbubble" : "chatbubble-outline"} label="Chat" badge={chatOpen ? 0 : unread} onPress={onToggleChat} />
+        <Control icon={chatOpen ? "chatbubble" : "chatbubble-outline"} label={canEnd ? "Notes" : "Chat"} badge={chatOpen ? 0 : unread} onPress={onToggleChat} />
         <Control icon="call" label="Leave" danger onPress={onLeave} />
         {canEnd && <Control icon="checkmark-done" label="End" danger onPress={onEnd} />}
       </View>

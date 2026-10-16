@@ -50,6 +50,7 @@ export default function AccountScreen() {
   }
 
   const isProvider = PROVIDER_ROLES.includes(user.role);
+  const isVendor = user.role === "vendor";
   return (
     <Screen>
       <Card>
@@ -75,6 +76,18 @@ export default function AccountScreen() {
       <Card style={{ paddingVertical: 4 }}>
         <Row icon="create-outline" title="Edit profile" subtitle="Name, phone and photo" onPress={() => router.push("/edit-profile")} />
         <Divider />
+        <Row icon="person-outline" title="Personal details" subtitle="Blood group, allergies, emergency contact" onPress={() => router.push("/edit-details")} />
+        <Divider />
+        {isProvider && (
+          <>
+            <Row icon="medkit-outline" title="Professional profile" subtitle="Specialty, fees, bio" onPress={() => router.push("/edit-professional")} />
+            <Divider />
+          </>
+        )}
+        <Row icon="document-text-outline" title="Medical record" subtitle="Allergies, medicines, results, notes" onPress={() => router.push("/records")} />
+        <Divider />
+        <Row icon="key-outline" title="Change password" onPress={() => router.push("/change-password")} />
+        <Divider />
         <Row
           icon="notifications-outline"
           title="Notifications"
@@ -93,6 +106,13 @@ export default function AccountScreen() {
           </>
         )}
       </Card>
+
+      {user.role === "admin" && (
+        <Card><Text variant="subheading">Administrator</Text><Text tone="muted">Manage the platform from the operations dashboard.</Text><Button title="Open dashboard" size="sm" onPress={() => router.push("/admin")} /></Card>
+      )}
+      {isVendor && (
+        <Card><Text variant="subheading">Vendor</Text><Text tone="muted">Manage your listings, orders and branches.</Text><Button title="Open vendor dashboard" size="sm" onPress={() => router.push("/vendor")} /></Card>
+      )}
 
       {links}
 

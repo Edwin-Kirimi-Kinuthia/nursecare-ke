@@ -111,6 +111,9 @@ function Gate() {
           <Stack.Screen name="consultation/[id]" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
           <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
+          <Stack.Screen name="edit-details" options={{ title: "" }} />
+          <Stack.Screen name="edit-professional" options={{ title: "" }} />
+          <Stack.Screen name="change-password" options={{ title: "" }} />
           <Stack.Screen name="verify-email" options={{ title: "Verify your email" }} />
           <Stack.Screen name="delete-account" options={{ title: "Delete account" }} />
         </Stack.Protected>

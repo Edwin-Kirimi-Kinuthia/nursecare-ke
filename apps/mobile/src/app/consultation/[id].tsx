@@ -9,6 +9,7 @@ import { api } from "@/lib/api";
 import { errorMessage } from "@/lib/useAsync";
 import { timeOnly } from "@/lib/format";
 import { VideoRoom } from "@/features/VideoRoom";
+import { ConsultPanel } from "@/features/ConsultPanel";
 import { Button } from "@/ui/Button";
 import { Text } from "@/ui/Text";
 import { Loading } from "@/ui/parts";
@@ -121,7 +122,8 @@ export default function ConsultationScreen() {
         onLeave={leave}
         onEnd={end}
       >
-        <Chat consultationId={joined.consultationId} messages={messages} meId={user?.id ?? ""} onSent={poll} />
+        <ConsultPanel consultationId={joined.consultationId} role={user?.role ?? ""} isProvider={joined.isProvider}
+          chat={<Chat consultationId={joined.consultationId} messages={messages} meId={user?.id ?? ""} onSent={poll} />} />
       </VideoRoom>
     </View>
   );
