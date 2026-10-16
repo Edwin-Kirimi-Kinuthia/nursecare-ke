@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, TextInput, View } from "react-native";
 import { Check, Download, MessageSquare, Pill, Plus, Sparkles, X, FileText } from "lucide-react-native";
 import { clinicalTemplateFor, type ClinicalRecord } from "@carebora/shared";
@@ -109,8 +109,8 @@ function Prescriptions({ consultationId, isProvider }: { consultationId: string;
   const [instructions, setInstructions] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const load = () => api.listPrescriptions(consultationId).then(setList).catch(() => {});
-  useEffect(() => { void load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [consultationId]);
+  const load = useCallback(() => api.listPrescriptions(consultationId).then(setList).catch(() => {}), [consultationId]);
+  useEffect(() => { void load(); }, [load]);
   const setMed = (i: number, k: keyof MedicationRecord, v: string) => setMeds((m) => m.map((x, idx) => (idx === i ? { ...x, [k]: v } : x)));
   const input = { borderWidth: 1, borderColor: t.border, borderRadius: 10, paddingHorizontal: 10, minHeight: 42, fontSize: 15, color: t.text, backgroundColor: "#fff" } as const;
 

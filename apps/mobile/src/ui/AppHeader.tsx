@@ -100,6 +100,8 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const account: Item[] = user
     ? [
         { label: "My profile", Icon: User, to: "/account" },
+        ...(user.role === "vendor" ? [{ label: "Vendor dashboard", Icon: Building2, to: "/vendor" }] : []),
+        ...(user.role === "admin" ? [{ label: "Admin dashboard", Icon: ShieldCheck, to: "/admin" }] : []),
         { label: "Notifications", Icon: Bell, to: "/notifications" },
         { label: "Log out", Icon: LogOut, run: () => void signOut() },
       ]
