@@ -48,7 +48,7 @@ export function Footer() {
       <View>
         <Head>Care</Head>
         <Link label="Find a doctor" onPress={() => router.navigate("/doctors")} />
-        <Link label="Pharmacy" onPress={() => void openSite("/pharmacy")} />
+        <Link label="Pharmacy" onPress={() => router.navigate("/pharmacy")} />
         <Link label="Home visits" onPress={() => void openSite("/home-visits-nairobi")} />
         <Link label="Ambulance line" onPress={() => router.navigate("/ambulance")} />
       </View>

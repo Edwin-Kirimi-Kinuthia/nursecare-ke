@@ -22,7 +22,7 @@ const FEATURES: { Icon: LucideIcon; title: string; desc: string; site?: string; 
   { Icon: Siren, title: "Emergency ambulance", desc: "Call our ambulance line directly, or send a request and follow its status.", to: "/ambulance" },
   { Icon: Stamp, title: "Medical forms & reports", desc: "Request a sick-off sheet, medical report or school, employment or insurance form — a licensed clinician reviews and signs it.", to: "/support/new" },
   { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", to: "/doctors" },
-  { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", site: "/pharmacy" },
+  { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", to: "/pharmacy" },
   { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", site: "/home-visits-nairobi" },
   { Icon: Users, title: "Licence-checked providers", desc: "Every clinician submits their practice licence for review before they appear.", site: "/how-we-verify-providers" },
   { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", to: "/doctors" },
@@ -69,7 +69,7 @@ export default function HomeScreen() {
         </Text>
         <View style={{ alignSelf: "stretch", gap: 12, paddingHorizontal: 24 }}>
           <Button variant="light" title="Find a provider" icon={<ArrowRight size={18} color="#0F766E" />} onPress={() => router.navigate("/doctors")} />
-          <Button variant="outlineLight" title="Browse pharmacy" onPress={() => void openSite("/pharmacy")} />
+          <Button variant="outlineLight" title="Browse pharmacy" onPress={() => router.navigate("/pharmacy")} />
         </View>
         <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
           {STATS.map(([k, v]) => (

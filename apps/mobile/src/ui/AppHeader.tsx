@@ -3,10 +3,11 @@ import { Image, Linking, Modal, Pressable, ScrollView, View } from "react-native
 import { router, usePathname } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
-  Bell, Building2, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
+  Bell, Building2, Package, ShoppingCart, CalendarDays, ChevronLeft, Ambulance, LogIn, LogOut, Menu, MessageCircle, Phone, Pill, ShieldCheck,
   Stethoscope, User, X, type LucideIcon,
 } from "lucide-react-native";
 import { useAuth } from "@/lib/auth";
+import { useCart } from "@/lib/cart";
 import { openSite } from "@/lib/links";
 import { Avatar } from "./parts";
 import { Text } from "./Text";
@@ -20,6 +21,7 @@ export function AppHeader() {
   const insets = useSafeAreaInsets();
   const pathname = usePathname();
   const { user } = useAuth();
+  const { count } = useCart();
   const [open, setOpen] = useState(false);
   if (pathname.startsWith("/consultation/")) return null;
 
@@ -37,6 +39,14 @@ export function AppHeader() {
             <Image source={require("../../assets/brand/logo-mark.png")} style={{ width: 36, height: 36 }} resizeMode="contain" />
             <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 18, letterSpacing: -0.3 }}>Care Bora</Text>
           </Pressable>
+          <IconButton label={`Cart, ${count} items`} onPress={() => router.navigate("/cart")}>
+            <ShoppingCart size={22} color={t.textMuted} />
+            {count > 0 && (
+              <View style={{ position: "absolute", top: 2, right: 0, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#0D9488", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
+                <Text style={{ color: "#fff", fontSize: 11, fontFamily: "Inter_700Bold" }}>{count}</Text>
+              </View>
+            )}
+          </IconButton>
           {user ? (
             <>
               <IconButton label="Notifications" onPress={() => router.push("/notifications")}><Bell size={22} color={t.textMuted} /></IconButton>
@@ -77,7 +87,8 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const care: Item[] = [
     { label: "Find providers", Icon: Stethoscope, to: "/doctors" },
     ...(user ? [{ label: "My appointments", Icon: CalendarDays, to: "/appointments" }] : []),
-    { label: "Pharmacy", Icon: Pill, site: "/pharmacy" },
+    { label: "Pharmacy", Icon: Pill, to: "/pharmacy" },
+    ...(user ? [{ label: "My orders", Icon: Package, to: "/orders" }] : []),
     ...(user ? [{ label: "Messages", Icon: MessageCircle, to: "/support" }] : []),
     { label: "Contact us", Icon: Phone, to: "/support/new" },
     { label: "Ambulance", Icon: Ambulance, to: "/ambulance" },

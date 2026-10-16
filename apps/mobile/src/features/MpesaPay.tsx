@@ -35,17 +35,24 @@ function explainFailure(reason: string | null): string {
 type Phase = "idle" | "starting" | "waiting" | "paid" | "failed" | "timeout";
 
 /** Pay for an appointment by M-Pesa: asks for the number, sends the prompt, then waits for the real result. */
-export function MpesaPay({ appointmentId, amountKes, defaultPhone, onPaid }: {
-  appointmentId: string; amountKes: number; defaultPhone?: string | null; onPaid: () => void;
+export function MpesaPay({ appointmentId, initiate, existingPaymentId, phoneHint, amountKes, defaultPhone, noun = "consultation", sitePath = "/appointments", onPaid }: {
+  /** Pay for an appointment… */
+  appointmentId?: string;
+  /** …or for anything else, by supplying the call that sends the prompt (home visit, ambulance…). */
+  initiate?: (phone: string) => Promise<{ id: string }>;
+  /** A prompt was already sent at checkout (orders): go straight to waiting for it. */
+  existingPaymentId?: string;
+  phoneHint?: string;
+  amountKes: number; defaultPhone?: string | null; noun?: string; sitePath?: string; onPaid: () => void;
 }) {
   const t = useTheme();
   const config = useAppConfig();
-  const [phone, setPhone] = useState(defaultPhone ?? "");
-  const [phase, setPhase] = useState<Phase>("idle");
+  const [phone, setPhone] = useState(defaultPhone ?? phoneHint ?? "");
+  const [phase, setPhase] = useState<Phase>(existingPaymentId ? "waiting" : "idle");
   const [error, setError] = useState<string | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<string | null>(null);
-  const [paymentId, setPaymentId] = useState<string | null>(null);
+  const [paymentId, setPaymentId] = useState<string | null>(existingPaymentId ?? null);
   const onPaidRef = useRef(onPaid);
   useEffect(() => { onPaidRef.current = onPaid; }, [onPaid]);
 
@@ -75,7 +82,7 @@ export function MpesaPay({ appointmentId, amountKes, defaultPhone, onPaid }: {
     setPhase("starting");
     setError(null);
     try {
-      const p = await api.initiateMpesaPayment({ appointmentId, phoneNumber: phone });
+      const p = initiate ? await initiate(phone) : await api.initiateMpesaPayment({ appointmentId: appointmentId!, phoneNumber: phone });
       setPaymentId(p.id);
       setPhase("waiting");
     } catch (err) {
@@ -99,8 +106,8 @@ export function MpesaPay({ appointmentId, amountKes, defaultPhone, onPaid }: {
     return (
       <Card>
         <Text variant="subheading">Pay {kes(amountKes)}</Text>
-        <Banner tone="info">Payment for this consultation is completed on our website.</Banner>
-        <Button title="Open Care Bora website" variant="secondary" onPress={() => openSite("/appointments")} />
+        <Banner tone="info">Payment for this {noun} is completed on our website.</Banner>
+        <Button title="Open Care Bora website" variant="secondary" onPress={() => openSite(sitePath)} />
       </Card>
     );
   }
@@ -148,7 +155,7 @@ export function MpesaPay({ appointmentId, amountKes, defaultPhone, onPaid }: {
   return (
     <Card>
       <Text variant="subheading">Pay {kes(amountKes)} with M-Pesa</Text>
-      <Text tone="muted">Your doctor can start the consultation once this is paid.</Text>
+      <Text tone="muted">{noun === "consultation" ? "Your doctor can start the consultation once this is paid." : `Your ${noun} is confirmed once this is paid.`}</Text>
       {phase === "failed" && <Banner tone="danger">{explainFailure(failure)} Nothing has been charged. You can try again.</Banner>}
       {error && <Banner tone="danger">{error}</Banner>}
       <PhoneField label="M-Pesa number" value={phone} onChange={setPhone} lockedToKenya hint="We'll send a payment prompt to this Safaricom number." />

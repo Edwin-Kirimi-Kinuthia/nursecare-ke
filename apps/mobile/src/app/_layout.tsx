@@ -5,6 +5,7 @@ import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { AuthProvider, useAuth } from "@/lib/auth";
+import { CartProvider } from "@/lib/cart";
 import { AppConfigProvider, useAppConfig } from "@/lib/appConfig";
 import { APP_VERSION, STORE_URL, isOlderVersion } from "@/lib/config";
 import { Button } from "@/ui/Button";
@@ -27,7 +28,9 @@ export default function RootLayout() {
     <SafeAreaProvider>
       <AuthProvider>
         <AppConfigProvider>
-          <Gate />
+          <CartProvider>
+            <Gate />
+          </CartProvider>
         </AppConfigProvider>
       </AuthProvider>
     </SafeAreaProvider>
@@ -88,11 +91,16 @@ function Gate() {
         <Stack.Screen name="support/new" options={{ title: "" }} />
         <Stack.Screen name="support/[id]" options={{ title: "Conversation" }} />
         <Stack.Screen name="ambulance" options={{ title: "Ambulance" }} />
+        <Stack.Screen name="pharmacy/index" options={{ title: "" }} />
+        <Stack.Screen name="pharmacy/[id]" options={{ title: "Medicine" }} />
+        <Stack.Screen name="cart" options={{ title: "" }} />
 
         {/* Signed-in only. Signing out while on one of these sends you back to the tabs. */}
         <Stack.Protected guard={isAuthed}>
           <Stack.Screen name="appointment/[id]" options={{ title: "Appointment" }} />
           <Stack.Screen name="consultation/[id]" options={{ headerShown: false, gestureEnabled: false }} />
+          <Stack.Screen name="orders/index" options={{ title: "" }} />
+          <Stack.Screen name="orders/[id]" options={{ title: "Order" }} />
           <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
           <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
           <Stack.Screen name="verify-email" options={{ title: "Verify your email" }} />
