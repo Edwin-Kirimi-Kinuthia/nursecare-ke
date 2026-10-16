@@ -36,6 +36,18 @@ Ambulance is a call screen on purpose. The website's request form is handed to
 ambulance operators and none are onboarded, so a form would send an emergency into a
 queue nobody reads.
 
+## Inspect it before you pay for any store account
+
+1. **In a browser, now:** `npm run preview`. Serves the real screens against the live
+   API on your network (a phone on the same Wi-Fi can open it). Not the native app: no
+   video call, push or secure storage there.
+2. **The real Android app, no Play account needed:** make a free Expo account, then
+   `npx eas-cli@latest login`, `npx eas-cli@latest init`, and
+   `npx eas-cli@latest build --platform android --profile preview`. You get a link to an
+   `.apk` to install on any Android phone. That is the actual app, including video calls.
+3. **iPhone:** installing on a real iPhone requires the paid Apple Developer account.
+   Without it, a Mac can run the iOS Simulator, or use the browser preview above.
+
 ## Before you can publish: things only you can do
 
 1. **Developer accounts.** Apple Developer Program (about $99/year) and Google Play
