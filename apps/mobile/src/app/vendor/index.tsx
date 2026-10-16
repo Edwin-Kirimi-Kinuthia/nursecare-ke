@@ -10,6 +10,7 @@ import type { Drug, Listing, LabOrder, LabOrderItem, LabTest, OrgBranch, Organiz
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { errorMessage, useAsync } from "@/lib/useAsync";
+import { useAct } from "@/lib/useAct";
 import { dayTime, kes } from "@/lib/format";
 import { Screen, Card } from "@/ui/Screen";
 import { Button } from "@/ui/Button";
@@ -64,15 +65,6 @@ export default function VendorDashboard() {
   );
 }
 
-function useAct() {
-  const [busy, setBusy] = useState<string | null>(null);
-  const [err, setErr] = useState<string | null>(null);
-  async function run(key: string, fn: () => Promise<unknown>, after?: () => void) {
-    setBusy(key); setErr(null);
-    try { await fn(); after?.(); } catch (e) { setErr(errorMessage(e)); } finally { setBusy(null); }
-  }
-  return { busy, err, run, setErr };
-}
 const Meta = ({ children }: { children: React.ReactNode }) => <Text variant="caption" tone="faint">{children}</Text>;
 const AddBar = ({ count, noun, onAdd, label }: { count: number; noun: string; onAdd: () => void; label: string }) => (
   <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
