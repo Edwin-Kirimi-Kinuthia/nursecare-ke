@@ -42,8 +42,10 @@ export default function ProviderProfile({
     let active = true;
     (async () => {
       try {
+        // The server-rendered copy is cached for search engines, so Available/Busy
+        // and fees are always re-read live; `initial` is just the first paint.
         const [p, s] = await Promise.all([
-          initial ? Promise.resolve(initial) : api.getProvider(id),
+          initial ? api.getProvider(id).catch(() => initial) : api.getProvider(id),
           api.listSlots(id, { type: "teleconsult" }),
         ]);
         if (active) { setProvider(p); setSlots(s); }

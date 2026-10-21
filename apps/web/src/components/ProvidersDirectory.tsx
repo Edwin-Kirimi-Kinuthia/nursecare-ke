@@ -31,20 +31,22 @@ export default function ProvidersDirectory({
     // Skip the first run only when the server already supplied the list. If it
     // came back empty (a database hiccup at render time), fetch rather than
     // leave the visitor looking at nothing.
-    if (firstRender.current) {
-      firstRender.current = false;
-      if (initialProviders.length > 0) return;
-    }
+    const first = firstRender.current;
+    firstRender.current = false;
+    // The server-rendered copy is cached for search engines, so Available/Busy
+    // can be minutes out of date. Refresh quietly on arrival (no spinner, and
+    // keep what is showing if the refresh fails).
+    const quiet = first && initialProviders.length > 0;
     let active = true;
     (async () => {
-      setLoading(true);
+      if (!quiet) setLoading(true);
       try {
         const res = await api.listProviders(specialty ? { specialty } : {});
         if (active) { setProviders(res.providers); setError(null); }
       } catch {
-        if (active) setError("Could not load providers");
+        if (active && !quiet) setError("Could not load providers");
       } finally {
-        if (active) setLoading(false);
+        if (active && !quiet) setLoading(false);
       }
     })();
     return () => { active = false; };

@@ -1,3 +1,4 @@
+import { revalidatePath } from "next/cache";
 import { route, jsonOk } from "@/server/http";
 import { requireAuth } from "@/server/auth";
 import { PROVIDER_ROLES, patchProviderProfileSchema } from "@carebora/shared";
@@ -15,5 +16,7 @@ export const PATCH = route(async (req) => {
   const auth = await requireAuth(req, PROVIDER_ROLES);
   const data = patchProviderProfileSchema.parse(await req.json());
   const profile = await profileService.patchProvider(auth.sub, data);
+  // The public directory and profile pages are cached; Available/Busy and fees must show at once.
+  revalidatePath("/providers"); revalidatePath(`/providers/${auth.sub}`);
   return jsonOk(profile);
 });
