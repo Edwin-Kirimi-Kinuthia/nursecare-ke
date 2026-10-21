@@ -2,13 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Video, Users, Pill, HomeIcon, ShieldCheck, Smartphone,
-  ArrowRight, Star, FileText, Stamp, Siren, Phone,
+  ArrowRight, Star, FileText, Stamp, Siren, Phone, UserPlus, Search, CreditCard, BadgeCheck,
 } from "lucide-react";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { JsonLd } from "@/components/JsonLd";
 import { organizationSchema, websiteSchema, faqSchema, HOME_FAQS } from "@/lib/structured-data";
 import FaqList from "@/components/FaqList";
-import { reviewService } from "@carebora/core";
+import Reveal from "@/components/Reveal";
+import HeroPhone from "@/components/HeroPhone";
+import PhotoWithFallback from "@/components/PhotoWithFallback";
+import { reviewService, providerService, storefrontService } from "@carebora/core";
 
 // Title and description come from the root layout's defaults, which are written
 // for the homepage; this just pins its canonical.
@@ -45,6 +48,20 @@ export default async function HomePage() {
     reviews = [];
   }
 
+  // Real photos only: the providers who are listed (and their uploaded photos),
+  // and products that have a photo. Each strip is hidden when there is nothing to show.
+  type Doc = { userId: string; specialty: string | null; isAvailable: boolean; user: { fullName: string; avatarUrl: string | null } };
+  let doctors: Doc[] = [];
+  let products: { drugId: string; name: string; imageUrl: string | null; bestPriceKes: number }[] = [];
+  try {
+    const list = await providerService.list({ limit: 8, offset: 0 } as never);
+    doctors = JSON.parse(JSON.stringify(list.providers)).filter((d: Doc) => d.user.avatarUrl);
+  } catch { doctors = []; }
+  try {
+    const res = await storefrontService.searchDrugs({ limit: 24, offset: 0 } as never);
+    products = JSON.parse(JSON.stringify(res.drugs)).filter((d: { imageUrl: string | null }) => d.imageUrl && !d.imageUrl.startsWith("data:"));
+  } catch { products = []; }
+
   return (
     <div>
       {/* Tells search engines what this business is, where it operates and what
@@ -60,44 +77,44 @@ export default async function HomePage() {
           <div className="animate-blob absolute -bottom-40 right-0 h-96 w-96 rounded-full bg-emerald-400/20 blur-3xl delay-200" />
         </div>
 
-        <div className="relative mx-auto max-w-6xl px-4 py-24 sm:py-32">
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="animate-fade-in inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold text-teal-100 backdrop-blur">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-teal-300" />
-              Kenya&apos;s telehealth platform
-            </span>
-            <h1 className="animate-slide-up mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl">
-              Quality care, <span className="gradient-text">made accessible.</span>
-            </h1>
-            <p className="animate-slide-up delay-100 mx-auto mt-6 max-w-2xl text-lg text-teal-100/90">
-              Consult verified doctors and nurses, book home visits, and order from the
-              pharmacy — all paid for with M-Pesa, all in one place.
-            </p>
-            <div className="animate-slide-up delay-200 mt-9 flex flex-wrap justify-center gap-3">
-              <Link href="/providers" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-teal-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-teal-50">
-                Find a provider <ArrowRight className="h-4 w-4" />
-              </Link>
-              <Link href="/pharmacy" className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
-                Browse pharmacy
-              </Link>
+        <div className="dot-grid pointer-events-none absolute inset-0 opacity-60" />
+        <div className="relative mx-auto max-w-6xl px-4 py-16 sm:py-24">
+          <div className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
+            <div className="text-center lg:text-left">
+              <span className="animate-fade-in inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-1.5 text-xs font-semibold text-teal-100 backdrop-blur">
+                <span className="h-2 w-2 animate-pulse rounded-full bg-teal-300" />
+                Kenya&apos;s telehealth platform
+              </span>
+              <h1 className="animate-slide-up mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl">
+                Quality care, <span className="gradient-text">made accessible.</span>
+              </h1>
+              <p className="animate-slide-up delay-100 mx-auto mt-6 max-w-xl text-lg text-teal-100/90 lg:mx-0">
+                Consult verified doctors and nurses, book home visits, and order from the
+                pharmacy — all paid for with M-Pesa, all in one place.
+              </p>
+              <div className="animate-slide-up delay-200 mt-9 flex flex-wrap justify-center gap-3 lg:justify-start">
+                <Link href="/providers" className="inline-flex items-center gap-2 rounded-xl bg-white px-6 py-3 font-semibold text-teal-900 shadow-lg shadow-black/10 transition hover:-translate-y-0.5 hover:bg-teal-50">
+                  Find a provider <ArrowRight className="h-4 w-4" />
+                </Link>
+                <Link href="/pharmacy" className="inline-flex items-center gap-2 rounded-xl border border-white/25 px-6 py-3 font-semibold text-white transition hover:bg-white/10">
+                  Browse pharmacy
+                </Link>
+              </div>
             </div>
+            <div className="animate-fade-in delay-200"><HeroPhone /></div>
           </div>
 
           {/* Stats */}
-          <div className="animate-fade-in delay-300 mx-auto mt-16 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
+          <div className="animate-fade-in delay-300 mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
             {/* Claims that are true at any size, and that stay true as the
-                platform grows. These were counts ("5+ verified providers",
-                "15 pharmacy products") that overstated the real figures.
-                Coverage claims have the same trap: "47 counties served" reads
-                as a presence in each one. A video consultation genuinely does
-                reach anywhere in Kenya, so that is what it says. */}
+                platform grows (counts and county numbers overstated reality). */}
             {[
               { k: "Licensed", v: "Every provider checked" },
               { k: "Nationwide", v: "Video consultations" },
               { k: "24/7", v: "Ambulance dispatch" },
               { k: "M-Pesa", v: "Instant payment" },
             ].map((s) => (
-              <div key={s.v} className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
+              <div key={s.v} className="tilt-on-hover rounded-2xl border border-white/10 bg-white/5 p-4 text-center backdrop-blur">
                 <div className="text-2xl font-extrabold text-white">{s.k}</div>
                 <div className="mt-1 text-xs text-teal-200">{s.v}</div>
               </div>
@@ -136,16 +153,77 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Real providers, with the photos they uploaded. Hidden until there are some. */}
+      {doctors.length > 0 && (
+        <section className="mx-auto max-w-6xl px-4 pt-20" aria-labelledby="meet">
+          <Reveal className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 id="meet" className="text-3xl font-extrabold tracking-tight text-slate-900">Meet our providers</h2>
+              <p className="mt-2 text-slate-500">Licence-checked clinicians you can see from your phone.</p>
+            </div>
+            <Link href="/providers" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">See everyone <ArrowRight className="h-4 w-4" /></Link>
+          </Reveal>
+          <div className="mt-8 grid grid-cols-2 gap-4 md:grid-cols-4">
+            {doctors.slice(0, 8).map((d, i) => (
+              <Reveal key={d.userId} delay={(i % 4) * 80}>
+                <Link href={`/providers/${d.userId}`} className="group block overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-1.5 hover:shadow-xl hover:shadow-teal-900/10">
+                  <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-br from-teal-100 to-emerald-100">
+                    <PhotoWithFallback src={d.user.avatarUrl!} name={d.user.fullName} className="h-full w-full object-cover object-top transition-transform duration-700 group-hover:scale-105" />
+                    <span className={`absolute left-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-bold shadow ${d.isAvailable ? "text-emerald-700" : "text-amber-700"}`}>
+                      <span className={`h-1.5 w-1.5 rounded-full ${d.isAvailable ? "bg-emerald-500" : "bg-amber-500"}`} /> {d.isAvailable ? "Available" : "Busy"}
+                    </span>
+                    <span className="absolute right-3 top-3 grid h-7 w-7 place-items-center rounded-full bg-white/95 text-teal-700 shadow"><BadgeCheck className="h-4 w-4" /></span>
+                  </div>
+                  <div className="p-4">
+                    <div className="truncate font-bold text-slate-900">{d.user.fullName}</div>
+                    <div className="truncate text-sm text-teal-700">{d.specialty ?? "Clinician"}</div>
+                  </div>
+                </Link>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* The pharmacy, as it looks: a slow strip of real product photos. */}
+      {products.length >= 6 && (
+        <section className="mt-20 overflow-hidden border-y border-slate-200 bg-white py-10" aria-label="From the pharmacy">
+          <Reveal className="mx-auto mb-6 flex max-w-6xl flex-wrap items-end justify-between gap-3 px-4">
+            <div>
+              <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">From the pharmacy</h2>
+              <p className="mt-1 text-sm text-slate-500">Everyday medicines, delivered to your door.</p>
+            </div>
+            <Link href="/pharmacy" className="inline-flex items-center gap-1 text-sm font-semibold text-teal-700 hover:underline">Shop now <ArrowRight className="h-4 w-4" /></Link>
+          </Reveal>
+          <div className="marquee">
+            <div className="marquee-track gap-4 px-2">
+              {[...products, ...products].map((p, i) => (
+                <Link key={`${p.drugId}-${i}`} href="/pharmacy" aria-hidden={i >= products.length} tabIndex={i >= products.length ? -1 : 0}
+                  className="group w-44 shrink-0 overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 transition hover:-translate-y-1 hover:shadow-lg">
+                  <div className="aspect-square bg-white p-2">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.imageUrl!} alt={p.name} loading="lazy" className="h-full w-full object-contain transition-transform duration-500 group-hover:scale-105" />
+                  </div>
+                  <div className="p-3"><div className="truncate text-sm font-semibold text-slate-900">{p.name}</div></div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Features */}
       <section className="mx-auto max-w-6xl px-4 py-20">
-        <div className="text-center">
+        <Reveal className="text-center">
           <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Everything your family needs</h2>
           <p className="mt-3 text-slate-500">One platform for consultations, care, and medication.</p>
-        </div>
+        </Reveal>
         <div className="mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map(({ Icon, title, desc, href }) => (
-            <Link key={title} href={href} className="card-lift group rounded-2xl border border-slate-200 bg-white p-6">
-              <span className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25">
+          {FEATURES.map(({ Icon, title, desc, href }, i) => (
+            <Reveal key={title} delay={(i % 3) * 90}>
+            <Link href={href} className="card-lift group relative block h-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-6">
+              <Icon className="pointer-events-none absolute -right-4 -top-4 h-28 w-28 text-teal-500/[0.06] transition-transform duration-500 group-hover:rotate-12 group-hover:scale-110" />
+              <span className="relative grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/25 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-6">
                 <Icon className="h-6 w-6" />
               </span>
               <h3 className="mt-4 font-bold text-slate-900">{title}</h3>
@@ -154,23 +232,37 @@ export default async function HomePage() {
                 Explore <ArrowRight className="h-4 w-4" />
               </span>
             </Link>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* How it works */}
-      <section className="bg-white py-20">
+      <section className="relative overflow-hidden bg-white py-20">
         <div className="mx-auto max-w-6xl px-4">
-          <div className="text-center">
+          <Reveal className="text-center">
             <h2 className="text-3xl font-extrabold tracking-tight text-slate-900">Care in three steps</h2>
-          </div>
-          <div className="mt-12 grid gap-6 md:grid-cols-3">
-            {STEPS.map((s) => (
-              <div key={s.n} className="relative rounded-2xl border border-slate-200 bg-gradient-to-b from-white to-slate-50 p-7">
-                <div className="text-5xl font-black text-teal-100">{s.n}</div>
-                <h3 className="mt-3 text-lg font-bold text-slate-900">{s.title}</h3>
-                <p className="mt-2 text-sm text-slate-500">{s.desc}</p>
-              </div>
+            <p className="mt-3 text-slate-500">From sign-up to your consultation in a few minutes.</p>
+          </Reveal>
+          <div className="relative mt-14 grid gap-10 md:grid-cols-3">
+            <svg className="pointer-events-none absolute left-[16%] right-[16%] top-8 hidden h-2 w-[68%] md:block" preserveAspectRatio="none" viewBox="0 0 100 2" aria-hidden>
+              <line x1="0" y1="1" x2="100" y2="1" stroke="#5eead4" strokeWidth="0.6" className="step-line" vectorEffect="non-scaling-stroke" />
+            </svg>
+            {[
+              { ...STEPS[0]!, Icon: UserPlus },
+              { ...STEPS[1]!, Icon: Search },
+              { ...STEPS[2]!, Icon: CreditCard },
+            ].map((s, i) => (
+              <Reveal key={s.n} delay={i * 140}>
+                <div className="relative text-center">
+                  <div className="relative mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-emerald-600 text-white shadow-lg shadow-teal-500/30">
+                    <s.Icon className="h-7 w-7" />
+                    <span className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-full bg-white text-xs font-black text-teal-700 shadow ring-1 ring-teal-100">{s.n}</span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-bold text-slate-900">{s.title}</h3>
+                  <p className="mx-auto mt-2 max-w-xs text-sm text-slate-500">{s.desc}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </div>

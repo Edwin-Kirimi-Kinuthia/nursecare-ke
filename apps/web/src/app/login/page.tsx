@@ -27,7 +27,9 @@ export default function LoginPage() {
 function LoginForm() {
   const router = useRouter();
   const { refresh } = useAuth();
-  const oauthError = useSearchParams().get("oauthError");
+  const params = useSearchParams();
+  const oauthError = params.get("oauthError");
+  const idleSignedOut = params.get("reason") === "idle";
   const [mode, setMode] = useState<"login" | "register">("login");
   const [step, setStep] = useState<"form" | "verify" | "forgot" | "login-otp">("form");
   const [form, setForm] = useState({ email: "", password: "", phone: "" });
@@ -273,6 +275,12 @@ function LoginForm() {
               <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
                 {mode === "login" ? "Log in to book care and manage your appointments." : "Sign up as a patient to get started."}
               </p>
+
+              {idleSignedOut && (
+                <div className="mt-5">
+                  <Alert tone="success">You were signed out after 20 minutes of inactivity, to keep your health information safe. Please log in again.</Alert>
+                </div>
+              )}
 
               {oauthError && (
                 <div className="mt-5">

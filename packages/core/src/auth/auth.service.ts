@@ -535,7 +535,13 @@ export const authService = {
   deleteAccount,
 
   /** Rotate a refresh token: revoke the old session and mint a new one. */
-  async refresh(rawToken: string | null, meta?: RequestMeta) {
+  /**
+   * `maxIdleSeconds` (web): every refresh issues a fresh session row, so a
+   * session's age is the time since the person was last active enough to need a
+   * new access token. Beyond the limit the session has been idle too long and
+   * they must sign in again. Left unset for mobile, which keeps its long-lived session.
+   */
+  async refresh(rawToken: string | null, meta?: RequestMeta, opts?: { maxIdleSeconds?: number }) {
     if (!rawToken) throw ApiError.unauthorized("Refresh token required");
     const hash = hashRefreshToken(rawToken);
     const session = await db.session.findFirst({
@@ -544,6 +550,10 @@ export const authService = {
     });
     if (!session || session.revokedAt || session.expiresAt < new Date()) {
       throw ApiError.unauthorized("Session expired or invalid");
+    }
+    if (opts?.maxIdleSeconds && Date.now() - session.createdAt.getTime() > opts.maxIdleSeconds * 1000) {
+      await db.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
+      throw ApiError.unauthorized("You were signed out after a period of inactivity");
     }
     await db.session.update({
       where: { id: session.id },

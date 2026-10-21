@@ -140,7 +140,7 @@ export default function PharmacyPage() {
           />
         ) : (
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {drugs.map((d) => <DrugCard key={d.drugId} d={d} onOpen={() => setSelected(d.drugId)} />)}
+            {drugs.map((d, i) => <DrugCard key={d.drugId} d={d} index={i} onOpen={() => setSelected(d.drugId)} />)}
           </div>
         )}
       </section>

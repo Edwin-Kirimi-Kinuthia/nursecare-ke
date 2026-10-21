@@ -11,7 +11,9 @@ import { authService } from "@carebora/core";
  */
 export const POST = route(async (req) => {
   const body = refreshSchema.parse(await req.json().catch(() => ({})));
-  const rawToken = readRefreshCookie(req) ?? body.refreshToken ?? null;
-  const result = await authService.refresh(rawToken, requestMeta(req));
+  const cookieToken = readRefreshCookie(req);
+  const rawToken = cookieToken ?? body.refreshToken ?? null;
+  // Browser sessions end after 20 minutes without activity (see IdleLogout); the app keeps its own.
+  const result = await authService.refresh(rawToken, requestMeta(req), cookieToken ? { maxIdleSeconds: 20 * 60 } : undefined);
   return setAuthCookies(jsonOk(result), result);
 });

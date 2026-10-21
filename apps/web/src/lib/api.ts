@@ -5,7 +5,19 @@ import { createClient } from "@carebora/api-client";
  * the httpOnly auth cookies (cb_access) are sent automatically with every request
  * — no token juggling needed on the client.
  */
-export const api = createClient({ baseUrl: "/api/v1" });
+export const api = createClient({
+  baseUrl: "/api/v1",
+  // The login cookie lasts 15 minutes. While someone is using the site, quietly swap it
+  // for a fresh one (the refresh cookie rides along) instead of dropping them to the login page.
+  onUnauthorized: async () => {
+    try {
+      const res = await fetch("/api/v1/auth/refresh", { method: "POST", credentials: "include", headers: { "Content-Type": "application/json" }, body: "{}" });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  },
+});
 
 /** Format an integer KES amount as "KES 1,500". */
 export function kes(amount: number | null | undefined): string {

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, MapPin, Pill, Plus } from "lucide-react-native";
+import { Check, Eye, MapPin, Pill, ShoppingCart } from "lucide-react-native";
 import { KENYA_COUNTIES } from "@carebora/shared";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
@@ -57,7 +57,7 @@ export default function PharmacyScreen() {
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading && !list.data ? <View style={{ height: 240 }}><Loading /></View>
         : list.data && list.data.drugs.length === 0 ? <Empty icon="search-outline" title="No medication found" hint="Try a different search, category or location — stock varies by pharmacy." />
-        : list.data?.drugs.map((d) => <DrugCard key={d.drugId} d={d} />)}
+        : list.data?.drugs.map((d, i) => <DrugCard key={d.drugId} d={d} index={i} />)}
       <Footer />
     </Screen>
   );
@@ -71,8 +71,10 @@ function SearchBox({ value, onChange }: { value: string; onChange: (v: string) =
   );
 }
 
-function DrugCard({ d }: { d: StorefrontDrug }) {
-  const t = useTheme();
+const TONES = ["#E3F8FF", "#DCFAFB", "#FFE8DF", "#F0FFF0"] as const;
+
+/** The pastel-tile card from the owner's earlier shop: four background colours in rotation, framed product photo, action row. */
+function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
   const { items, add, sub } = useCart();
   const qty = items[d.listingId] ?? 0;
   const out = d.stockQty === 0;
@@ -80,34 +82,35 @@ function DrugCard({ d }: { d: StorefrontDrug }) {
   const [from, to] = categoryColors(d.category);
   const open = () => router.push({ pathname: "/pharmacy/[id]", params: { id: d.drugId } });
   return (
-    <View style={{ backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
+    <View style={{ backgroundColor: TONES[index % 4], borderRadius: 16, overflow: "hidden" }}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`}>
-        <View style={{ height: 190, backgroundColor: "#FFFFFF", padding: 8 }}>
-          {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
-            : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
-          <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 12, top: 12 }} />
-          {qty > 0 && <View style={{ position: "absolute", right: 12, top: 12, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}
-          {out && <Tag text="Out of stock" bg="#E11D48" fg="#fff" style={{ position: "absolute", left: 12, bottom: 12 }} />}
-          {low && <Tag text={`Only ${d.stockQty} left`} bg="#F59E0B" fg="#fff" style={{ position: "absolute", left: 12, bottom: 12 }} />}
+        <View style={{ height: 200, padding: 16 }}>
+          <View style={{ flex: 1, borderRadius: 15, overflow: "hidden", backgroundColor: "#fff", transform: [{ rotate: "-2deg" }] }}>
+            {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
+              : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
+          </View>
+          <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 22, top: 22 }} />
+          {qty > 0 && <View style={{ position: "absolute", right: 22, top: 22, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}
+          {out && <Tag text="Out of stock" bg="#E11D48" fg="#fff" style={{ position: "absolute", left: 22, bottom: 22 }} />}
+          {low && <Tag text={`Only ${d.stockQty} left`} bg="#F59E0B" fg="#fff" style={{ position: "absolute", left: 22, bottom: 22 }} />}
         </View>
-        <View style={{ padding: 16, paddingBottom: 6, gap: 3 }}>
-          <Text numberOfLines={1} style={{ color: t.textFaint, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
-          <Text numberOfLines={2} style={{ fontFamily: "Inter_700Bold", fontSize: 17 }}>{d.name}</Text>
+        <View style={{ paddingHorizontal: 20, paddingBottom: 4, gap: 3 }}>
+          <Text numberOfLines={1} style={{ color: "#64748B", fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
+          <Text numberOfLines={2} style={{ fontFamily: "Inter_800ExtraBold", fontSize: 17, color: "#0F172A" }}>{d.name}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <MapPin size={13} color={t.textMuted} />
-            <Text variant="caption" tone="muted" style={{ flex: 1 }}>
+            <MapPin size={13} color="#475569" />
+            <Text variant="caption" style={{ flex: 1, color: "#475569" }} numberOfLines={1}>
               {d.nearestVendor.orgName}{d.nearestVendor.distanceKm != null ? ` · ${d.nearestVendor.distanceKm.toFixed(1)}km` : ` · ${d.nearestVendor.county}`}{d.vendorCount > 1 ? ` · +${d.vendorCount - 1} more` : ""}
             </Text>
           </View>
+          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: out || low ? "#FF5151" : "#047857" }}>{out ? "Out of stock" : low ? `Low stock: ${d.stockQty} left` : "In stock"}</Text>
         </View>
+        <Text style={{ textAlign: "center", color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 22, paddingVertical: 8 }}>{kes(d.bestPriceKes)}</Text>
       </Pressable>
-      <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", padding: 16, paddingTop: 8 }}>
-        <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 20 }}>{kes(d.bestPriceKes)}</Text>
+      <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.8)" }}>
+        <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Eye size={22} color="#161616" /></Pressable>
         {qty > 0 ? <Stepper qty={qty} onAdd={() => add(d.listingId)} onSub={() => sub(d.listingId)} disableAdd={out} />
-          : <Pressable onPress={() => add(d.listingId)} disabled={out} accessibilityRole="button" accessibilityLabel={`Add ${d.name} to cart`}
-              style={{ flexDirection: "row", gap: 6, alignItems: "center", backgroundColor: out ? "#CBD5E1" : "#0D9488", borderRadius: 14, paddingHorizontal: 18, height: 42 }}>
-              <Plus size={16} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold" }}>Add</Text>
-            </Pressable>}
+          : <Pressable onPress={() => add(d.listingId)} disabled={out} accessibilityRole="button" accessibilityLabel={`Add ${d.name} to cart`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", opacity: out ? 0.35 : 1 }}><ShoppingCart size={22} color="#161616" /></Pressable>}
       </View>
     </View>
   );

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
+import IdleLogout from "@/components/IdleLogout";
 import { CartProvider } from "@/components/CartProvider";
 import { LocationProvider } from "@/components/LocationProvider";
 import Nav from "@/components/Nav";
@@ -71,6 +72,7 @@ export default function RootLayout({
     <html lang="en-KE" className={inter.className}>
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased" suppressHydrationWarning>
         <AuthProvider>
+          <IdleLogout />
           <LocationProvider>
             <CartProvider>
               <Nav />

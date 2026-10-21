@@ -144,6 +144,18 @@ const NO_REFRESH_PATHS = [
   "/auth/forgot-password", "/auth/set-password", "/auth/verify-email",
 ];
 
+/**
+ * "Validation failed" tells a person nothing. When the server lists which field
+ * is wrong and why, say that instead (e.g. "Enter a valid phone number").
+ */
+function validationMessage(e?: { code?: string; message?: string; details?: unknown }): string | null {
+  if (e?.code !== "VALIDATION_ERROR" || !e.details || typeof e.details !== "object") return null;
+  const d = e.details as { fieldErrors?: Record<string, string[] | undefined>; formErrors?: string[] };
+  const msgs = [...(d.formErrors ?? []), ...Object.values(d.fieldErrors ?? {}).flatMap((v) => v ?? [])].filter(Boolean);
+  const unique = [...new Set(msgs)];
+  return unique.length ? unique.slice(0, 3).join(". ") : null;
+}
+
 export class CareBoraClient {
   constructor(private readonly opts: ClientOptions) {}
 
@@ -172,7 +184,9 @@ export class CareBoraClient {
 
     // An expired access token: refresh once, then replay this request.
     if (
-      res.status === 401 && token && !retried && this.opts.onUnauthorized &&
+      // With a bearer token (mobile) or with cookies (web, where there is no token to
+      // see but the browser holds a session), a 401 may just mean "access token expired".
+      res.status === 401 && (token || (this.opts.credentials ?? "include") !== "omit") && !retried && this.opts.onUnauthorized &&
       !NO_REFRESH_PATHS.some((p) => path.startsWith(p))
     ) {
       if (await this.refreshOnce()) return this.request<T>(path, init, true);
@@ -193,7 +207,7 @@ export class CareBoraClient {
       const retryAfter = res.headers.get("Retry-After");
       throw new ApiError(
         e?.code ?? ErrorCode.INTERNAL,
-        e?.message ?? "Request failed",
+        validationMessage(e) ?? e?.message ?? "Request failed",
         retryAfter ? { ...(typeof e?.details === "object" && e.details ? e.details : {}), retryAfterSeconds: Number(retryAfter) } : e?.details,
       );
     }

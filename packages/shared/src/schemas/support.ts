@@ -52,10 +52,11 @@ export const SUPPORT_STATUS_LABELS: Record<SupportStatus, string> = {
   closed: "Closed",
 };
 
-const phoneSchema = z
-  .string()
-  .trim()
-  .regex(/^\+?[0-9]{9,15}$/, "Enter a valid phone number");
+/** People type "+254 712 345 678" or "0712-345-678": ignore the formatting, then check the digits. */
+const phoneSchema = z.preprocess(
+  (v) => (typeof v === "string" ? v.replace(/[\s\-().]/g, "") : v),
+  z.string().regex(/^\+?[0-9]{9,15}$/, "Enter a valid phone number, including the country code, e.g. +254 712 345 678"),
+);
 
 export const createSupportTicketSchema = z
   .object({
