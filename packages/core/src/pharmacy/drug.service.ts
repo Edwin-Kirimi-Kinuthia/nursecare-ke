@@ -8,6 +8,9 @@ import {
   type UpdateDrugInput,
 } from "@carebora/shared";
 import { HOUSE_ORG_SLUG, upsertHouseListing } from "./house-pharmacy";
+import { OTC_STARTER } from "./otc-catalogue";
+
+const PLACEHOLDER_STOCK = 50;
 
 /** The canonical, shared medication catalogue — admin-curated, browsed via the storefront. */
 export const drugService = {
@@ -98,6 +101,35 @@ export const drugService = {
       };
     });
     return { ...base, drugs };
+  },
+
+  /**
+   * Add the starter OTC range to Care Bora Pharmacy with placeholder prices and
+   * stock (see otc-catalogue.ts), and tidy long legacy category names. Safe to
+   * run again: drugs that already exist are never re-created, and an existing
+   * drug's price and stock are left alone — it only gains a photo it lacks.
+   */
+  async importStarterOtc(adminUserId: string) {
+    let created = 0, photosAdded = 0;
+    for (const item of OTC_STARTER) {
+      const url = item.img ? `/products/${item.img}` : undefined;
+      const existing = await db.drug.findFirst({ where: { name: { equals: item.name, mode: "insensitive" } } });
+      if (!existing) {
+        await this.adminCreate(adminUserId, {
+          name: item.name, genericName: item.generic, description: item.description, category: item.category, form: item.form, strength: item.strength,
+          requiresPrescription: false, ...(url ? { imageUrl: url, images: [url] } : {}), priceKes: item.price, stockQty: PLACEHOLDER_STOCK,
+        });
+        created++;
+      } else {
+        const data: Prisma.DrugUpdateInput = {};
+        if (!existing.isActive) data.isActive = true;
+        if (url && !existing.imageUrl) { data.imageUrl = url; data.images = [url]; photosAdded++; }
+        if (Object.keys(data).length) await db.drug.update({ where: { id: existing.id }, data });
+      }
+    }
+    // The first catalogue entries used a very long category that overflowed the cards.
+    const renamed = await db.drug.updateMany({ where: { category: { startsWith: "Analgesics, Antipyretics" } }, data: { category: "Pain & Fever" } });
+    return { total: OTC_STARTER.length, created, photosAdded, categoriesTidied: renamed.count };
   },
 
   async remove(drugId: string) {

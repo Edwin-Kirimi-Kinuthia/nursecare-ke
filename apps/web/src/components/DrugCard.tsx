@@ -20,14 +20,14 @@ export default function DrugCard({ d, onOpen }: { d: StorefrontDrug; onOpen?: ()
         onClick={onOpen}
         role={onOpen ? "button" : undefined}
         aria-label={onOpen ? `View ${d.name} details` : undefined}
-        className={`relative aspect-[5/4] overflow-hidden bg-slate-50 ${onOpen ? "cursor-pointer" : ""}`}
+        className={`relative aspect-[5/4] overflow-hidden bg-white ${onOpen ? "cursor-pointer" : ""}`}
       >
         {d.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
             src={d.imageUrl}
             alt={d.name}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.12]"
+            className="h-full w-full bg-white object-contain p-2 transition-transform duration-500 ease-out will-change-transform group-hover:scale-[1.06]"
           />
         ) : (
           <div className={`grid h-full place-items-center bg-gradient-to-br ${from} ${to} transition-transform duration-500 ease-out group-hover:scale-[1.12]`}>
@@ -72,10 +72,10 @@ export default function DrugCard({ d, onOpen }: { d: StorefrontDrug; onOpen?: ()
           role={onOpen ? "button" : undefined}
           className={onOpen ? "cursor-pointer" : undefined}
         >
-          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{d.category}</div>
-          <h3 className="mt-0.5 font-bold leading-snug text-slate-900 group-hover:text-teal-700">{d.name}</h3>
+          <div className="truncate text-[11px] font-semibold uppercase tracking-wide text-slate-400" title={d.category}>{d.category}</div>
+          <h3 className="mt-0.5 line-clamp-2 break-words font-bold leading-snug text-slate-900 group-hover:text-teal-700">{d.name}</h3>
           <p className="mt-1 flex items-center gap-1 text-xs text-slate-500">
-            <MapPin className="h-3 w-3" />
+            <MapPin className="h-3 w-3 shrink-0" />
             {d.nearestVendor.orgName}
             {d.nearestVendor.distanceKm != null ? ` · ${d.nearestVendor.distanceKm.toFixed(1)}km` : ` · ${d.nearestVendor.county}`}
             {d.vendorCount > 1 && ` · +${d.vendorCount - 1} more`}

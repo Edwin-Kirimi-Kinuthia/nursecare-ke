@@ -1007,6 +1007,20 @@ function PharmacyTab() {
   const { data, loading, error, reload } = useSection(fetcher);
   const drugs = data ?? [];
   const [editing, setEditing] = useState<AdminDrug | "new" | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [importMsg, setImportMsg] = useState<string | null>(null);
+
+  /** Adds the starter OTC range with placeholder price (rough shelf price) and stock 50 — edit them to match the shelf. */
+  async function importStarter() {
+    if (!confirm("Add the common OTC range to your pharmacy? Prices and stock are placeholders (stock 50) for you to edit. Drugs already in the catalogue are not changed.")) return;
+    setImporting(true); setImportMsg(null);
+    try {
+      const r = await api.adminImportStarterOtc();
+      setImportMsg(`Added ${r.created} drug(s) of ${r.total}${r.photosAdded ? `, ${r.photosAdded} photo(s) attached` : ""}. Now edit each price and stock to match what you have.`);
+      await reload();
+    } catch (e) { setImportMsg(e instanceof Error ? e.message : "Import failed"); }
+    finally { setImporting(false); }
+  }
 
   async function remove(d: AdminDrug) {
     if (!confirm(`Remove "${d.name}" from the shared catalogue? This hides it from every vendor.`)) return;
@@ -1023,10 +1037,16 @@ function PharmacyTab() {
             <> · <span className="font-semibold text-slate-700">{drugs.filter((d: AdminDrug) => d.sellerCount > 0).length}</span> on sale</>
           )}
         </p>
-        <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
-          <Plus className="h-4 w-4" /> Add drug
-        </button>
+        <div className="flex gap-2">
+          <button onClick={importStarter} disabled={importing} className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-60">
+            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pill className="h-4 w-4" />} Import common OTC range
+          </button>
+          <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" /> Add drug
+          </button>
+        </div>
       </div>
+      {importMsg && <p className="mb-3 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-800">{importMsg}</p>}
       {drugs.length === 0 ? (
         <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No drugs yet.</p></div>
       ) : (

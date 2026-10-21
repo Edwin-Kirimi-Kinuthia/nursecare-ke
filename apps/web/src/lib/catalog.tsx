@@ -14,6 +14,13 @@ const CATEGORY: Record<string, { Icon: LucideIcon; from: string; to: string }> =
   "Diabetes":          { Icon: Activity,    from: "from-fuchsia-400", to: "to-purple-500" },
   "Cardiovascular":    { Icon: HeartPulse,  from: "from-red-400",     to: "to-rose-500" },
   "Respiratory":       { Icon: Wind,        from: "from-cyan-400",    to: "to-teal-500" },
+  "Pain & Fever":      { Icon: Pill,        from: "from-rose-400",    to: "to-orange-400" },
+  "Allergy":           { Icon: Sparkles,    from: "from-amber-400",   to: "to-yellow-500" },
+  "Cough, Cold & Flu": { Icon: Wind,        from: "from-cyan-400",    to: "to-teal-500" },
+  "Digestive Health":  { Icon: Droplets,    from: "from-teal-400",    to: "to-cyan-500" },
+  "Skin & Wound Care": { Icon: ShieldPlus,  from: "from-indigo-400",  to: "to-violet-500" },
+  "Deworming":         { Icon: Activity,    from: "from-fuchsia-400", to: "to-purple-500" },
+  "Vitamins & Supplements": { Icon: Leaf,   from: "from-emerald-400", to: "to-green-500" },
 };
 
 const FALLBACK = { Icon: Stethoscope, from: "from-slate-400", to: "to-slate-500" };

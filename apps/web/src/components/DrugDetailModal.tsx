@@ -71,7 +71,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
             {/* Image gallery with hover-zoom */}
             <div className="p-4 sm:p-5">
               <div
-                className="group relative aspect-square overflow-hidden rounded-xl bg-slate-50"
+                className="group relative aspect-square overflow-hidden rounded-xl border border-slate-100 bg-white"
                 onMouseEnter={() => gallery.length && setZoom(true)}
                 onMouseLeave={() => setZoom(false)}
                 onMouseMove={onMove}
@@ -81,7 +81,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                   <img
                     src={gallery[active]}
                     alt={drug.name}
-                    className="h-full w-full cursor-zoom-in object-cover transition-transform duration-150 ease-out"
+                    className="h-full w-full cursor-zoom-in bg-white object-contain p-3 transition-transform duration-150 ease-out"
                     style={{ transformOrigin: origin, transform: zoom ? "scale(2.4)" : "scale(1)" }}
                   />
                 ) : (
@@ -101,6 +101,8 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                 )}
               </div>
 
+              {gallery.length > 0 && <p className="mt-2 text-center text-[11px] text-slate-400">Image for illustration. The pack you receive may look different.</p>}
+
               {gallery.length > 1 && (
                 <div className="mt-3 flex gap-2 overflow-x-auto">
                   {gallery.map((src, i) => (
@@ -111,7 +113,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                       className={`h-14 w-14 shrink-0 overflow-hidden rounded-lg border-2 ${i === active ? "border-teal-500" : "border-transparent hover:border-slate-300"}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={src} alt="" className="h-full w-full object-cover" />
+                      <img src={src} alt="" className="h-full w-full bg-white object-contain" />
                     </button>
                   ))}
                 </div>
@@ -120,8 +122,8 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
 
             {/* Details + vendor offers */}
             <div className="flex flex-col p-6">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{drug.category}</div>
-              <h2 className="mt-1 text-2xl font-extrabold leading-tight text-slate-900">{drug.name}</h2>
+              <div className="break-words text-[11px] font-semibold uppercase tracking-wide text-slate-400">{drug.category}</div>
+              <h2 className="mt-1 break-words text-2xl font-extrabold leading-tight text-slate-900">{drug.name}</h2>
               {drug.genericName && (
                 <p className="mt-0.5 text-sm text-slate-500">Generic: <span className="font-medium text-slate-700">{drug.genericName}</span></p>
               )}

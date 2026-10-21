@@ -720,6 +720,10 @@ export class CareBoraClient {
   adminUpdateDrug(drugId: string, input: AdminUpdateDrugInput) {
     return this.patch<AdminDrug>(`/admin/drugs/${drugId}`, input);
   }
+  /** Put the starter OTC range on sale with placeholder prices and stock. Safe to repeat. */
+  adminImportStarterOtc() {
+    return this.post<{ total: number; created: number; photosAdded: number; categoriesTidied: number }>(`/admin/drugs/import-otc`, {});
+  }
   adminDeleteDrug(drugId: string) {
     return this.request<{ id: string; isActive: boolean }>(`/admin/drugs/${drugId}`, { method: "DELETE" });
   }

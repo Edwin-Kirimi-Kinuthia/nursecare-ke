@@ -33,13 +33,14 @@ export default function DrugScreen() {
 
   return (
     <Screen onRefresh={res.reload} refreshing={res.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
-      <View style={{ height: 260, borderRadius: 24, overflow: "hidden", backgroundColor: "#F8FAFC" }}>
-        {gallery[0] ? <Image source={{ uri: absoluteUrl(gallery[0]) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" accessibilityLabel={drug.name} />
+      <View style={{ height: 260, borderRadius: 24, overflow: "hidden", backgroundColor: "#FFFFFF", borderWidth: 1, borderColor: "#E2E8F0", padding: 10 }}>
+        {gallery[0] ? <Image source={{ uri: absoluteUrl(gallery[0]) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" accessibilityLabel={drug.name} />
           : <LinearGradient colors={[from, to]} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={80} color="rgba(255,255,255,0.9)" /></LinearGradient>}
       </View>
       <View style={{ gap: 4 }}>
         <Text style={{ color: t.textFaint, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.8 }}>{drug.category.toUpperCase()}</Text>
         <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 26, lineHeight: 31 }}>{drug.name}</Text>
+        {gallery.length > 0 && <Text variant="caption" tone="faint">Image for illustration. The pack you receive may look different.</Text>}
         {drug.genericName ? <Text tone="muted">Generic: {drug.genericName}</Text> : null}
         {drug.strength ? <Text tone="muted">{drug.form ? `${drug.form} · ` : ""}{drug.strength}</Text> : null}
       </View>

@@ -82,8 +82,8 @@ function DrugCard({ d }: { d: StorefrontDrug }) {
   return (
     <View style={{ backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`}>
-        <View style={{ height: 190, backgroundColor: "#F8FAFC" }}>
-          {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+        <View style={{ height: 190, backgroundColor: "#FFFFFF", padding: 8 }}>
+          {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
             : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
           <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 12, top: 12 }} />
           {qty > 0 && <View style={{ position: "absolute", right: 12, top: 12, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}
@@ -91,8 +91,8 @@ function DrugCard({ d }: { d: StorefrontDrug }) {
           {low && <Tag text={`Only ${d.stockQty} left`} bg="#F59E0B" fg="#fff" style={{ position: "absolute", left: 12, bottom: 12 }} />}
         </View>
         <View style={{ padding: 16, paddingBottom: 6, gap: 3 }}>
-          <Text style={{ color: t.textFaint, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
-          <Text style={{ fontFamily: "Inter_700Bold", fontSize: 17 }}>{d.name}</Text>
+          <Text numberOfLines={1} style={{ color: t.textFaint, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
+          <Text numberOfLines={2} style={{ fontFamily: "Inter_700Bold", fontSize: 17 }}>{d.name}</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <MapPin size={13} color={t.textMuted} />
             <Text variant="caption" tone="muted" style={{ flex: 1 }}>

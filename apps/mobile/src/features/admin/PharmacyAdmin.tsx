@@ -19,8 +19,13 @@ import { Badge, Banner, Empty, Loading } from "@/ui/parts";
 export function PharmacyAdmin() {
   const list = useAsync(() => api.adminListDrugs({ limit: 50 } as never).then((r) => r.drugs), []);
   const [editing, setEditing] = useState<AdminDrug | "new" | null>(null);
-  const { err, run } = useAct();
+  const { busy, err, run } = useAct();
+  const [notice, setNotice] = useState<string | null>(null);
   const drugs = list.data ?? [];
+  const importStarter = () => Alert.alert("Add the common OTC range?", "Prices and stock are placeholders (stock 50) for you to edit. Drugs already in the catalogue are not changed.", [
+    { text: "Cancel", style: "cancel" },
+    { text: "Import", onPress: () => run("import", async () => { const r = await api.adminImportStarterOtc(); setNotice(`Added ${r.created} drug(s) of ${r.total}. Now edit each price and stock.`); }, list.reload) },
+  ]);
   const confirmRemove = (d: AdminDrug) => Alert.alert(`Remove "${d.name}"?`, "This hides it from every vendor.", [
     { text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => run(d.id, () => api.adminDeleteDrug(d.id), list.reload) },
   ]);
@@ -30,6 +35,8 @@ export function PharmacyAdmin() {
         <Text tone="muted">{drugs.length} in the catalogue · {drugs.filter((d) => d.sellerCount > 0).length} on sale</Text>
         <Button title="Add drug" size="sm" onPress={() => setEditing("new")} />
       </View>
+      <Button title="Import common OTC range" variant="secondary" size="sm" loading={busy === "import"} onPress={importStarter} />
+      {notice && <Banner tone="info">{notice}</Banner>}
       {(err || list.error) && <Banner tone="danger">{err ?? list.error}</Banner>}
       {list.loading && !list.data ? <Loading /> : drugs.length === 0 ? <Empty icon="medkit-outline" title="No drugs yet" /> : drugs.map((d) => (
         <Card key={d.id} style={{ borderRadius: 16, opacity: d.isActive ? 1 : 0.55 }}>
