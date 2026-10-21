@@ -29,6 +29,17 @@ function withPublicAvatar<T extends { user: { id: string; avatarUrl: string | nu
 }
 
 export const providerService = {
+  /**
+   * Admin: mark every provider Available in one go. New providers start as
+   * Busy (bookings wait for their confirmation); this flips all of those to
+   * Available, so bookings are confirmed instantly. Each provider can still
+   * switch themselves back to Busy from their profile.
+   */
+  async setAllAvailable() {
+    const r = await db.providerProfile.updateMany({ where: { isAvailable: false }, data: { isAvailable: true } });
+    return { updated: r.count };
+  },
+
   /** Paginated, filterable provider directory (defaults to verified providers). */
   async list(query: ProvidersQuery) {
     const where: Prisma.ProviderProfileWhereInput = {};

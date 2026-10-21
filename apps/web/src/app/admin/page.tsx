@@ -270,6 +270,12 @@ function UsersTab() {
   const [notice, setNotice] = useState<string | null>(null);
   const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
 
+  async function allAvailable() {
+    if (!confirm("Mark every provider who shows Busy as Available? Their bookings will then be confirmed instantly. They can switch back themselves.")) return;
+    try { const r = await api.adminSetAllProvidersAvailable(); setNotice(`${r.updated} provider(s) set to Available.`); }
+    catch (e) { setNotice(e instanceof Error ? e.message : "Failed to update"); }
+  }
+
   async function toggleActive(u: AdminUserSummary) {
     setBusyId(u.id);
     try { await api.adminPatchUser(u.id, { isActive: !u.isActive }); await reload(); }
@@ -288,9 +294,14 @@ function UsersTab() {
             </button>
           ))}
         </div>
-        <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
-          <Plus className="h-4 w-4" /> Create provider account
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={allAvailable} className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">
+            <Power className="h-4 w-4" /> Set all providers Available
+          </button>
+          <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
+            <Plus className="h-4 w-4" /> Create provider account
+          </button>
+        </div>
       </div>
       {notice && <p className="mb-3 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-700">{notice}</p>}
       {openUserId && (
