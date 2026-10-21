@@ -24,6 +24,8 @@ export interface ServicePageProps {
   faqs: Faq[];
   /** A photo shown under the introduction. */
   image?: { src: StaticImageData; alt: string };
+  /** Or a flat illustration (public path), shown on a pastel panel. */
+  illustration?: { src: string; alt: string };
   related: { label: string; href: string; blurb: string }[];
   /** ISO date the content was last checked. Shown to readers and used by the sitemap. */
   updated: string;
@@ -64,6 +66,14 @@ export default function ServicePage(p: ServicePageProps) {
         <p className="mt-4 text-xs text-slate-400">
           Written by the Care Bora team · Last checked {updatedLabel}. This page describes how our service works and is not medical advice.
         </p>
+        {p.illustration && (
+          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 via-white to-emerald-100 ring-1 ring-slate-200/70">
+            <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-teal-200/50 blur-2xl" />
+            <div className="absolute -bottom-12 -left-8 h-52 w-52 rounded-full bg-rose-200/40 blur-2xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={p.illustration.src} alt={p.illustration.alt} className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
+          </div>
+        )}
         {p.image && (
           <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
             <Image src={p.image.src} alt={p.image.alt} fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 768px) 736px, 92vw" className="object-cover" />

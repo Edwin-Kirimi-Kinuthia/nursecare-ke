@@ -10,32 +10,11 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     "source": "https://commons.wikimedia.org/wiki/File:School_nurse_checks_student%27s_health.jpg"
   },
   {
-    "file": "home/consultation.jpg",
-    "title": "School nurse talks to a student about her health.jpg",
-    "author": "Nduati.githae",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:School_nurse_talks_to_a_student_about_her_health.jpg"
-  },
-  {
-    "file": "home/mhealth.jpg",
-    "title": "Telemedicine Tanzania IMG 3863 (5349022134).jpg",
-    "author": "IICD from The Hague, The Netherlands",
-    "license": "CC BY 2.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Telemedicine_Tanzania_IMG_3863_(5349022134).jpg"
-  },
-  {
     "file": "home/pharmacy.jpg",
     "title": "Bakayoko.jpg",
     "author": "Bakayoko Malal",
     "license": "CC BY-SA 4.0",
     "source": "https://commons.wikimedia.org/wiki/File:Bakayoko.jpg"
-  },
-  {
-    "file": "home/mother-baby.jpg",
-    "title": "Mother and Child (Credit Tojo Andrianarivo).jpg",
-    "author": "Safari Doctors",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Mother_and_Child_(Credit_Tojo_Andrianarivo).jpg"
   },
   {
     "file": "home/home-visit.jpg",
@@ -50,13 +29,6 @@ export const PHOTO_CREDITS: PhotoCredit[] = [
     "author": "Antony Trivet",
     "license": "CC BY-SA 4.0",
     "source": "https://commons.wikimedia.org/wiki/File:Nairobi_City_County_Skyline.jpg"
-  },
-  {
-    "file": "home/lab.jpg",
-    "title": "Lab Technician.jpg",
-    "author": "Isaiah Maghanga",
-    "license": "CC BY-SA 4.0",
-    "source": "https://commons.wikimedia.org/wiki/File:Lab_Technician.jpg"
   },
   {
     "file": "home/ambulance.jpg",

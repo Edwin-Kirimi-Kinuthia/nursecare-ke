@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Siren, MapPin, Phone, Clock, CheckCircle2, XCircle, LocateFixed, Loader2, Ambulance as AmbulanceIcon } from "lucide-react";
+import { MapPin, Phone, Clock, CheckCircle2, XCircle, LocateFixed, Loader2, Ambulance as AmbulanceIcon } from "lucide-react";
 import type { AmbulanceRequest, AmbulanceType } from "@carebora/api-client";
 import { KENYA_COUNTIES } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
@@ -149,7 +149,7 @@ export default function AmbulancePage() {
     <div className="mx-auto max-w-3xl px-4 py-10">
       <PageHeader
         eyebrow="Emergency"
-        Icon={Siren}
+        Icon={AmbulanceIcon}
         tone="rose"
         title="Ambulance"
         lede="Send your location to an ambulance operator and follow the status of your request."

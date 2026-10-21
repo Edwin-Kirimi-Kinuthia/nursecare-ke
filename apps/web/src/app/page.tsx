@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Image, { type StaticImageData } from "next/image";
 import Link from "next/link";
 import {
-  Video, Pill, HomeIcon, ShieldCheck, Smartphone, ArrowRight, Star, FileText, Siren, Phone,
+  Video, Pill, HomeIcon, ShieldCheck, Smartphone, ArrowRight, Star, FileText, Ambulance, Phone,
   UserPlus, Search, CreditCard, BadgeCheck, FlaskConical, CheckCircle2, Clock, Lock, MapPin, Stethoscope,
 } from "lucide-react";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
@@ -13,14 +13,10 @@ import Reveal from "@/components/Reveal";
 import PhotoWithFallback from "@/components/PhotoWithFallback";
 import { reviewService, providerService, storefrontService } from "@carebora/core";
 
-import heroImg from "@/assets/home/doctor-child.jpg";
-import consultImg from "@/assets/home/consultation.jpg";
+import doctorImg from "@/assets/home/doctor-child.jpg";
 import pharmacyImg from "@/assets/home/pharmacy.jpg";
 import homeVisitImg from "@/assets/home/home-visit.jpg";
-import labImg from "@/assets/home/lab.jpg";
 import ambulanceImg from "@/assets/home/ambulance.jpg";
-import mhealthImg from "@/assets/home/mhealth.jpg";
-import familyImg from "@/assets/home/mother-baby.jpg";
 import nairobiImg from "@/assets/home/nairobi-dusk.jpg";
 
 // Title and description come from the root layout's defaults, which are written
@@ -30,13 +26,14 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 /** Refreshed every ten minutes: fresh enough for reviews, cheap to serve. */
 export const revalidate = 600;
 
-type Service = { title: string; desc: string; href: string; img: StaticImageData; Icon: typeof Video; alt: string };
+/** A service tile shows either a photo (`img`) or a flat illustration on a pastel background (`art` + `tint`). */
+type Service = { title: string; desc: string; href: string; Icon: typeof Video; alt: string; img?: StaticImageData; art?: string; tint?: string };
 const SERVICES: Service[] = [
-  { title: "See a doctor online", desc: "Private video consultations with licence-checked doctors and nurses, from anywhere in Kenya.", href: "/online-doctor-kenya", img: consultImg, Icon: Video, alt: "A doctor talking with a young patient in a clinic" },
+  { title: "See a doctor online", desc: "Private video consultations with licence-checked doctors and nurses, from anywhere in Kenya.", href: "/online-doctor-kenya", art: "/illustrations/video-call.svg", tint: "from-teal-50 via-emerald-50 to-cyan-50", Icon: Video, alt: "Illustration of a video consultation" },
   { title: "Pharmacy delivery", desc: "Everyday medicines from licensed pharmacies, delivered to your door.", href: "/pharmacy", img: pharmacyImg, Icon: Pill, alt: "A pharmacist serving a customer across a pharmacy counter" },
   { title: "Care at home", desc: "A nurse or physiotherapist comes to you.", href: "/home-visits-nairobi", img: homeVisitImg, Icon: HomeIcon, alt: "A health worker checking on a child outside a home" },
-  { title: "Lab tests", desc: "Book tests at an approved lab; results land in your record.", href: "/labs", img: labImg, Icon: FlaskConical, alt: "A laboratory technician examining a sample" },
-  { title: "Emergency ambulance", desc: "Call our line or send a request and follow its status.", href: "/ambulance-nairobi", img: ambulanceImg, Icon: Siren, alt: "An ambulance parked outside a community clinic" },
+  { title: "Lab tests", desc: "Book tests at an approved lab; results land in your record.", href: "/labs", art: "/illustrations/lab.svg", tint: "from-orange-50 via-rose-50 to-amber-50", Icon: FlaskConical, alt: "Illustration of a laboratory scientist" },
+  { title: "Emergency ambulance", desc: "Call our line or send a request and follow its status.", href: "/ambulance-nairobi", img: ambulanceImg, Icon: Ambulance, alt: "An ambulance parked outside a community clinic" },
 ];
 
 const STEPS = [
@@ -125,12 +122,14 @@ export default async function HomePage() {
             )}
           </div>
 
-          {/* Photo with floating status cards */}
+          {/* Illustration with floating status cards */}
           <div className="animate-fade-in delay-200 relative mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] shadow-2xl shadow-black/40 ring-1 ring-white/10 sm:aspect-[5/4]">
-              <Image src={heroImg} alt="A doctor listening to a young patient's chest with a stethoscope" fill placeholder="blur" fetchPriority="high" loading="eager"
-                sizes="(min-width: 1024px) 560px, 92vw" className="object-cover object-[30%_center]" />
-              <div className="absolute inset-0 bg-gradient-to-t from-teal-950/50 via-transparent to-transparent" />
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] bg-gradient-to-br from-white via-teal-50 to-emerald-100 shadow-2xl shadow-black/40 ring-1 ring-white/20 sm:aspect-[5/4]">
+              <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-teal-200/50 blur-2xl" />
+              <div className="absolute -bottom-12 -left-8 h-52 w-52 rounded-full bg-rose-200/50 blur-2xl" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/illustrations/doctor-patient.svg" alt="Illustration of a doctor listening to a patient's chest" fetchPriority="high"
+                className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
             </div>
             <div className="float-slow absolute -left-3 top-6 hidden items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-black/20 sm:flex" style={{ ["--r" as string]: "-3deg" }}>
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-5 w-5" /></span>
@@ -170,14 +169,14 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 pt-10">
         <div className="flex flex-col items-start gap-4 rounded-2xl border border-rose-200 bg-gradient-to-r from-rose-50 to-white p-5 sm:flex-row sm:items-center sm:p-6">
           <span className="ring-pulse relative grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-rose-600 text-rose-300 shadow-lg shadow-rose-500/25">
-            <Siren className="relative h-6 w-6 text-white" />
+            <Ambulance className="relative h-6 w-6 text-white" />
           </span>
           <div className="flex-1">
             <h2 className="font-bold text-rose-900">Medical emergency? An ambulance is ready.</h2>
             <p className="mt-1 text-sm text-rose-700">Call our ambulance line now — or send a request in the app and follow its status.</p>
           </div>
-          <div className="flex w-full shrink-0 gap-2 sm:w-auto">
-            <a href={`tel:${AMBULANCE_PHONE}`} className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700 sm:flex-none">
+          <div className="flex w-full shrink-0 flex-col gap-2 min-[400px]:flex-row sm:w-auto">
+            <a href={`tel:${AMBULANCE_PHONE}`} className="flex flex-1 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-rose-600 px-5 py-3 text-sm font-bold text-white shadow-lg shadow-rose-500/25 transition hover:bg-rose-700 sm:flex-none">
               <Phone className="h-4 w-4" /> <span className="sm:hidden">Call ambulance</span><span className="hidden sm:inline">Call {AMBULANCE_PHONE_DISPLAY}</span>
             </a>
             <Link href="/ambulance" className="flex flex-1 items-center justify-center rounded-xl border border-rose-300 bg-white px-4 py-3 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 sm:flex-none">
@@ -218,8 +217,11 @@ export default async function HomePage() {
       <section className="bg-white py-20">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 lg:grid-cols-2">
           <Reveal className="relative order-2 lg:order-1">
-            <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] shadow-xl shadow-slate-900/10">
-              <Image src={mhealthImg} alt="Health workers looking at a mobile phone together" fill placeholder="blur" sizes="(min-width: 1024px) 560px, 92vw" className="object-cover" />
+            <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] bg-gradient-to-br from-sky-50 via-teal-50 to-emerald-50 ring-1 ring-slate-200/70">
+              <div className="absolute -left-10 top-6 h-40 w-40 rounded-full bg-sky-200/50 blur-2xl" />
+              <div className="absolute -bottom-10 right-8 h-44 w-44 rounded-full bg-amber-200/40 blur-2xl" />
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/illustrations/phone-call.svg" alt="Illustration of a patient on a video call with a doctor on a phone" loading="lazy" className="absolute inset-0 h-full w-full object-contain p-8 sm:p-12" />
             </div>
             <div className="absolute -bottom-6 right-4 rounded-2xl bg-teal-600 px-5 py-4 text-white shadow-xl shadow-teal-600/30 sm:right-8">
               <div className="text-2xl font-extrabold">Book in minutes</div>
@@ -315,7 +317,7 @@ export default async function HomePage() {
           </div>
           <Reveal className="relative">
             <div className="relative aspect-[4/3] overflow-hidden rounded-[2rem] shadow-xl shadow-slate-900/10 lg:aspect-square">
-              <Image src={familyImg} alt="A mother smiling with her young daughter" fill placeholder="blur" sizes="(min-width: 1024px) 560px, 92vw" className="object-cover object-[22%_center]" />
+              <Image src={doctorImg} alt="A doctor listening to a young patient's chest with a stethoscope" fill placeholder="blur" sizes="(min-width: 1024px) 560px, 92vw" className="object-cover object-[28%_center]" />
             </div>
             <div className="absolute -left-2 bottom-8 max-w-[15rem] rounded-2xl bg-white p-4 shadow-xl shadow-slate-900/15 sm:-left-6">
               <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-600" /><span className="text-sm font-bold text-slate-900">Your record, your rules</span></div>
@@ -424,11 +426,30 @@ export default async function HomePage() {
   );
 }
 
-/** A photo card for one service: the picture zooms on hover; text sits on a gradient so it stays readable. */
+/** One service: a photo with text on a dark gradient, or a flat illustration on a pastel tint. Both zoom gently on hover. */
 function ServiceTile({ s, big, className = "" }: { s: Service; big?: boolean; className?: string }) {
+  const minH = big ? "min-h-[22rem] lg:min-h-full" : "min-h-[15rem]";
+  if (s.art) {
+    return (
+      <Link href={s.href} className={`group relative flex flex-col overflow-hidden rounded-3xl bg-gradient-to-br ${s.tint} ring-1 ring-slate-200/70 transition hover:shadow-xl hover:shadow-slate-900/10 ${minH} ${className}`}>
+        <div className={`relative flex-1 ${big ? "min-h-[12rem]" : "min-h-[7.5rem]"}`}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={s.art} alt={s.alt} loading="lazy" className={`absolute inset-0 h-full w-full object-contain transition-transform duration-700 ease-out group-hover:scale-105 ${big ? "p-8 sm:p-12" : "scale-125 p-4 group-hover:scale-[1.3]"}`} />
+        </div>
+        <div className="relative p-5 sm:p-6">
+          <span className="grid h-10 w-10 place-items-center rounded-xl bg-white text-teal-700 shadow-sm ring-1 ring-slate-200 transition-transform duration-300 group-hover:-translate-y-1 group-hover:bg-teal-600 group-hover:text-white">
+            <s.Icon className="h-5 w-5" />
+          </span>
+          <h3 className={`mt-3 font-bold text-slate-900 ${big ? "text-2xl" : "text-lg"}`}>{s.title}</h3>
+          <p className={`mt-1 text-slate-600 ${big ? "max-w-md text-base" : "text-sm"}`}>{s.desc}</p>
+          <span className="mt-3 inline-flex items-center gap-1 text-sm font-semibold text-teal-700 transition-transform group-hover:translate-x-1">Learn more <ArrowRight className="h-4 w-4" /></span>
+        </div>
+      </Link>
+    );
+  }
   return (
-    <Link href={s.href} className={`group relative block min-h-[15rem] overflow-hidden rounded-3xl bg-slate-900 shadow-sm ${big ? "min-h-[22rem] lg:min-h-full" : ""} ${className}`}>
-      <Image src={s.img} alt={s.alt} fill placeholder="blur" sizes={big ? "(min-width: 1024px) 560px, (min-width: 768px) 92vw, 92vw" : "(min-width: 1024px) 280px, (min-width: 768px) 46vw, 92vw"}
+    <Link href={s.href} className={`group relative block overflow-hidden rounded-3xl bg-slate-900 shadow-sm ${minH} ${className}`}>
+      <Image src={s.img!} alt={s.alt} fill placeholder="blur" sizes={big ? "(min-width: 1024px) 560px, (min-width: 768px) 92vw, 92vw" : "(min-width: 1024px) 280px, (min-width: 768px) 46vw, 92vw"}
         className="object-cover transition-transform duration-700 ease-out group-hover:scale-110" />
       <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/35 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 p-5 sm:p-6">

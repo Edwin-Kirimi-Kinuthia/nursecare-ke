@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Siren, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare, ShieldCheck,
+  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Ambulance, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare, ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
@@ -35,7 +35,7 @@ function careLinksFor(user: PublicUser | null): NavLink[] {
   const links: NavLink[] = [
     { href: "/appointments", label: "Appointments", Icon: CalendarDays },
     { href: "/home-visits", label: "Home visits", Icon: Home },
-    { href: "/ambulance", label: "Ambulance", Icon: Siren, tone: "rose" },
+    { href: "/ambulance", label: "Ambulance", Icon: Ambulance, tone: "rose" },
     { href: "/labs", label: "Lab tests", Icon: FlaskConical },
     { href: "/records", label: "My records", Icon: FileText },
     { href: "/ai", label: "Symptom checker", Icon: Brain, tone: "violet" },
