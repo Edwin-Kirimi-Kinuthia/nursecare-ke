@@ -1,3 +1,4 @@
+import { availabilityService } from "../booking/availability.service";
 import { db, Prisma } from "@carebora/db";
 import {
   ApiError,
@@ -115,6 +116,9 @@ export const adminService = {
       const profile = await db.providerProfile.findUnique({ where: { userId: targetId } });
       if (!profile) throw ApiError.badRequest("This account has no provider profile");
       await db.providerProfile.update({ where: { userId: targetId }, data: input.providerProfile });
+      // Setting a fee or verifying someone is what makes them bookable, so open
+      // their calendar now (a no-op unless they are verified with a fee).
+      await availabilityService.ensureSchedule(targetId);
     }
 
     await writeAuditLog(actorId, "admin_patch_user", "user", targetId, input as Record<string, unknown>);
@@ -252,6 +256,9 @@ export const adminService = {
         },
       },
     });
+
+    // Approving a provider who already has a fee makes them bookable: open their calendar.
+    if (input.status === "verified") await availabilityService.ensureSchedule(providerId);
 
     // Mark the most recent unreviewed document as reviewed (if any)
     const pendingDoc = await db.verificationDocument.findFirst({

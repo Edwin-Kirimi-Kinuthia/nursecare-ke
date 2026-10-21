@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Alert, Pressable, ScrollView, View } from "react-native";
+import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { ShieldCheck, Star } from "lucide-react-native";
 import type { Appointment, AdminUserSummary, HomeVisit, Order, Organization, ProviderPublicProfile, Review, VerificationProvider } from "@carebora/api-client";
@@ -107,10 +107,6 @@ function Users() {
   return (
     <>
       <FilterChips value={role} options={ROLE_FILTERS} onChange={setRole} />
-      <Button title="Set all providers Available" variant="secondary" size="sm" loading={busy === "avail"} onPress={() => Alert.alert("Set all providers Available?", "Everyone who shows Busy will be confirmed instantly. They can switch back themselves.", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Set all", onPress: () => run("avail", async () => { const r = await api.adminSetAllProvidersAvailable(); setNotice(`${r.updated} provider(s) set to Available.`); }) },
-      ])} />
       <Button title="Create provider account" size="sm" onPress={() => setCreating(true)} />
       {notice && <Banner tone="info">{notice}</Banner>}
       {(err || list.error) && <Banner tone="danger">{err ?? list.error}</Banner>}

@@ -1,5 +1,5 @@
 import { absoluteUrl } from "@/lib/links";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Alert, Image, Pressable, Switch, View } from "react-native";
 import { Pencil, Trash2, X, ImagePlus } from "lucide-react-native";
 import type { AdminCreateDrugInput } from "@carebora/shared";
@@ -17,26 +17,35 @@ import { Text } from "@/ui/Text";
 import { Badge, Banner, Empty, Loading } from "@/ui/parts";
 
 export function PharmacyAdmin() {
-  const list = useAsync(() => api.adminListDrugs({ limit: 50 } as never).then((r) => r.drugs), []);
+  // The API returns at most 50 a page: fetch as many pages as have been asked for, and allow searching by name.
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [pages, setPages] = useState(1);
+  useEffect(() => { const h = setTimeout(() => { setQuery(search.trim()); setPages(1); }, 350); return () => clearTimeout(h); }, [search]);
+  const list = useAsync(async () => {
+    const all: AdminDrug[] = [];
+    let total = 0;
+    for (let i = 0; i < pages; i++) {
+      const r = await api.adminListDrugs({ limit: 50, offset: i * 50, ...(query ? { search: query } : {}) } as never);
+      all.push(...r.drugs); total = r.total;
+      if (all.length >= total) break;
+    }
+    return { drugs: all, total };
+  }, [pages, query]);
   const [editing, setEditing] = useState<AdminDrug | "new" | null>(null);
-  const { busy, err, run } = useAct();
-  const [notice, setNotice] = useState<string | null>(null);
-  const drugs = list.data ?? [];
-  const importStarter = () => Alert.alert("Add the common OTC range?", "Prices and stock are placeholders (stock 50) for you to edit. Drugs already in the catalogue are not changed.", [
-    { text: "Cancel", style: "cancel" },
-    { text: "Import", onPress: () => run("import", async () => { const r = await api.adminImportStarterOtc(); setNotice(`Added ${r.created} drug(s) of ${r.total}${r.described ? `, ${r.described} description(s) expanded` : ""}. Now edit each price and stock.`); }, list.reload) },
-  ]);
+  const { err, run } = useAct();
+  const drugs = list.data?.drugs ?? [];
+  const total = list.data?.total ?? 0;
   const confirmRemove = (d: AdminDrug) => Alert.alert(`Remove "${d.name}"?`, "This hides it from every vendor.", [
     { text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => run(d.id, () => api.adminDeleteDrug(d.id), list.reload) },
   ]);
   return (
     <>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text tone="muted">{drugs.length} in the catalogue · {drugs.filter((d) => d.sellerCount > 0).length} on sale</Text>
+        <Text tone="muted">{query ? `${total} match${total === 1 ? "" : "es"}` : `${total} in the catalogue`} · {drugs.filter((d) => d.sellerCount > 0).length} on sale</Text>
         <Button title="Add drug" size="sm" onPress={() => setEditing("new")} />
       </View>
-      <Button title="Import common OTC range" variant="secondary" size="sm" loading={busy === "import"} onPress={importStarter} />
-      {notice && <Banner tone="info">{notice}</Banner>}
+      <Field label="Search the catalogue" value={search} onChangeText={setSearch} placeholder="Type a drug name…" />
       {(err || list.error) && <Banner tone="danger">{err ?? list.error}</Banner>}
       {list.loading && !list.data ? <Loading /> : drugs.length === 0 ? <Empty icon="medkit-outline" title="No drugs yet" /> : drugs.map((d) => (
         <Card key={d.id} style={{ borderRadius: 16, opacity: d.isActive ? 1 : 0.55 }}>
@@ -57,6 +66,7 @@ export function PharmacyAdmin() {
           </View>
         </Card>
       ))}
+      {drugs.length < total && <Button title={`Show 50 more (${drugs.length} of ${total})`} variant="secondary" size="sm" onPress={() => setPages((n) => n + 1)} />}
       {editing && <DrugSheet drug={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); void list.reload(); }} />}
     </>
   );

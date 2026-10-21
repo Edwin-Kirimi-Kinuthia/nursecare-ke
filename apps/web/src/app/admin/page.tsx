@@ -270,12 +270,6 @@ function UsersTab() {
   const [notice, setNotice] = useState<string | null>(null);
   const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
 
-  async function allAvailable() {
-    if (!confirm("Mark every provider who shows Busy as Available? Their bookings will then be confirmed instantly. They can switch back themselves.")) return;
-    try { const r = await api.adminSetAllProvidersAvailable(); setNotice(`${r.updated} provider(s) set to Available.`); }
-    catch (e) { setNotice(e instanceof Error ? e.message : "Failed to update"); }
-  }
-
   async function toggleActive(u: AdminUserSummary) {
     setBusyId(u.id);
     try { await api.adminPatchUser(u.id, { isActive: !u.isActive }); await reload(); }
@@ -295,9 +289,6 @@ function UsersTab() {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={allAvailable} className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">
-            <Power className="h-4 w-4" /> Set all providers Available
-          </button>
           <button onClick={() => setCreating(true)} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" /> Create provider account
           </button>
@@ -1014,25 +1005,27 @@ const EMPTY_DRUG: AdminCreateDrugInput = {
 };
 
 function PharmacyTab() {
-  const fetcher = useCallback(() => api.adminListDrugs({ limit: 50 }).then((r) => r.drugs), []);
+  // The API returns at most 50 a page. Fetch as many pages as have been asked
+  // for, so "Show more" reaches the end of a long catalogue, and let the admin
+  // search by name rather than scrolling.
+  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
+  const [pages, setPages] = useState(1);
+  useEffect(() => { const h = setTimeout(() => { setQuery(search.trim()); setPages(1); }, 350); return () => clearTimeout(h); }, [search]);
+  const fetcher = useCallback(async () => {
+    const all: AdminDrug[] = [];
+    let total = 0;
+    for (let i = 0; i < pages; i++) {
+      const r = await api.adminListDrugs({ limit: 50, offset: i * 50, ...(query ? { search: query } : {}) });
+      all.push(...r.drugs); total = r.total;
+      if (all.length >= total) break;
+    }
+    return { drugs: all, total };
+  }, [pages, query]);
   const { data, loading, error, reload } = useSection(fetcher);
-  const drugs = data ?? [];
+  const drugs = data?.drugs ?? [];
+  const total = data?.total ?? 0;
   const [editing, setEditing] = useState<AdminDrug | "new" | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
-
-  /** Adds the starter OTC range with placeholder price (rough shelf price) and stock 50 — edit them to match the shelf. */
-  async function importStarter() {
-    if (!confirm("Add the common OTC range to your pharmacy? Prices and stock are placeholders (stock 50) for you to edit. Drugs already in the catalogue are not changed.")) return;
-    setImporting(true); setImportMsg(null);
-    try {
-      const r = await api.adminImportStarterOtc();
-      setImportMsg(`Added ${r.created} drug(s) of ${r.total}${r.photosAdded ? `, ${r.photosAdded} photo(s) attached` : ""}${r.described ? `, ${r.described} description(s) expanded` : ""}. Now edit each price and stock to match what you have.`);
-      await reload();
-    } catch (e) { setImportMsg(e instanceof Error ? e.message : "Import failed"); }
-    finally { setImporting(false); }
-  }
-
   async function remove(d: AdminDrug) {
     if (!confirm(`Remove "${d.name}" from the shared catalogue? This hides it from every vendor.`)) return;
     try { await api.adminDeleteDrug(d.id); await reload(); }
@@ -1043,23 +1036,21 @@ function PharmacyTab() {
     <SectionShell loading={loading} error={error} onRetry={reload} empty={false}>
       <div className="mb-3 flex items-center justify-between">
         <p className="text-sm text-slate-500">
-          {drugs.length} in the catalogue
+          {query ? `${total} match${total === 1 ? "" : "es"}` : `${total} in the catalogue`}
           {drugs.length > 0 && (
             <> · <span className="font-semibold text-slate-700">{drugs.filter((d: AdminDrug) => d.sellerCount > 0).length}</span> on sale</>
           )}
         </p>
         <div className="flex gap-2">
-          <button onClick={importStarter} disabled={importing} className="inline-flex items-center gap-1.5 rounded-xl border border-teal-200 bg-white px-3 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50 disabled:opacity-60">
-            {importing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Pill className="h-4 w-4" />} Import common OTC range
-          </button>
           <button onClick={() => setEditing("new")} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-700">
             <Plus className="h-4 w-4" /> Add drug
           </button>
         </div>
       </div>
-      {importMsg && <p className="mb-3 rounded-xl bg-teal-50 px-4 py-2.5 text-sm text-teal-800">{importMsg}</p>}
+      <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search the catalogue by name…" aria-label="Search the catalogue"
+        className="mb-3 w-full max-w-sm rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
       {drugs.length === 0 ? (
-        <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">No drugs yet.</p></div>
+        <div className="grid h-40 place-items-center rounded-2xl border border-dashed border-slate-300 bg-white"><p className="text-sm text-slate-400">{query ? "No drugs match that search." : "No drugs yet."}</p></div>
       ) : (
         <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
           <table className="w-full min-w-[520px] text-sm">
@@ -1107,6 +1098,12 @@ function PharmacyTab() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+      {drugs.length < total && (
+        <div className="mt-4 flex items-center justify-center gap-3">
+          <span className="text-sm text-slate-500">Showing {drugs.length} of {total}</span>
+          <button onClick={() => setPages((n) => n + 1)} className="rounded-xl border border-teal-200 bg-white px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">Show 50 more</button>
         </div>
       )}
       {editing && <DrugModal drug={editing === "new" ? null : editing} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await reload(); }} />}
