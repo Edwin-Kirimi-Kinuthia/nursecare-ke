@@ -5,5 +5,5 @@ export const metadata = serviceMetadata(ONLINE_DOCTOR.path, "See a Doctor Online
 
 export default function Page() {
   return <ServicePage
-      illustration={{ src: "/illustrations/video-call.svg", alt: "Illustration of a video consultation with a doctor" }} {...ONLINE_DOCTOR} />;
+      illustration={{ src: "/illustrations/svc-video.svg", alt: "Illustration of a video consultation with a doctor" }} {...ONLINE_DOCTOR} />;
 }

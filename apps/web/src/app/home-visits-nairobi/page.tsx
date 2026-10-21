@@ -6,5 +6,5 @@ export const metadata = serviceMetadata(HOME_VISITS.path, "Home Visits: Nurse, P
 
 export default function Page() {
   return <ServicePage
-      image={{ src: homeVisitImg, alt: "A health worker checking on a child outside a home" }} {...HOME_VISITS} />;
+      image={{ src: homeVisitImg, alt: "A health worker checking on a child outside a home", credit: { author: "Neil Thomas / Safari Doctors", license: "CC BY-SA 4.0", source: "https://commons.wikimedia.org/wiki/File:Connecting_with_the_youth_(Credit_Neil_Thomas).jpg" } }} {...HOME_VISITS} />;
 }

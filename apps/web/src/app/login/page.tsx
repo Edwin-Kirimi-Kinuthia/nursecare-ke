@@ -2,8 +2,6 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
-import sideImg from "@/assets/home/doctor-child.jpg";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
@@ -149,16 +147,19 @@ function LoginForm() {
 
   return (
     <div className="relative grid min-h-[calc(100vh-4rem)] lg:grid-cols-[1fr_1.05fr]">
-      {/* Photo panel (wide screens only) */}
-      <aside className="relative hidden overflow-hidden lg:block" aria-hidden>
-        <Image src={sideImg} alt="" fill placeholder="blur" sizes="50vw" className="object-cover object-[22%_center]" fetchPriority="high" loading="eager" />
-        <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-950/40 to-teal-900/10" />
-        <div className="absolute inset-x-0 bottom-0 p-10 xl:p-14">
+      {/* Illustrated panel (wide screens only) */}
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-teal-600 via-emerald-600 to-sky-600 lg:flex lg:flex-col" aria-hidden>
+        <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
+        <div className="relative mx-10 mt-14 flex-1 rounded-[2rem] bg-white/95 p-8 shadow-2xl shadow-black/20 xl:mx-14">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/illustrations/login-welcome.svg" alt="" className="h-full max-h-[22rem] w-full object-contain" />
+        </div>
+        <div className="relative p-10 xl:p-14">
           <p className="text-3xl font-extrabold leading-tight text-white xl:text-4xl">Quality care, from wherever you are.</p>
           <ul className="mt-6 space-y-2.5 text-teal-50">
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Licence-checked doctors and nurses</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Private video consultations</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Pay with M-Pesa, no cards</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Licence-checked doctors and nurses</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Private video consultations</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Pay with M-Pesa, no cards</li>
           </ul>
         </div>
       </aside>

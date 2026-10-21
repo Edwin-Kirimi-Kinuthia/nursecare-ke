@@ -40,7 +40,7 @@ export default function AboutPage() {
           <div className="absolute -left-10 -top-10 h-48 w-48 rounded-full bg-teal-200/50 blur-2xl" />
           <div className="absolute -bottom-12 -right-8 h-52 w-52 rounded-full bg-amber-200/40 blur-2xl" />
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/illustrations/medical-team.svg" alt="Illustration of a medical team" className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
+          <img src="/illustrations/about-team.svg" alt="Illustration of a medical team" className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
         </div>
       </header>
 

@@ -23,7 +23,7 @@ export interface ServicePageProps {
   safety?: { title: string; body: string };
   faqs: Faq[];
   /** A photo shown under the introduction. */
-  image?: { src: StaticImageData; alt: string };
+  image?: { src: StaticImageData; alt: string; credit?: { author: string; license: string; source: string } };
   /** Or a flat illustration (public path), shown on a pastel panel. */
   illustration?: { src: string; alt: string };
   related: { label: string; href: string; blurb: string }[];
@@ -78,6 +78,11 @@ export default function ServicePage(p: ServicePageProps) {
           <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
             <Image src={p.image.src} alt={p.image.alt} fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 768px) 736px, 92vw" className="object-cover" />
           </div>
+        )}
+        {p.image?.credit && (
+          <p className="mt-2 text-right text-[11px] text-slate-400">
+            Photo: <a href={p.image.credit.source} target="_blank" rel="noopener noreferrer" className="hover:text-teal-700 hover:underline">{p.image.credit.author}</a>, {p.image.credit.license}
+          </p>
         )}
       </header>
 

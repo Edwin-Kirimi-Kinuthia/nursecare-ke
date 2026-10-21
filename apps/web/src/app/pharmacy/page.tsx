@@ -7,8 +7,6 @@ import { api } from "@/lib/api";
 import DrugCard from "@/components/DrugCard";
 import DrugDetailModal from "@/components/DrugDetailModal";
 import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
-import Image from "next/image";
-import pharmacyImg from "@/assets/home/pharmacy.jpg";
 import EmptyState from "@/components/EmptyState";
 
 export default function PharmacyPage() {
@@ -61,14 +59,16 @@ export default function PharmacyPage() {
   return (
     <div>
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-teal-950 via-teal-900 to-emerald-900">
-        <Image src={pharmacyImg} alt="" fill placeholder="blur" sizes="100vw" className="object-cover opacity-25" fetchPriority="high" loading="eager" />
-        <div className="absolute inset-0 bg-gradient-to-r from-teal-950 via-teal-950/85 to-teal-900/40" />
-        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:py-16">
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-teal-300"><Pill className="h-4 w-4" /> Pharmacy</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">Medicine, delivered</h1>
-          <p className="mt-3 max-w-xl text-teal-100/90 sm:text-lg">Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa.</p>
-          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-2xl bg-white p-1.5 shadow-xl shadow-black/20">
+      <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-teal-50">
+        <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(249,115,102,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
+        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-orange-200/50 blur-3xl" />
+        <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-teal-200/50 blur-3xl" />
+        <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:py-14 md:grid-cols-[1.2fr_1fr]">
+          <div>
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-[#e05a4c]"><Pill className="h-4 w-4" /> Pharmacy</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Medicine, delivered</h1>
+          <p className="mt-3 max-w-xl text-slate-600 sm:text-lg">Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa.</p>
+          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-2xl bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-200">
             <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
             <input
               value={search}
@@ -77,6 +77,11 @@ export default function PharmacyPage() {
               aria-label="Search medication"
               className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-base text-slate-900 outline-none placeholder:text-slate-400"
             />
+          </div>
+          </div>
+          <div className="relative hidden aspect-[4/3] md:block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/illustrations/pharmacy-banner.svg" alt="" className="absolute inset-0 h-full w-full object-contain" />
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ export * from "./http";
 export * from "./schemas";
 export * from "./clinical";
 export * from "./geo";
+export * from "./product-photo-credits";
 export * from "./names";
 export * from "./countries";
 
