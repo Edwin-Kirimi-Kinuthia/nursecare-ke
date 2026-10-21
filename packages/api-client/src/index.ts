@@ -61,6 +61,7 @@ import type {
   SupportDocumentType,
   SupportStatus,
   SymptomCheckInput,
+  ClinicalQueryInput,
   PatchMeInput,
   DeleteAccountInput,
   RegisterPushDeviceInput,
@@ -801,6 +802,10 @@ export class CareBoraClient {
     return this.post<ProviderMatchResult>(`/ai/provider-match`, { concern });
   }
   /** Clinical fact-check for providers (used in the consultation room). */
+  /** Clinicians only: drug reference, differentials, or a free clinical question. */
+  clinicalQuery(input: ClinicalQueryInput) {
+    return this.post<ClinicalQueryResult>(`/ai/clinical`, input);
+  }
   factCheck(question: string) {
     return this.post<FactCheckResult>(`/ai/fact-check`, { question });
   }
@@ -1777,11 +1782,76 @@ export interface PharmacySuggestion {
   requiresPrescription: boolean;
 }
 
+export interface PossibleCause {
+  name: string;
+  likelihood: "more likely" | "possible" | "less likely";
+  why: string;
+}
+export interface OtcOption {
+  name: string;
+  howToUse: string;
+  caution?: string;
+}
+
 export interface SymptomCheckResult {
-  urgency: "routine" | "urgent" | "emergency";
+  urgency: "self_care" | "routine" | "urgent" | "emergency";
   recommendedSpecialty: string;
+  /** One-paragraph plain-language summary. */
   advice: string;
   seekEmergencyCare: boolean;
+  possibleCauses: PossibleCause[];
+  selfCare: string[];
+  otcOptions: OtcOption[];
+  redFlags: string[];
+  whenToSeeDoctor: string;
+  disclaimer: string;
+  pharmacySuggestions: PharmacySuggestion[];
+}
+
+export interface DrugDose {
+  population: string;
+  dose: string;
+  route: string;
+  frequency: string;
+  duration: string;
+  maxDose?: string;
+}
+export interface DrugReference {
+  drug: string;
+  drugClass: string;
+  indications: string[];
+  dosing: DrugDose[];
+  adjustments: string[];
+  contraindications: string[];
+  interactions: string[];
+  sideEffects: string[];
+  pregnancyLactation: string;
+  monitoring: string[];
+  counselling: string[];
+}
+export interface Differential {
+  condition: string;
+  likelihood: "most likely" | "likely" | "consider" | "must not miss";
+  supporting: string;
+  against: string;
+}
+export interface DifferentialReference {
+  summary: string;
+  differentials: Differential[];
+  redFlags: string[];
+  history: string[];
+  examination: string[];
+  investigations: string[];
+  initialManagement: string[];
+  referWhen: string;
+}
+export interface ClinicalQueryResult {
+  mode: "drug" | "differential" | "question";
+  drug?: DrugReference;
+  differential?: DifferentialReference;
+  answer?: string;
+  /** Which engine answered: a full model, a basic fallback model, or nothing configured. */
+  source: "claude" | "basic" | "unavailable";
   disclaimer: string;
   pharmacySuggestions: PharmacySuggestion[];
 }

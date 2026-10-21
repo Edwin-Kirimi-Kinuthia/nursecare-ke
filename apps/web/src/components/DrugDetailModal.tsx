@@ -6,7 +6,6 @@ import type { Drug, DrugOffer } from "@carebora/api-client";
 import { api, kes } from "@/lib/api";
 import { categoryTheme } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
-import { productPhotoCredit } from "@carebora/shared";
 import { useLocation } from "@/components/LocationProvider";
 
 export default function DrugDetailModal({ drugId, onClose }: { drugId: string; onClose: () => void }) {
@@ -103,14 +102,6 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
               </div>
 
               {gallery.length > 0 && <p className="mt-2 text-center text-[11px] text-slate-400">Image for illustration. The pack you receive may look different.</p>}
-              {(() => {
-                const c = productPhotoCredit(gallery[active]);
-                return c ? (
-                  <p className="mt-0.5 text-center text-[11px] text-slate-400">
-                    Photo: <a href={c.source} target="_blank" rel="noopener noreferrer" className="hover:text-teal-700 hover:underline">{c.author}</a>, {c.license}
-                  </p>
-                ) : null;
-              })()}
 
               {gallery.length > 1 && (
                 <div className="mt-3 flex gap-2 overflow-x-auto">

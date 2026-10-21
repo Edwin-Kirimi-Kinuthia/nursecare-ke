@@ -10,9 +10,16 @@ import { db } from "@carebora/db";
  * items the patient can actually buy here.
  */
 
-const SYSTEM_PROMPT = `You are CareBora's health assistant for Kenya. You are NOT a doctor and never give a definitive diagnosis. Be concise, warm, and use simple language. When you suggest medicines to a patient, only suggest over-the-counter (non-prescription) options. Always respond in the exact JSON shape requested — no markdown, no extra text.`;
+const PATIENT_SYSTEM = `You are Care Bora's symptom guide for people in Kenya. You help a patient understand what their symptoms might mean and what to do next. You are not a doctor and never state a diagnosis as certain: you describe possible causes and their likelihood.
 
-const DISCLAIMER = "This is not medical advice. Please consult a licensed healthcare provider.";
+Write in plain, warm, everyday English a non-medical adult understands. Be specific and practical — real self-care steps, real warning signs — not generic advice. Consider conditions common in Kenya (malaria, typhoid, UTIs, gastroenteritis, pneumonia, TB, hypertension, diabetes) where the symptoms fit.
+
+Only suggest over-the-counter medicines a pharmacy in Kenya sells without a prescription, with label-standard adult doses (or "follow the pack for children" for under-12s). Never suggest antibiotics, antimalarials or other prescription medicines; say a clinician must decide on those. If anything suggests an emergency (chest pain, difficulty breathing, signs of stroke, heavy bleeding, confusion, a very sick child, severe dehydration, pregnancy bleeding), urgency is "emergency" and the first instruction is to get emergency care now.`;
+
+const CLINICIAN_SYSTEM = `You are Care Bora's clinical reference assistant for licensed clinicians in Kenya (doctors, clinical officers, nurses, physiotherapists). Answer like a concise, accurate drug formulary and clinical handbook: specific doses with units, routes, frequencies, durations and maximum doses; weight-based paediatric dosing where relevant; renal and hepatic adjustments; contraindications and important interactions. Prefer first-line options in the Kenya National Clinical Guidelines and the Kenya Essential Medicines List, and mention local realities (e.g. malaria testing before treatment, TB and HIV considerations, antimicrobial stewardship). Be precise; if something is uncertain or varies by guideline, say so rather than inventing a number. Never pad.`;
+
+const DISCLAIMER = "General guidance only, not a diagnosis. A licensed clinician should assess you, and you should get emergency care straight away if you have any of the warning signs.";
+const CLINICAL_DISCLAIMER = "AI-generated reference for clinicians. Verify doses against the current Kenya National Clinical Guidelines, the product label or a formulary, and apply clinical judgement.";
 
 export interface PharmacySuggestion {
   id: string;
@@ -23,11 +30,17 @@ export interface PharmacySuggestion {
   requiresPrescription: boolean;
 }
 
+type Urgency = "self_care" | "routine" | "urgent" | "emergency";
 export interface SymptomCheckResult {
-  urgency: "routine" | "urgent" | "emergency";
+  urgency: Urgency;
   recommendedSpecialty: string;
   advice: string;
   seekEmergencyCare: boolean;
+  possibleCauses: { name: string; likelihood: "more likely" | "possible" | "less likely"; why: string }[];
+  selfCare: string[];
+  otcOptions: { name: string; howToUse: string; caution?: string }[];
+  redFlags: string[];
+  whenToSeeDoctor: string;
   disclaimer: string;
   pharmacySuggestions: PharmacySuggestion[];
 }
@@ -43,6 +56,65 @@ export interface FactCheckResult {
   disclaimer: string;
   pharmacySuggestions: PharmacySuggestion[];
 }
+
+export interface PatientContext {
+  patientAge?: number;
+  sex?: "female" | "male";
+  pregnant?: boolean;
+  duration?: string;
+  allergies?: string[];
+  conditions?: string[];
+  currentMedicines?: string[];
+  weightKg?: number;
+}
+
+function describeContext(c: PatientContext): string {
+  const parts = [
+    c.patientAge != null && `Age: ${c.patientAge}`,
+    c.sex && `Sex: ${c.sex}`,
+    c.pregnant && "Pregnant: yes",
+    c.weightKg && `Weight: ${c.weightKg} kg`,
+    c.duration && `Duration: ${c.duration}`,
+    c.allergies?.length && `Allergies: ${c.allergies.join(", ")}`,
+    c.conditions?.length && `Long-term conditions: ${c.conditions.join(", ")}`,
+    c.currentMedicines?.length && `Current medicines: ${c.currentMedicines.join(", ")}`,
+  ].filter(Boolean);
+  return parts.length ? parts.join("\n") : "No further details given.";
+}
+
+// JSON Schemas for structured output (Claude enforces them; the fallback model is asked to follow them).
+const str = { type: "string" } as const;
+const strArr = { type: "array", items: str } as const;
+const obj = (properties: Record<string, unknown>, required = Object.keys(properties)) => ({ type: "object", properties, required, additionalProperties: false });
+
+const SYMPTOM_SCHEMA = obj({
+  urgency: { type: "string", enum: ["self_care", "routine", "urgent", "emergency"] },
+  summary: str,
+  possibleCauses: { type: "array", items: obj({ name: str, likelihood: { type: "string", enum: ["more likely", "possible", "less likely"] }, why: str }) },
+  selfCare: strArr,
+  otcOptions: { type: "array", items: obj({ name: str, howToUse: str, caution: str }) },
+  redFlags: strArr,
+  whenToSeeDoctor: str,
+  recommendedSpecialty: { type: "string", enum: ["General Practice", "Paediatrics", "Obstetrics & Gynaecology", "Physiotherapy", "Nursing"] },
+});
+
+const DRUG_SCHEMA = obj({
+  drug: str, drugClass: str, indications: strArr,
+  dosing: { type: "array", items: obj({ population: str, dose: str, route: str, frequency: str, duration: str, maxDose: str }) },
+  adjustments: strArr, contraindications: strArr, interactions: strArr, sideEffects: strArr,
+  pregnancyLactation: str, monitoring: strArr, counselling: strArr,
+});
+
+const DIFFERENTIAL_SCHEMA = obj({
+  summary: str,
+  differentials: { type: "array", items: obj({ condition: str, likelihood: { type: "string", enum: ["most likely", "likely", "consider", "must not miss"] }, supporting: str, against: str }) },
+  redFlags: strArr, history: strArr, examination: strArr, investigations: strArr, initialManagement: strArr, referWhen: str,
+});
+
+const ANSWER_SCHEMA = obj({ answer: str, drugKeywords: strArr });
+
+const arr = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : []);
+const text = (v: unknown, fallback = ""): string => (typeof v === "string" && v.trim() ? v.trim() : fallback);
 
 // ── LLM layer: Hugging Face (free) → Anthropic → none ────────────────────────
 
@@ -76,35 +148,47 @@ async function hfChat(system: string, user: string, maxTokens: number): Promise<
   return data.choices?.[0]?.message?.content ?? "";
 }
 
-async function anthropicChat(system: string, user: string, maxTokens: number): Promise<string> {
+const CLAUDE_MODEL = process.env.ANTHROPIC_MODEL || "claude-opus-5-5";
+
+/**
+ * Claude, with the answer constrained to `schema` (structured outputs) so a
+ * clinical answer can never come back malformed. If the safety classifier
+ * declines, the request is re-run on a fallback model server-side.
+ */
+async function anthropicChat(system: string, user: string, maxTokens: number, schema?: Record<string, unknown>): Promise<string> {
   const { default: Anthropic } = await import("@anthropic-ai/sdk");
   const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-  const message = await client.messages.create({
-    model: "claude-haiku-4-5-20251001",
+  const message = await client.beta.messages.create({
+    model: CLAUDE_MODEL,
     max_tokens: maxTokens,
+    betas: ["server-side-fallback-2026-06-01"],
+    fallbacks: [{ model: "claude-opus-4-8" }],
     system,
     messages: [{ role: "user", content: user }],
+    output_config: { effort: "medium", ...(schema ? { format: { type: "json_schema", schema } } : {}) },
   });
-  const block = message.content[0];
-  return block && block.type === "text" ? block.text : "";
+  if (message.stop_reason === "refusal") return "";
+  return message.content.map((b) => (b.type === "text" ? b.text : "")).join("");
 }
 
-/** Returns raw completion text, or null if no provider is configured/available. */
-async function llmComplete(system: string, user: string, maxTokens: number): Promise<string | null> {
-  if (process.env.HF_API_TOKEN) {
-    try {
-      const t = await hfChat(system, user, maxTokens);
-      if (t.trim()) return t;
-    } catch {
-      /* fall through */
-    }
-  }
+type LlmResult = { text: string; source: "claude" | "basic" } | null;
+
+/** Claude when configured (accurate, schema-enforced); otherwise the free Hugging Face model. */
+async function llmComplete(system: string, user: string, maxTokens: number, schema?: Record<string, unknown>): Promise<LlmResult> {
   if (process.env.ANTHROPIC_API_KEY) {
     try {
-      const t = await anthropicChat(system, user, maxTokens);
-      if (t.trim()) return t;
-    } catch {
-      /* fall through */
+      const t = await anthropicChat(system, user, maxTokens, schema);
+      if (t.trim()) return { text: t, source: "claude" };
+    } catch (e) {
+      console.error("[ai] Claude request failed", e instanceof Error ? e.message : e);
+    }
+  }
+  if (process.env.HF_API_TOKEN) {
+    try {
+      const t = await hfChat(system, user + (schema ? `\n\nRespond with JSON only, matching this JSON Schema:\n${JSON.stringify(schema)}` : ""), Math.min(maxTokens, 2500));
+      if (t.trim()) return { text: t, source: "basic" };
+    } catch (e) {
+      console.error("[ai] HF request failed", e instanceof Error ? e.message : e);
     }
   }
   return null;
@@ -185,48 +269,109 @@ async function matchPharmacy(keywords: string[], opts: { includeRx: boolean }): 
 // ── Public API ────────────────────────────────────────────────────────────────
 
 export const aiService = {
-  async symptomCheck(symptoms: string, patientAge?: number, allergies?: string[]): Promise<SymptomCheckResult> {
-    const prompt = `Patient symptoms: "${symptoms}"${patientAge ? `. Age: ${patientAge}` : ""}${allergies?.length ? `. Known allergies: ${allergies.join(", ")}` : ""}.
+  async symptomCheck(symptoms: string, ctx: PatientContext = {}): Promise<SymptomCheckResult> {
+    const prompt = `Symptoms in the patient's words:\n"""${symptoms}"""\n\nAbout the patient:\n${describeContext(ctx)}
 
-Respond with a JSON object matching this exact shape:
-{
-  "urgency": "routine" | "urgent" | "emergency",
-  "recommendedSpecialty": "<one of: General Practice, Paediatrics, Obstetrics & Gynaecology, Physiotherapy, Nursing>",
-  "advice": "<1-2 sentence practical advice>",
-  "seekEmergencyCare": <boolean>,
-  "otcKeywords": ["<over-the-counter medicine or ingredient names that may help, e.g. paracetamol, ORS>"]
-}
-Only suggest over-the-counter medicines in otcKeywords. Only respond with the JSON object.`;
+Give:
+- urgency: self_care (safe to manage at home), routine (see a clinician in the next few days), urgent (today), or emergency (now).
+- summary: 2-4 sentences explaining what is probably going on and what to do first.
+- possibleCauses: 2-5 causes, most likely first, each with a one-sentence reason tied to their symptoms.
+- selfCare: 3-6 specific, practical steps.
+- otcOptions: 0-3 over-the-counter medicines with how to take them (adult dose, frequency, maximum per day) and a caution. Leave empty if none is appropriate, and respect their allergies, conditions, pregnancy and current medicines.
+- redFlags: 3-6 warning signs that mean they should seek care urgently.
+- whenToSeeDoctor: one sentence on when to book a consultation.
+- recommendedSpecialty: the best kind of Care Bora clinician for this.`;
 
-    const raw = await llmComplete(SYSTEM_PROMPT, prompt, 400);
-    const parsed = raw
-      ? extractJson<{ urgency?: string; recommendedSpecialty?: string; advice?: string; seekEmergencyCare?: boolean; otcKeywords?: string[] }>(raw)
-      : null;
+    const res = await llmComplete(PATIENT_SYSTEM, prompt, 4000, SYMPTOM_SCHEMA);
+    const p = res ? extractJson<Record<string, unknown>>(res.text) : null;
 
-    const urgency = (["routine", "urgent", "emergency"] as const).includes(parsed?.urgency as "routine")
-      ? (parsed!.urgency as "routine" | "urgent" | "emergency")
-      : "routine";
-    const keywords = [...(parsed?.otcKeywords ?? []), ...expandSymptomKeywords(symptoms)];
-    const pharmacySuggestions = await matchPharmacy(keywords, { includeRx: false });
+    const urgency: Urgency = (["self_care", "routine", "urgent", "emergency"] as const).includes(p?.urgency as Urgency) ? (p!.urgency as Urgency) : "routine";
+    const otcOptions = Array.isArray(p?.otcOptions)
+      ? (p!.otcOptions as Record<string, unknown>[]).map((o) => ({ name: text(o.name), howToUse: text(o.howToUse), caution: text(o.caution) || undefined })).filter((o) => o.name)
+      : [];
+    const possibleCauses = Array.isArray(p?.possibleCauses)
+      ? (p!.possibleCauses as Record<string, unknown>[]).map((c) => ({
+          name: text(c.name),
+          likelihood: (["more likely", "possible", "less likely"].includes(c.likelihood as string) ? c.likelihood : "possible") as "more likely" | "possible" | "less likely",
+          why: text(c.why),
+        })).filter((c) => c.name)
+      : [];
+    const keywords = [...otcOptions.map((o) => o.name), ...expandSymptomKeywords(symptoms)];
+    const pharmacySuggestions = urgency === "emergency" ? [] : await matchPharmacy(keywords, { includeRx: false });
 
     return {
       urgency,
-      recommendedSpecialty: parsed?.recommendedSpecialty || "General Practice",
-      advice: parsed?.advice || "Please consult a healthcare provider for a proper assessment.",
-      seekEmergencyCare: parsed?.seekEmergencyCare ?? urgency === "emergency",
+      recommendedSpecialty: text(p?.recommendedSpecialty, "General Practice"),
+      advice: text(p?.summary, "We couldn't analyse that right now. If you feel very unwell, get medical care; otherwise book a consultation so a clinician can assess you."),
+      seekEmergencyCare: urgency === "emergency",
+      possibleCauses,
+      selfCare: arr(p?.selfCare),
+      otcOptions,
+      redFlags: arr(p?.redFlags).length ? arr(p?.redFlags) : ["Difficulty breathing or chest pain", "Confusion, fainting or a seizure", "Severe pain, or symptoms getting quickly worse", "Unable to keep fluids down"],
+      whenToSeeDoctor: text(p?.whenToSeeDoctor, "Book a consultation if your symptoms last more than a few days or worry you."),
       disclaimer: DISCLAIMER,
       pharmacySuggestions,
     };
   },
 
+  /** Clinicians only: drug reference, differential diagnosis, or a free question. */
+  async clinicalQuery(mode: "drug" | "differential" | "question", query: string, ctx: PatientContext = {}) {
+    const context = describeContext(ctx);
+    let prompt: string, schema: Record<string, unknown>;
+    if (mode === "drug") {
+      prompt = `Drug: ${query}\nPatient (if given):\n${context}\n\nGive a formulary entry: class; main indications; dosing as separate rows per population (adult, child by weight band or mg/kg, elderly, and per indication where doses differ) each with dose, route, frequency, usual duration and maximum dose; renal/hepatic adjustments; contraindications; key interactions; common and serious side effects; pregnancy and breastfeeding; monitoring; patient counselling points. If patient details are given, tailor the doses and flag any problem with their allergies, conditions or medicines.`;
+      schema = DRUG_SCHEMA;
+    } else if (mode === "differential") {
+      prompt = `Presentation: ${query}\nPatient (if given):\n${context}\n\nGive: a one-line summary; 4-8 differential diagnoses ranked (mark dangerous ones "must not miss") with supporting and against features; red flags; key history questions; examination findings to look for; investigations (bedside first, including malaria RDT/BS where relevant); initial management per Kenyan guidelines with drug names, doses and routes; when to refer or admit.`;
+      schema = DIFFERENTIAL_SCHEMA;
+    } else {
+      prompt = `Clinical question: ${query}\nPatient (if given):\n${context}\n\nAnswer concisely and specifically (doses with units, routes, durations where relevant). Use short paragraphs or "- " bullet lines. List the medicines you mention in drugKeywords.`;
+      schema = ANSWER_SCHEMA;
+    }
+
+    const res = await llmComplete(CLINICIAN_SYSTEM, prompt, 8000, schema);
+    const p = res ? extractJson<Record<string, unknown>>(res.text) : null;
+    const source = res?.source ?? "unavailable";
+    const base = { mode, source, disclaimer: CLINICAL_DISCLAIMER } as const;
+
+    if (!p) {
+      return { ...base, answer: res ? stripReasoning(res.text).slice(0, 4000) : "The clinical assistant isn't configured. Add an ANTHROPIC_API_KEY (recommended) or HF_API_TOKEN to enable it.", pharmacySuggestions: [] as PharmacySuggestion[] };
+    }
+    if (mode === "drug") {
+      const dosing = Array.isArray(p.dosing) ? (p.dosing as Record<string, unknown>[]).map((d) => ({
+        population: text(d.population), dose: text(d.dose), route: text(d.route), frequency: text(d.frequency), duration: text(d.duration), maxDose: text(d.maxDose) || undefined,
+      })).filter((d) => d.dose) : [];
+      const drug = {
+        drug: text(p.drug, query), drugClass: text(p.drugClass), indications: arr(p.indications), dosing,
+        adjustments: arr(p.adjustments), contraindications: arr(p.contraindications), interactions: arr(p.interactions),
+        sideEffects: arr(p.sideEffects), pregnancyLactation: text(p.pregnancyLactation), monitoring: arr(p.monitoring), counselling: arr(p.counselling),
+      };
+      return { ...base, drug, pharmacySuggestions: await matchPharmacy([drug.drug, query], { includeRx: true }) };
+    }
+    if (mode === "differential") {
+      const differentials = Array.isArray(p.differentials) ? (p.differentials as Record<string, unknown>[]).map((d) => ({
+        condition: text(d.condition),
+        likelihood: (["most likely", "likely", "consider", "must not miss"].includes(d.likelihood as string) ? d.likelihood : "consider") as "most likely" | "likely" | "consider" | "must not miss",
+        supporting: text(d.supporting), against: text(d.against),
+      })).filter((d) => d.condition) : [];
+      return {
+        ...base,
+        differential: {
+          summary: text(p.summary), differentials, redFlags: arr(p.redFlags), history: arr(p.history), examination: arr(p.examination),
+          investigations: arr(p.investigations), initialManagement: arr(p.initialManagement), referWhen: text(p.referWhen),
+        },
+        pharmacySuggestions: [] as PharmacySuggestion[],
+      };
+    }
+    return { ...base, answer: text(p.answer), pharmacySuggestions: await matchPharmacy(arr(p.drugKeywords), { includeRx: true }) };
+  },
+
   async matchProvider(concern: string): Promise<ProviderMatchResult> {
     const prompt = `A patient in Kenya needs: "${concern}".
-Which CareBora provider specialty fits best? Available: General Practice, Paediatrics, Obstetrics & Gynaecology, Physiotherapy, Nursing.
-Respond with JSON only:
-{ "recommendedSpecialty": "<string>", "reason": "<1 sentence>", "alternatives": ["<string>", "<string>"] }`;
-
-    const raw = await llmComplete(SYSTEM_PROMPT, prompt, 200);
-    const parsed = raw ? extractJson<ProviderMatchResult>(raw) : null;
+Which Care Bora provider specialty fits best? Available: General Practice, Paediatrics, Obstetrics & Gynaecology, Physiotherapy, Nursing.
+Respond with JSON only: { "recommendedSpecialty": "<string>", "reason": "<1 sentence>", "alternatives": ["<string>", "<string>"] }`;
+    const res = await llmComplete(PATIENT_SYSTEM, prompt, 1000);
+    const parsed = res ? extractJson<ProviderMatchResult>(res.text) : null;
     return {
       recommendedSpecialty: parsed?.recommendedSpecialty || "General Practice",
       reason: parsed?.reason || "A general practitioner can assess your concern and refer you if needed.",
@@ -234,28 +379,9 @@ Respond with JSON only:
     };
   },
 
-  /**
-   * Clinical fact-check for providers during a consultation. May reference
-   * prescription medicines and cross-references the CareBora pharmacy.
-   */
+  /** Kept for older app versions: a free clinical question. */
   async factCheck(question: string): Promise<FactCheckResult> {
-    const system = `You are a clinical reference assistant for licensed healthcare providers in Kenya. Give concise, evidence-based answers (dosing, interactions, first-line options, red flags). Note that clinical judgement and local guidelines apply. Respond in the exact JSON shape requested.`;
-    const prompt = `Clinician question: "${question}".
-Respond with JSON only:
-{ "answer": "<concise evidence-based answer, 2-5 sentences>", "drugKeywords": ["<relevant medicine or ingredient names mentioned>"] }`;
-
-    const raw = await llmComplete(system, prompt, 500);
-    const parsed = raw ? extractJson<{ answer?: string; drugKeywords?: string[] }>(raw) : null;
-
-    const answer = parsed?.answer
-      || (raw?.trim() ? stripReasoning(raw).slice(0, 900)
-        : "AI reference is not configured. Set HF_API_TOKEN (free Hugging Face token) to enable clinical fact-checks.");
-    const pharmacySuggestions = await matchPharmacy(parsed?.drugKeywords ?? [], { includeRx: true });
-
-    return {
-      answer,
-      disclaimer: "AI-generated reference for clinicians. Verify against current guidelines and use clinical judgement.",
-      pharmacySuggestions,
-    };
+    const r = await aiService.clinicalQuery("question", question);
+    return { answer: "answer" in r ? r.answer ?? "" : "", disclaimer: r.disclaimer, pharmacySuggestions: r.pharmacySuggestions };
   },
 };

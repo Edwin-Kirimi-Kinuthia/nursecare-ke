@@ -1,10 +1,9 @@
-import { absoluteUrl, openSite } from "@/lib/links";
+import { absoluteUrl } from "@/lib/links";
 import { Image, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MapPin, Pill, ShieldAlert } from "lucide-react-native";
 import { api } from "@/lib/api";
-import { productPhotoCredit } from "@carebora/shared";
 import { useAsync } from "@/lib/useAsync";
 import { useCart } from "@/lib/cart";
 import { kes } from "@/lib/format";
@@ -31,7 +30,6 @@ export default function DrugScreen() {
   const { drug, offers } = res.data;
   const [from, to] = categoryColors(drug.category);
   const gallery = drug.images?.length ? drug.images : drug.imageUrl ? [drug.imageUrl] : [];
-  const credit = productPhotoCredit(gallery[0]);
 
   return (
     <Screen onRefresh={res.reload} refreshing={res.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
@@ -43,7 +41,6 @@ export default function DrugScreen() {
         <Text style={{ color: t.textFaint, fontFamily: "Inter_600SemiBold", fontSize: 11, letterSpacing: 0.8 }}>{drug.category.toUpperCase()}</Text>
         <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 26, lineHeight: 31 }}>{drug.name}</Text>
         {gallery.length > 0 && <Text variant="caption" tone="faint">Image for illustration. The pack you receive may look different.</Text>}
-        {credit && <Text variant="caption" tone="faint" onPress={() => void openSite(credit.source)}>Photo: {credit.author}, {credit.license}</Text>}
         {drug.genericName ? <Text tone="muted">Generic: {drug.genericName}</Text> : null}
         {drug.strength ? <Text tone="muted">{drug.form ? `${drug.form} · ` : ""}{drug.strength}</Text> : null}
       </View>

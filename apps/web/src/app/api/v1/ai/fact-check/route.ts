@@ -10,3 +10,4 @@ export const POST = route(async (req) => {
   const data = await aiService.factCheck(input.question);
   return jsonOk(data);
 });
+export const maxDuration = 120;
