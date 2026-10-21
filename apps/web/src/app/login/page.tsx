@@ -2,6 +2,8 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import sideImg from "@/assets/home/doctor-child.jpg";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
@@ -146,7 +148,21 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-4 py-14">
+    <div className="relative grid min-h-[calc(100vh-4rem)] lg:grid-cols-[1fr_1.05fr]">
+      {/* Photo panel (wide screens only) */}
+      <aside className="relative hidden overflow-hidden lg:block" aria-hidden>
+        <Image src={sideImg} alt="" fill placeholder="blur" sizes="50vw" className="object-cover object-[22%_center]" fetchPriority="high" loading="eager" />
+        <div className="absolute inset-0 bg-gradient-to-t from-teal-950/90 via-teal-950/40 to-teal-900/10" />
+        <div className="absolute inset-x-0 bottom-0 p-10 xl:p-14">
+          <p className="text-3xl font-extrabold leading-tight text-white xl:text-4xl">Quality care, from wherever you are.</p>
+          <ul className="mt-6 space-y-2.5 text-teal-50">
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Licence-checked doctors and nurses</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Private video consultations</li>
+            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-teal-300" /> Pay with M-Pesa, no cards</li>
+          </ul>
+        </div>
+      </aside>
+    <div className="relative flex items-center justify-center overflow-hidden px-4 py-14">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-slate-50">
         <div className="animate-blob absolute -left-24 top-10 h-80 w-80 rounded-full bg-teal-200/40 blur-3xl" />
         <div className="animate-blob absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-emerald-200/40 blur-3xl delay-200" />
@@ -364,6 +380,7 @@ function LoginForm() {
           <Link href="/providers/apply" className="font-semibold text-teal-700 transition hover:text-teal-800">Apply to join</Link>
         </p>
       </div>
+    </div>
     </div>
   );
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, LocateFixed, MapPin, Loader2, Pill, PackageSearch } from "lucide-react";
+import { AlertCircle, LocateFixed, MapPin, Loader2, Pill, PackageSearch, Search } from "lucide-react";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import DrugCard from "@/components/DrugCard";
 import DrugDetailModal from "@/components/DrugDetailModal";
 import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
-import PageHeader from "@/components/PageHeader";
+import Image from "next/image";
+import pharmacyImg from "@/assets/home/pharmacy.jpg";
 import EmptyState from "@/components/EmptyState";
 
 export default function PharmacyPage() {
@@ -60,16 +61,30 @@ export default function PharmacyPage() {
   return (
     <div>
       {/* Header */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <PageHeader
-            eyebrow="Pharmacy"
-            Icon={Pill}
-            title="Medicine, delivered"
-            lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya."
-          />
+      <section className="relative overflow-hidden bg-gradient-to-br from-teal-950 via-teal-900 to-emerald-900">
+        <Image src={pharmacyImg} alt="" fill placeholder="blur" sizes="100vw" className="object-cover opacity-25" fetchPriority="high" loading="eager" />
+        <div className="absolute inset-0 bg-gradient-to-r from-teal-950 via-teal-950/85 to-teal-900/40" />
+        <div className="relative mx-auto max-w-6xl px-4 py-12 sm:py-16">
+          <p className="flex items-center gap-1.5 text-sm font-semibold text-teal-300"><Pill className="h-4 w-4" /> Pharmacy</p>
+          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-white sm:text-5xl">Medicine, delivered</h1>
+          <p className="mt-3 max-w-xl text-teal-100/90 sm:text-lg">Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa.</p>
+          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-2xl bg-white p-1.5 shadow-xl shadow-black/20">
+            <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search medication, e.g. Panadol"
+              aria-label="Search medication"
+              className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-base text-slate-900 outline-none placeholder:text-slate-400"
+            />
+          </div>
+        </div>
+      </section>
 
-          <div className="mt-4 flex flex-wrap items-center gap-2">
+      <section className="sticky top-16 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
+        <div className="mx-auto max-w-6xl px-4 py-3">
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowLocationPicker((s) => !s)}
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-teal-400 hover:text-teal-700"
@@ -97,19 +112,13 @@ export default function PharmacyPage() {
             )}
           </div>
 
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search medication…"
-            className="mt-4 w-full max-w-md rounded-xl border border-slate-200 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
-          />
-
-          <div className="mt-4 flex flex-wrap gap-2">
+          {/* One swipeable row on phones; wraps on wider screens. */}
+          <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((c) => (
               <button
                 key={c || "all"}
                 onClick={() => setCategory(c)}
-                className={`rounded-full border px-4 py-2 text-sm font-medium transition ${
+                className={`shrink-0 whitespace-nowrap rounded-full border px-4 py-2 text-sm font-medium transition ${
                   category === c
                     ? "border-teal-600 bg-teal-600 text-white shadow-sm shadow-teal-500/30"
                     : "border-slate-200 bg-white text-slate-600 hover:border-teal-400 hover:text-teal-700"
@@ -129,7 +138,7 @@ export default function PharmacyPage() {
           </div>
         )}
         {loading ? (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => <div key={i} className="h-72 rounded-2xl skeleton" />)}
           </div>
         ) : drugs.length === 0 ? (
@@ -139,7 +148,7 @@ export default function PharmacyPage() {
             hint="Try a different search, category or location — stock varies by pharmacy."
           />
         ) : (
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-3 sm:gap-5 md:grid-cols-3 xl:grid-cols-4">
             {drugs.map((d, i) => <DrugCard key={d.drugId} d={d} index={i} onOpen={() => setSelected(d.drugId)} />)}
           </div>
         )}

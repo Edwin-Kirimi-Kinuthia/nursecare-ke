@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import aboutImg from "@/assets/home/mother-baby.jpg";
 import { Mail, Phone, MapPin, Building2 } from "lucide-react";
 import { JsonLd } from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -36,6 +38,9 @@ export default function AboutPage() {
           so that seeing a doctor, getting a sick-off sheet or arranging a home visit takes a few minutes on a phone instead of a day of travel
           and waiting.
         </p>
+        <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
+          <Image src={aboutImg} alt="A mother smiling with her young daughter" fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 768px) 736px, 92vw" className="object-cover object-[22%_center]" />
+        </div>
       </header>
 
       <section className="mt-12" aria-labelledby="what">

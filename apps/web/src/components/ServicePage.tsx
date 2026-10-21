@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image, { type StaticImageData } from "next/image";
 import { ArrowRight, Phone, AlertTriangle } from "lucide-react";
 import { JsonLd } from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
@@ -21,6 +22,8 @@ export interface ServicePageProps {
   /** Shown prominently: when this isn't the right service for you. */
   safety?: { title: string; body: string };
   faqs: Faq[];
+  /** A photo shown under the introduction. */
+  image?: { src: StaticImageData; alt: string };
   related: { label: string; href: string; blurb: string }[];
   /** ISO date the content was last checked. Shown to readers and used by the sitemap. */
   updated: string;
@@ -61,6 +64,11 @@ export default function ServicePage(p: ServicePageProps) {
         <p className="mt-4 text-xs text-slate-400">
           Written by the Care Bora team · Last checked {updatedLabel}. This page describes how our service works and is not medical advice.
         </p>
+        {p.image && (
+          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
+            <Image src={p.image.src} alt={p.image.alt} fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 768px) 736px, 92vw" className="object-cover" />
+          </div>
+        )}
       </header>
 
       <section className="mt-12" aria-labelledby="how">

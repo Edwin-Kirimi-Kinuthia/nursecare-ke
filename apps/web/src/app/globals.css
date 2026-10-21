@@ -96,53 +96,58 @@ body {
 ::-webkit-scrollbar-thumb:hover { background: #94a3b8 }
 
 /* ── Pharmacy product cards ───────────────────────────────────────────────────
-   Adapted from the owner's Django shop: pastel tiles that cycle through four
-   colours, a dark vertical name ribbon that slides in from the left, a tilting
-   product image, and an action row. Hover effects only where hover exists. */
+   Pastel tiles that cycle through four colours (from the owner's earlier shop),
+   with the product photo framed in white. The photo zooms on hover but is
+   clipped by its frame, so it never spills over the card. */
 .pcard {
   --pc-1: #E3F8FF; --pc-2: #DCFAFB; --pc-3: #FFE8DF; --pc-4: #F0FFF0;
-  --pc-dark: #161616; --pc-accent: #FF5151;
-  position: relative; display: flex; flex-direction: column; height: 100%;
-  border-radius: 1rem; overflow: hidden; background: var(--pc-bg, var(--pc-1));
-  transition: box-shadow .3s ease, transform .3s ease;
+  --pc-accent: #E11D48;
+  position: relative; display: flex; flex-direction: column; height: 100%; min-width: 0;
+  border-radius: 1.25rem; padding: .75rem; background: var(--pc-bg, var(--pc-1));
+  border: 1px solid rgba(15, 23, 42, .05);
+  transition: box-shadow .35s ease, transform .35s cubic-bezier(.16,1,.3,1);
 }
 .pcard[data-tone="0"] { --pc-bg: var(--pc-1); }
 .pcard[data-tone="1"] { --pc-bg: var(--pc-2); }
 .pcard[data-tone="2"] { --pc-bg: var(--pc-3); }
 .pcard[data-tone="3"] { --pc-bg: var(--pc-4); }
-.pcard__img { position: relative; height: 200px; display: flex; align-items: center; justify-content: center; padding: 1rem; overflow: hidden; cursor: pointer; }
-.pcard__img img, .pcard__img .pcard__tile { max-width: 100%; max-height: 100%; width: 100%; height: 100%; object-fit: contain; border-radius: 15px; background: #fff; transition: transform .5s ease; }
-.pcard__tile { display: grid; place-items: center; }
-.pcard__name {
-  position: absolute; left: -3.5rem; top: 0; bottom: 0; width: 3.5rem; z-index: 2;
-  writing-mode: vertical-rl; transform: rotate(180deg); background: var(--pc-dark); color: #fff;
-  font-weight: 700; font-size: .8rem; letter-spacing: .02em; display: flex; align-items: center; justify-content: center;
-  padding: .75rem 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; transition: left .45s ease;
-}
-.pcard__body, .pcard__price { transition: padding .45s ease; }
-.pcard__actions { transition: padding .45s ease; }
-.pcard__body { padding: .25rem 1.25rem .5rem; flex: 1; }
+.pcard__img { position: relative; aspect-ratio: 1 / 1; overflow: hidden; border-radius: 1rem; background: #fff; cursor: pointer; isolation: isolate; }
+.pcard__img img, .pcard__img .pcard__tile { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; padding: .75rem; transition: transform .6s cubic-bezier(.16,1,.3,1); }
+.pcard__img .pcard__tile { padding: 0; display: grid; place-items: center; }
+.pcard__body { display: flex; flex-direction: column; flex: 1; padding: .85rem .35rem .25rem; min-width: 0; cursor: pointer; }
 .pcard__cat { font-size: .68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #64748b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pcard__title { margin-top: .15rem; font-weight: 800; line-height: 1.25; color: #0f172a; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
-.pcard__meta { margin-top: .35rem; font-size: .78rem; color: #475569; display: flex; align-items: center; gap: .3rem; }
-.pcard__stock { margin-top: .35rem; font-size: .78rem; font-weight: 700; color: #047857; }
+.pcard__title { margin-top: .2rem; font-weight: 800; line-height: 1.3; color: #0f172a; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; word-break: break-word; }
+.pcard__meta { margin-top: .4rem; font-size: .76rem; color: #475569; display: flex; align-items: center; gap: .3rem; min-width: 0; }
+.pcard__stock { margin-top: .35rem; font-size: .76rem; font-weight: 700; color: #047857; display: inline-flex; align-items: center; gap: .35rem; }
+.pcard__stock::before { content: ""; width: .45rem; height: .45rem; border-radius: 9999px; background: currentColor; }
 .pcard__stock.is-low { color: var(--pc-accent); }
-.pcard__price { display: flex; align-items: center; justify-content: center; padding: .25rem 1.25rem .75rem; font-size: 1.25rem; font-weight: 800; color: #0f766e; }
-.pcard__actions { display: flex; justify-content: space-around; align-items: center; padding: .6rem 1rem; background: rgba(255,255,255,.8); min-height: 3.4rem; }
-.pcard__btn { display: inline-flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 9999px; color: var(--pc-dark); transition: color .25s, background .25s, transform .2s; }
-.pcard__btn:hover:not(:disabled) { color: var(--pc-accent); background: #fff; }
-.pcard__btn:active:not(:disabled) { transform: scale(.92); }
-.pcard__btn:disabled { opacity: .35; cursor: not-allowed; }
-.pcard__chip { position: absolute; z-index: 3; font-size: .7rem; font-weight: 700; padding: .15rem .6rem; border-radius: 9999px; background: rgba(255,255,255,.95); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+.pcard__foot { display: flex; align-items: center; justify-content: space-between; gap: .5rem; margin-top: auto; padding: .75rem .35rem .2rem; }
+.pcard__price { font-size: 1.15rem; font-weight: 800; color: #0f766e; white-space: nowrap; }
+.pcard__add { display: inline-flex; align-items: center; gap: .35rem; height: 2.4rem; padding: 0 .95rem; border-radius: 9999px; background: #0f172a; color: #fff; font-size: .85rem; font-weight: 700; white-space: nowrap; transition: background .25s, transform .2s; }
+.pcard__add:hover:not(:disabled) { background: #0d9488; }
+.pcard__add:active:not(:disabled) { transform: scale(.95); }
+.pcard__add:disabled { background: #cbd5e1; cursor: not-allowed; }
+.pcard__qty { display: inline-flex; align-items: center; gap: .15rem; height: 2.4rem; padding: 0 .2rem; border-radius: 9999px; background: #fff; box-shadow: inset 0 0 0 1px rgba(15,23,42,.08); }
+.pcard__qty button { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 9999px; color: #334155; transition: background .2s; }
+.pcard__qty button:hover:not(:disabled) { background: #f1f5f9; }
+.pcard__qty button:disabled { opacity: .35; }
+.pcard__chip { position: absolute; z-index: 2; font-size: .68rem; font-weight: 700; padding: .2rem .6rem; border-radius: 9999px; background: rgba(255,255,255,.95); box-shadow: 0 1px 3px rgba(0,0,0,.1); pointer-events: none; }
+.pcard__view { position: absolute; z-index: 2; right: .6rem; bottom: .6rem; display: grid; place-items: center; width: 2.25rem; height: 2.25rem; border-radius: 9999px; background: rgba(255,255,255,.95); color: #0f172a; box-shadow: 0 2px 6px rgba(0,0,0,.12); opacity: 0; transform: translateY(6px); transition: opacity .3s, transform .3s; }
 @media (hover: hover) {
-  .pcard:hover { box-shadow: 0 .5rem 1.2rem rgba(0,0,0,.15); }
-  .pcard:hover .pcard__name { left: 0; }
-  .pcard:hover .pcard__img img, .pcard:hover .pcard__img .pcard__tile { transform: rotate(8deg) scale(.92); }
-  .pcard:hover .pcard__body, .pcard:hover .pcard__price { padding-left: 4.75rem; }
-  .pcard:hover .pcard__actions { padding-left: 4.5rem; }
+  .pcard:hover { transform: translateY(-4px); box-shadow: 0 18px 36px -16px rgba(15,23,42,.28); }
+  .pcard:hover .pcard__img img, .pcard:hover .pcard__img .pcard__tile { transform: scale(1.12); }
+  .pcard:hover .pcard__view { opacity: 1; transform: none; }
 }
-@media (hover: none) { .pcard__name { display: none; } }
-@media (prefers-reduced-motion: reduce) { .pcard, .pcard * { transition: none !important; } .pcard:hover .pcard__img img { transform: none !important; } }
+@media (hover: none) { .pcard__view { opacity: 1; transform: none; } }
+@media (max-width: 420px) {
+  .pcard { padding: .55rem; border-radius: 1rem; }
+  .pcard__body { padding: .65rem .2rem .2rem; }
+  .pcard__title { font-size: .9rem; }
+  .pcard__foot { flex-wrap: wrap; padding: .6rem .2rem .1rem; }
+  .pcard__price { font-size: 1rem; }
+  .pcard__add, .pcard__qty { width: 100%; justify-content: center; }
+}
+@media (prefers-reduced-motion: reduce) { .pcard, .pcard * { transition: none !important; } .pcard:hover { transform: none; } .pcard:hover .pcard__img img { transform: none !important; } }
 
 /* ── Home page motion ─────────────────────────────────────────────────────── */
 @keyframes marquee { from { transform: translateX(0) } to { transform: translateX(-50%) } }

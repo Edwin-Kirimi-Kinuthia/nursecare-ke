@@ -98,50 +98,51 @@ export default function ProviderProfile({
         <div className="relative h-32 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600">
           <div className="absolute inset-0 opacity-20 [background:radial-gradient(circle_at_15%_20%,white,transparent_40%)]" />
         </div>
-        <div className="relative z-10 px-6 pb-6 sm:px-8">
-          <div className="flex flex-wrap items-end gap-4">
+        <div className="relative z-10 px-5 pb-6 sm:px-8">
+          {/* Photo overlaps the banner; everything else sits fully below it, so
+              nothing collides with the banner edge at any width. */}
+          <div className="-mt-14 flex items-end justify-between gap-4">
             {provider.user.avatarUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={provider.user.avatarUrl}
                 alt={provider.user.fullName}
-                width={96}
-                height={96}
-                className="-mt-12 h-24 w-24 rounded-3xl border-4 border-white bg-white object-cover object-top shadow-lg"
+                width={112}
+                height={112}
+                className="h-28 w-28 shrink-0 rounded-3xl border-4 border-white bg-white object-cover object-top shadow-lg"
               />
             ) : (
-              <div className="-mt-12 grid h-24 w-24 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
+              <div className="grid h-28 w-28 shrink-0 place-items-center rounded-3xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-4xl font-bold text-teal-700 shadow-lg">
                 {nameInitial(provider.user.fullName)}
               </div>
             )}
-            <div className="flex-1">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-extrabold text-slate-900">{provider.user.fullName}</h1>
-                {provider.verificationStatus === "verified" && <BadgeCheck className="h-5 w-5 text-teal-600" />}
-              </div>
-              <p className="text-teal-700">
-                {provider.specialty ?? "Clinician"}
-                {provider.subSpecialty && <span className="text-slate-400"> · {provider.subSpecialty}</span>}
-              </p>
-              <AvailabilityBadge available={provider.isAvailable} size="md" className="mt-1" />
-              {(provider.licenceBody || provider.licenceNumber) && (
-                <p className="mt-1 flex items-center gap-1 text-sm text-slate-500">
-                  <BadgeCheck className="h-4 w-4 text-teal-600" aria-hidden />
-                  Licensed{provider.licenceBody ? ` by ${provider.licenceBody}` : ""}
-                  {provider.licenceNumber ? ` · No. ${provider.licenceNumber}` : ""}
-                </p>
-              )}
-              <div className="mt-1 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-                <span className="flex items-center gap-1"><Stars value={provider.ratingAvg} />
-                  {provider.ratingCount > 0 && <span className="ml-1">{provider.ratingAvg} ({provider.ratingCount})</span>}
-                </span>
-                {location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {location}</span>}
-              </div>
-            </div>
-            <div className="rounded-2xl bg-teal-50 px-5 py-3 text-center">
+            <div className="mb-1 rounded-2xl bg-teal-50 px-4 py-2.5 text-right ring-1 ring-teal-100 sm:px-5 sm:py-3">
               <div className="text-xs text-teal-600">Consultation</div>
-              <div className="text-xl font-extrabold text-teal-700">{kes(provider.consultationFeeKes)}</div>
+              <div className="text-lg font-extrabold text-teal-700 sm:text-xl">{kes(provider.consultationFeeKes)}</div>
             </div>
+          </div>
+          <div className="mt-4 min-w-0">
+            <div className="flex items-center gap-2">
+              <h1 className="break-words text-2xl font-extrabold text-slate-900 sm:text-3xl">{provider.user.fullName}</h1>
+              {provider.verificationStatus === "verified" && <BadgeCheck className="h-6 w-6 shrink-0 text-teal-600" aria-label="Verified" />}
+            </div>
+            <p className="mt-0.5 text-teal-700">
+              {provider.specialty ?? "Clinician"}
+              {provider.subSpecialty && <span className="text-slate-400"> · {provider.subSpecialty}</span>}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-sm text-slate-500">
+              <AvailabilityBadge available={provider.isAvailable} size="md" />
+              <span className="flex items-center gap-1"><Stars value={provider.ratingAvg} />
+                {provider.ratingCount > 0 && <span className="ml-1">{provider.ratingAvg} ({provider.ratingCount})</span>}
+              </span>
+              {location && <span className="flex items-center gap-1"><MapPin className="h-3.5 w-3.5" /> {location}</span>}
+            </div>
+            {(provider.licenceBody || provider.licenceNumber) && (
+              <p className="mt-2 flex items-start gap-1.5 text-sm text-slate-500">
+                <BadgeCheck className="mt-0.5 h-4 w-4 shrink-0 text-teal-600" aria-hidden />
+                <span>Licensed{provider.licenceBody ? ` by ${provider.licenceBody}` : ""}{provider.licenceNumber ? ` · No. ${provider.licenceNumber}` : ""}</span>
+              </p>
+            )}
           </div>
 
           {provider.bio && <p className="mt-5 text-slate-600">{provider.bio}</p>}
