@@ -1,3 +1,4 @@
+import { absoluteUrl } from "@/lib/links";
 import { Image, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -33,7 +34,7 @@ export default function DrugScreen() {
   return (
     <Screen onRefresh={res.reload} refreshing={res.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
       <View style={{ height: 260, borderRadius: 24, overflow: "hidden", backgroundColor: "#F8FAFC" }}>
-        {gallery[0] ? <Image source={{ uri: gallery[0] }} style={{ width: "100%", height: "100%" }} resizeMode="cover" accessibilityLabel={drug.name} />
+        {gallery[0] ? <Image source={{ uri: absoluteUrl(gallery[0]) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" accessibilityLabel={drug.name} />
           : <LinearGradient colors={[from, to]} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={80} color="rgba(255,255,255,0.9)" /></LinearGradient>}
       </View>
       <View style={{ gap: 4 }}>

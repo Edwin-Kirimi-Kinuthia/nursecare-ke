@@ -8,7 +8,7 @@ import { api } from "@/lib/api";
 import { useCart } from "@/lib/cart";
 import { errorMessage } from "@/lib/useAsync";
 import { useAppConfig } from "@/lib/appConfig";
-import { openSite } from "@/lib/links";
+import { absoluteUrl, openSite } from "@/lib/links";
 import { pickImageDataUrl } from "@/lib/pickImage";
 import { kes } from "@/lib/format";
 import { MpesaPay } from "@/features/MpesaPay";
@@ -102,7 +102,7 @@ export default function CartScreen() {
             return (
               <View key={id} style={{ flexDirection: "row", alignItems: "center", gap: 12, backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 12 }}>
                 <View style={{ width: 52, height: 52, borderRadius: 12, backgroundColor: "#F8FAFC", overflow: "hidden" }}>
-                  {l.drug.imageUrl ? <Image source={{ uri: l.drug.imageUrl }} style={{ width: "100%", height: "100%" }} /> : null}
+                  {l.drug.imageUrl ? <Image source={{ uri: absoluteUrl(l.drug.imageUrl) }} style={{ width: "100%", height: "100%" }} /> : null}
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ fontFamily: "Inter_600SemiBold" }} numberOfLines={2}>{l.drug.name}</Text>

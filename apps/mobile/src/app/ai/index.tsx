@@ -1,3 +1,4 @@
+import { absoluteUrl } from "@/lib/links";
 import { useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { router } from "expo-router";
@@ -69,7 +70,7 @@ export default function AiScreen() {
               <Text variant="caption" tone="faint">Over-the-counter options you can order now — not a substitute for professional advice.</Text>
               {result.pharmacySuggestions.map((d) => (
                 <Pressable key={d.id} onPress={() => router.push("/pharmacy")} accessibilityRole="button" style={{ flexDirection: "row", alignItems: "center", gap: 12, borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 12, padding: 8 }}>
-                  <View style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: "#F8FAFC", overflow: "hidden" }}>{d.imageUrl ? <Image source={{ uri: d.imageUrl }} style={{ width: "100%", height: "100%" }} /> : null}</View>
+                  <View style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: "#F8FAFC", overflow: "hidden" }}>{d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} /> : null}</View>
                   <View style={{ flex: 1 }}><Text style={{ fontFamily: "Inter_600SemiBold" }} numberOfLines={1}>{d.name}</Text><Text style={{ color: "#0F766E", fontFamily: "Inter_700Bold" }}>{kes(d.priceKes)}</Text></View>
                 </Pressable>
               ))}

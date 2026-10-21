@@ -1,3 +1,4 @@
+import { absoluteUrl } from "@/lib/links";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
@@ -82,7 +83,7 @@ function DrugCard({ d }: { d: StorefrontDrug }) {
     <View style={{ backgroundColor: "#fff", borderRadius: 20, borderWidth: 1, borderColor: t.border, overflow: "hidden" }}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`}>
         <View style={{ height: 190, backgroundColor: "#F8FAFC" }}>
-          {d.imageUrl ? <Image source={{ uri: d.imageUrl }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+          {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
             : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
           <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 12, top: 12 }} />
           {qty > 0 && <View style={{ position: "absolute", right: 12, top: 12, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}

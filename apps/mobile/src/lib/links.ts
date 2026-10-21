@@ -22,3 +22,6 @@ export async function emailTo(to: string, subject?: string) {
   } catch { /* fall through */ }
   Alert.alert("Email us", to);
 }
+
+/** The API returns site-relative paths ("/products/x.jpg"); a phone has no page to resolve them against. */
+export const absoluteUrl = (uri: string | null | undefined) => (uri?.startsWith("/") ? `${SITE_URL}${uri}` : (uri ?? undefined));

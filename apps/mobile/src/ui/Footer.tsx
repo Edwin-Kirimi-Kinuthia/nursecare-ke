@@ -59,6 +59,7 @@ export function Footer() {
         <Link label="How we verify providers" onPress={() => void openSite("/how-we-verify-providers")} />
         <Link label="Join as a provider" onPress={() => router.navigate("/apply/provider")} />
         <Link label="Privacy policy" onPress={() => void openSite("/privacy")} />
+        <Link label="Photo credits" onPress={() => void openSite("/photo-credits")} />
         <Link label="Delete your account" onPress={() => router.navigate("/delete-account")} />
       </View>
 

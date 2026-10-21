@@ -1,3 +1,4 @@
+import { absoluteUrl } from "@/lib/links";
 import { useState } from "react";
 import { Alert, Image, Pressable, Switch, View } from "react-native";
 import { Pencil, Trash2, X, ImagePlus } from "lucide-react-native";
@@ -34,7 +35,7 @@ export function PharmacyAdmin() {
         <Card key={d.id} style={{ borderRadius: 16, opacity: d.isActive ? 1 : 0.55 }}>
           <View style={{ flexDirection: "row", gap: 12, alignItems: "center" }}>
             <View style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#E2E8F0", overflow: "hidden" }}>
-              {d.imageUrl ? <Image source={{ uri: d.imageUrl }} style={{ width: "100%", height: "100%" }} /> : null}
+              {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} /> : null}
             </View>
             <View style={{ flex: 1, gap: 2 }}>
               <Text style={{ fontFamily: "Inter_700Bold" }}>{d.name}</Text>

@@ -70,6 +70,7 @@ export default function Footer() {
           <Link href="/how-we-verify-providers" className="block text-slate-500 hover:text-teal-700">How we verify providers</Link>
           <Link href="/providers/apply" className="block text-slate-500 hover:text-teal-700">Join as a provider</Link>
           <Link href="/privacy" className="block text-slate-500 hover:text-teal-700">Privacy policy</Link>
+          <Link href="/photo-credits" className="block text-slate-500 hover:text-teal-700">Photo credits</Link>
           <Link href="/delete-account" className="block text-slate-500 hover:text-teal-700">Delete your account</Link>
           <a href="/api/v1/docs" className="block text-slate-500 hover:text-teal-700">API docs</a>
         </nav>
