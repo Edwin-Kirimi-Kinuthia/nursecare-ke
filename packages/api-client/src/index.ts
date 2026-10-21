@@ -722,7 +722,7 @@ export class CareBoraClient {
   }
   /** Put the starter OTC range on sale with placeholder prices and stock. Safe to repeat. */
   adminImportStarterOtc() {
-    return this.post<{ total: number; created: number; photosAdded: number; categoriesTidied: number }>(`/admin/drugs/import-otc`, {});
+    return this.post<{ total: number; created: number; photosAdded: number; described: number; categoriesTidied: number }>(`/admin/drugs/import-otc`, {});
   }
   adminDeleteDrug(drugId: string) {
     return this.request<{ id: string; isActive: boolean }>(`/admin/drugs/${drugId}`, { method: "DELETE" });

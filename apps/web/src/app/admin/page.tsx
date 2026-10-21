@@ -1016,7 +1016,7 @@ function PharmacyTab() {
     setImporting(true); setImportMsg(null);
     try {
       const r = await api.adminImportStarterOtc();
-      setImportMsg(`Added ${r.created} drug(s) of ${r.total}${r.photosAdded ? `, ${r.photosAdded} photo(s) attached` : ""}. Now edit each price and stock to match what you have.`);
+      setImportMsg(`Added ${r.created} drug(s) of ${r.total}${r.photosAdded ? `, ${r.photosAdded} photo(s) attached` : ""}${r.described ? `, ${r.described} description(s) expanded` : ""}. Now edit each price and stock to match what you have.`);
       await reload();
     } catch (e) { setImportMsg(e instanceof Error ? e.message : "Import failed"); }
     finally { setImporting(false); }

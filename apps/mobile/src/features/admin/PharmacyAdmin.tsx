@@ -24,7 +24,7 @@ export function PharmacyAdmin() {
   const drugs = list.data ?? [];
   const importStarter = () => Alert.alert("Add the common OTC range?", "Prices and stock are placeholders (stock 50) for you to edit. Drugs already in the catalogue are not changed.", [
     { text: "Cancel", style: "cancel" },
-    { text: "Import", onPress: () => run("import", async () => { const r = await api.adminImportStarterOtc(); setNotice(`Added ${r.created} drug(s) of ${r.total}. Now edit each price and stock.`); }, list.reload) },
+    { text: "Import", onPress: () => run("import", async () => { const r = await api.adminImportStarterOtc(); setNotice(`Added ${r.created} drug(s) of ${r.total}${r.described ? `, ${r.described} description(s) expanded` : ""}. Now edit each price and stock.`); }, list.reload) },
   ]);
   const confirmRemove = (d: AdminDrug) => Alert.alert(`Remove "${d.name}"?`, "This hides it from every vendor.", [
     { text: "Cancel", style: "cancel" }, { text: "Remove", style: "destructive", onPress: () => run(d.id, () => api.adminDeleteDrug(d.id), list.reload) },

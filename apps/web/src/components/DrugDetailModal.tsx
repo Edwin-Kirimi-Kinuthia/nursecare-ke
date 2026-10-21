@@ -132,7 +132,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
               {drug.description && (
                 <div className="mt-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">Description</h3>
-                  <p className="mt-1 text-sm leading-relaxed text-slate-600">{drug.description}</p>
+                  <p className="mt-1 whitespace-pre-line text-sm leading-relaxed text-slate-600">{drug.description}</p>
                 </div>
               )}
 

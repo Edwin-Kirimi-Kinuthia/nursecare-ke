@@ -9,6 +9,7 @@ import {
 } from "@carebora/shared";
 import { HOUSE_ORG_SLUG, upsertHouseListing } from "./house-pharmacy";
 import { OTC_STARTER } from "./otc-catalogue";
+import { describe } from "./otc-details";
 
 const PLACEHOLDER_STOCK = 50;
 
@@ -110,13 +111,13 @@ export const drugService = {
    * drug's price and stock are left alone — it only gains a photo it lacks.
    */
   async importStarterOtc(adminUserId: string) {
-    let created = 0, photosAdded = 0;
+    let created = 0, photosAdded = 0, described = 0;
     for (const item of OTC_STARTER) {
       const url = item.img ? `/products/${item.img}` : undefined;
       const existing = await db.drug.findFirst({ where: { name: { equals: item.name, mode: "insensitive" } } });
       if (!existing) {
         await this.adminCreate(adminUserId, {
-          name: item.name, genericName: item.generic, description: item.description, category: item.category, form: item.form, strength: item.strength,
+          name: item.name, genericName: item.generic, description: describe(item), category: item.category, form: item.form, strength: item.strength,
           requiresPrescription: false, ...(url ? { imageUrl: url, images: [url] } : {}), priceKes: item.price, stockQty: PLACEHOLDER_STOCK,
         });
         created++;
@@ -124,12 +125,16 @@ export const drugService = {
         const data: Prisma.DrugUpdateInput = {};
         if (!existing.isActive) data.isActive = true;
         if (url && !existing.imageUrl) { data.imageUrl = url; data.images = [url]; photosAdded++; }
+        // Replace the old one-line blurbs, but never an owner's own longer text.
+        const full = describe(item);
+        const old = existing.description ?? "";
+        if (full.length > 120 && (old.length === 0 || (old.length <= 90 && !old.includes("\n")))) { data.description = full; described++; }
         if (Object.keys(data).length) await db.drug.update({ where: { id: existing.id }, data });
       }
     }
     // The first catalogue entries used a very long category that overflowed the cards.
     const renamed = await db.drug.updateMany({ where: { category: { startsWith: "Analgesics, Antipyretics" } }, data: { category: "Pain & Fever" } });
-    return { total: OTC_STARTER.length, created, photosAdded, categoriesTidied: renamed.count };
+    return { total: OTC_STARTER.length, created, photosAdded, described, categoriesTidied: renamed.count };
   },
 
   async remove(drugId: string) {
