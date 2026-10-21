@@ -27,20 +27,21 @@ type Entry = {
  * for the whole site, including the pages that really did change.
  */
 const STATIC_ROUTES: Entry[] = [
-  { path: "/", changeFrequency: "weekly", priority: 1, updated: SERVICE_PAGES_UPDATED },
+  { path: "/", changeFrequency: "weekly", priority: 1, updated: "2026-10-21" },
   { path: "/online-doctor-kenya", changeFrequency: "monthly", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
   { path: "/sick-off-sheet-online-kenya", changeFrequency: "monthly", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
   { path: "/home-visits-nairobi", changeFrequency: "monthly", priority: 0.8, updated: SERVICE_PAGES_UPDATED },
   { path: "/ambulance-nairobi", changeFrequency: "monthly", priority: 0.8, updated: SERVICE_PAGES_UPDATED },
   { path: "/providers", changeFrequency: "daily", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
-  { path: "/pharmacy", changeFrequency: "daily", priority: 0.7, updated: SERVICE_PAGES_UPDATED },
+  { path: "/pharmacy", changeFrequency: "daily", priority: 0.7, updated: "2026-10-21" },
   { path: "/how-we-verify-providers", changeFrequency: "monthly", priority: 0.6, updated: SERVICE_PAGES_UPDATED },
   { path: "/about", changeFrequency: "monthly", priority: 0.6, updated: SERVICE_PAGES_UPDATED },
   { path: "/contact", changeFrequency: "monthly", priority: 0.5, updated: SERVICE_PAGES_UPDATED },
-  { path: "/ai", changeFrequency: "monthly", priority: 0.4, updated: "2026-10-08" },
+  { path: "/ai", changeFrequency: "monthly", priority: 0.5, updated: "2026-10-21" },
   { path: "/providers/apply", changeFrequency: "monthly", priority: 0.4, updated: "2026-10-08" },
   { path: "/vendors/apply", changeFrequency: "monthly", priority: 0.3, updated: "2026-10-08" },
   { path: "/privacy", changeFrequency: "yearly", priority: 0.3, updated: "2026-10-08" },
+  { path: "/delete-account", changeFrequency: "yearly", priority: 0.2, updated: "2026-10-16" },
 ];
 
 /**

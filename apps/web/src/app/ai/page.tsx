@@ -24,13 +24,12 @@ const URGENCY = {
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 const inputCls = "w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm text-slate-900 placeholder-slate-400 focus:border-teal-400 focus:outline-none focus:ring-2 focus:ring-teal-400/20";
 
+// Visible to everyone (and to search engines); signing in is only asked for when they submit.
 export default function AiPage() {
-  const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const isClinician = !!user && CLINICIAN_ROLES.includes(user.role);
   const [tab, setTab] = useState<"symptoms" | "clinical">("symptoms");
 
-  if (!authLoading && !user) { router.replace("/login"); return null; }
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10">
@@ -64,6 +63,7 @@ export default function AiPage() {
 /* ── Patients ─────────────────────────────────────────────────────────────── */
 function SymptomChecker() {
   const router = useRouter();
+  const { user } = useAuth();
   const [symptoms, setSymptoms] = useState("");
   const [age, setAge] = useState("");
   const [sex, setSex] = useState<"" | "female" | "male">("");
@@ -80,6 +80,7 @@ function SymptomChecker() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (symptoms.trim().length < 5) return;
+    if (!user) { router.push("/login"); return; }
     setLoading(true); setError(null); setResult(null);
     try {
       setResult(await api.symptomCheck({
@@ -141,7 +142,7 @@ function SymptomChecker() {
         <button type="submit" disabled={loading || symptoms.trim().length < 5}
           className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-violet-500/30 transition hover:bg-violet-700 disabled:opacity-50">
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
-          {loading ? "Thinking it through…" : "Check my symptoms"}
+          {loading ? "Thinking it through…" : user ? "Check my symptoms" : "Log in to check my symptoms"}
         </button>
       </form>
 
