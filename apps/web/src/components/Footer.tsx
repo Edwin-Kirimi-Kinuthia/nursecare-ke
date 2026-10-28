@@ -122,14 +122,7 @@ export default function Footer() {
         </p>
         <p className="mt-1.5">
           Developed by{" "}
-          <a
-            href="https://edwin-kirimi-kinuthia.github.io/Edwin-Kirimi-Portfolio/"
-            target="_blank"
-            rel="noreferrer"
-            className="font-semibold text-teal-700 hover:underline"
-          >
-            Edwin Kirimi Kinuthia
-          </a>
+          <span className="font-semibold text-teal-700">Dr. Mercy Chebet Limo</span>
         </p>
       </div>
     </footer>

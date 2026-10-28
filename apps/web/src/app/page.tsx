@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
+import heroImg from "@/assets/home/hero-video-call.jpg";
 import {
   Video, Pill, HomeIcon, ShieldCheck, Smartphone, ArrowRight, Star, FileText, Ambulance, Phone,
   BadgeCheck, FlaskConical, CheckCircle2, Clock, Lock, MapPin, Sparkles,
@@ -81,15 +83,15 @@ export default async function HomePage() {
               <span className="bg-gradient-to-r from-teal-600 via-emerald-500 to-sky-500 bg-clip-text text-transparent">made accessible.</span>
             </h1>
             <p className="animate-slide-up delay-100 mx-auto mt-6 max-w-xl text-base text-slate-600 sm:text-lg lg:mx-0">
-              See a licence-checked doctor by video, get your medicines delivered and book care at
-              home — all paid for with M-Pesa, all in one place.
+              Speak to a qualified doctor by video, get prescriptions when appropriate, and have your
+              medicines delivered to your doorstep.
             </p>
             <div className="animate-slide-up delay-200 mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
               <Link href="/providers" className="inline-flex items-center justify-center gap-2 rounded-xl bg-teal-600 px-6 py-3.5 font-semibold text-white shadow-lg shadow-teal-600/25 transition hover:-translate-y-0.5 hover:bg-teal-700">
                 Find a provider <ArrowRight className="h-4 w-4" />
               </Link>
               <Link href="/pharmacy" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 font-semibold text-slate-800 shadow-sm ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:ring-teal-200">
-                <Pill className="h-4 w-4 text-[#f97366]" /> Shop the pharmacy
+                <Pill className="h-4 w-4 text-[#f97366]" /> Browse the pharmacy
               </Link>
             </div>
             <div className="animate-fade-in delay-300 mt-8 flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-slate-600 lg:justify-start">
@@ -100,16 +102,17 @@ export default async function HomePage() {
           </div>
 
           <div className="animate-fade-in delay-200 relative mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="relative aspect-[5/4] rounded-[2.5rem] bg-white/70 p-4 shadow-2xl shadow-teal-900/10 ring-1 ring-white backdrop-blur sm:p-8">
-              <div className="absolute inset-4 rounded-[2rem] bg-gradient-to-br from-teal-100/70 via-white to-sky-100/70 sm:inset-6" />
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/illustrations/hero-care.svg" alt="Illustration of two doctors beside a heartbeat symbol" fetchPriority="high" className="relative h-full w-full object-contain" />
+            <div className="relative rounded-[2.5rem] bg-white/70 p-2.5 shadow-2xl shadow-teal-900/15 ring-1 ring-white backdrop-blur sm:p-3">
+              <div className="relative aspect-[3/2] overflow-hidden rounded-[2rem]">
+                <Image src={heroImg} alt="A woman on a video consultation with a smiling doctor on her laptop" fill placeholder="blur" fetchPriority="high" loading="eager"
+                  sizes="(min-width: 1024px) 560px, 92vw" className="object-cover" />
+              </div>
             </div>
             <div className="float-slow absolute -left-2 top-8 hidden items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100 sm:flex" style={{ ["--r" as string]: "-3deg" }}>
               <span className="grid h-9 w-9 place-items-center rounded-xl bg-emerald-100 text-emerald-700"><CheckCircle2 className="h-5 w-5" /></span>
               <div className="leading-tight"><div className="text-[11px] font-semibold text-slate-400">M-Pesa</div><div className="text-sm font-extrabold text-slate-900">Payment received</div></div>
             </div>
-            <div className="float-slow d2 absolute -right-2 top-1/2 hidden items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100 sm:flex" style={{ ["--r" as string]: "3deg" }}>
+            <div className="float-slow d2 absolute -right-2 bottom-20 hidden items-center gap-2.5 rounded-2xl bg-white px-3.5 py-2.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-100 sm:flex" style={{ ["--r" as string]: "3deg" }}>
               <span className="relative grid h-9 w-9 place-items-center rounded-xl bg-violet-100 text-violet-700"><Video className="h-5 w-5" /><span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-emerald-500 ring-2 ring-white" /></span>
               <div className="leading-tight"><div className="text-[11px] font-semibold text-slate-400">Doctor</div><div className="text-sm font-extrabold text-slate-900">Available now</div></div>
             </div>

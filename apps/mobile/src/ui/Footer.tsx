@@ -89,9 +89,7 @@ export function Footer() {
         <Text style={{ textAlign: "center", fontSize: 12, color: t.textFaint }}>© {new Date().getFullYear()} Care Bora Kenya. All rights reserved.</Text>
         <Text style={{ textAlign: "center", fontSize: 12, color: t.textFaint }}>
           Developed by{" "}
-          <Text onPress={() => void openSite("https://edwin-kirimi-kinuthia.github.io/Edwin-Kirimi-Portfolio/")} style={{ fontSize: 12, color: "#0F766E", fontFamily: "Inter_600SemiBold" }}>
-            Edwin Kirimi Kinuthia
-          </Text>
+          <Text style={{ fontSize: 12, color: "#0F766E", fontFamily: "Inter_600SemiBold" }}>Dr. Mercy Chebet Limo</Text>
         </Text>
       </View>
     </View>
