@@ -148,14 +148,14 @@ function LoginForm() {
   return (
     <div className="relative grid min-h-[calc(100vh-4rem)] lg:grid-cols-[1fr_1.05fr]">
       {/* Illustrated panel (wide screens only) */}
-      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-teal-600 via-emerald-600 to-sky-600 lg:flex lg:flex-col" aria-hidden>
+      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#647f6c] via-[#526f57] to-[#24472d] lg:flex lg:flex-col" aria-hidden>
         <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="relative mx-10 mt-14 flex-1 rounded-[2rem] bg-white/95 p-8 shadow-2xl shadow-black/20 xl:mx-14">
+        <div className="relative mx-10 mt-14 flex-1 rounded-xl bg-[#e4eddc] p-8 shadow-xl shadow-black/10 xl:mx-14">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/illustrations/login-welcome.svg" alt="" className="h-full max-h-[22rem] w-full object-contain" />
         </div>
         <div className="relative p-10 xl:p-14">
-          <p className="text-3xl font-extrabold leading-tight text-white xl:text-4xl">Quality care, from wherever you are.</p>
+          <p className="font-display text-3xl font-normal leading-tight tracking-tight text-white xl:text-4xl">Quality care, from wherever you are.</p>
           <ul className="mt-6 space-y-2.5 text-teal-50">
             <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Licence-checked doctors and nurses</li>
             <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Private video consultations</li>
@@ -166,7 +166,7 @@ function LoginForm() {
     <div className="relative flex items-center justify-center overflow-hidden px-4 py-14">
       <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-slate-50">
         <div className="animate-blob absolute -left-24 top-10 h-80 w-80 rounded-full bg-teal-200/40 blur-3xl" />
-        <div className="animate-blob absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-emerald-200/40 blur-3xl delay-200" />
+        <div className="animate-blob absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-teal-200/40 blur-3xl delay-200" />
       </div>
 
       <div className="w-full max-w-md">
@@ -175,13 +175,13 @@ function LoginForm() {
           <img src="/logo-full.png" alt="Care Bora Kenya" width={150} height={124} className="h-24 w-auto drop-shadow-sm" />
         </div>
 
-        <div className="rounded-[28px] border border-slate-200/80 bg-white/90 p-8 shadow-2xl shadow-slate-300/30 backdrop-blur-xl sm:p-10">
+        <div className="rounded-xl border border-teal-200 bg-[#f9fbf5] p-8 shadow-xl shadow-teal-900/5 sm:p-10">
           {step === "login-otp" ? (
             <>
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
                 <ShieldCheck className="h-6 w-6 text-teal-600" />
               </div>
-              <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">Check your email</h1>
+              <h1 className="text-center text-3xl font-medium tracking-tight text-slate-900">Check your email</h1>
               <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
                 For your security, we sent a 6-digit code to <strong className="text-slate-700">{form.email}</strong>.
               </p>
@@ -198,7 +198,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy || loginCode.length !== 6}
-                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? "Verifying…" : "Verify & log in"}
                 </button>
@@ -221,7 +221,7 @@ function LoginForm() {
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
                 <KeyRound className="h-6 w-6 text-teal-600" />
               </div>
-              <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">Reset your password</h1>
+              <h1 className="text-center text-3xl font-medium tracking-tight text-slate-900">Reset your password</h1>
               <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
                 Enter your email and we&apos;ll send you a link to set a new password.
               </p>
@@ -234,7 +234,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy}
-                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? "Sending…" : "Send reset link"}
                 </button>
@@ -252,7 +252,7 @@ function LoginForm() {
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
                 <ShieldCheck className="h-6 w-6 text-teal-600" />
               </div>
-              <h1 className="text-center text-2xl font-extrabold tracking-tight text-slate-900">Verify your email</h1>
+              <h1 className="text-center text-3xl font-medium tracking-tight text-slate-900">Verify your email</h1>
               <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
                 We sent a 6-digit code to <strong className="text-slate-700">{form.email}</strong>. Enter it below.
               </p>
@@ -269,7 +269,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy || code.length !== 6}
-                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? "Please wait…" : "Verify"}
                 </button>
@@ -286,7 +286,7 @@ function LoginForm() {
             </>
           ) : (
             <>
-              <h1 className="text-center text-[26px] font-extrabold tracking-tight text-slate-900">
+              <h1 className="text-center text-3xl font-medium tracking-tight text-slate-900">
                 {mode === "login" ? "Welcome back" : "Create your account"}
               </h1>
               <p className="mt-1.5 text-center text-sm leading-relaxed text-slate-500">
@@ -357,7 +357,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy}
-                  className="w-full rounded-xl bg-gradient-to-r from-teal-600 to-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:from-teal-700 hover:to-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
                 </button>

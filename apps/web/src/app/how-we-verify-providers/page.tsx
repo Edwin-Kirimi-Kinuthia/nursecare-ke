@@ -46,9 +46,9 @@ export default function HowWeVerifyPage() {
       <JsonLd data={faqSchema(FAQS, PATH)} />
       <Breadcrumbs trail={trail} />
 
-      <header>
+      <header className="page-banner page-banner--inset">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-teal-600"><ShieldCheck className="h-4 w-4" aria-hidden /> Trust and safety</p>
-        <h1 className="mt-1.5 text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">How we verify doctors and providers</h1>
+        <h1 className="page-title mt-4 text-slate-900">How we verify doctors and providers</h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-600">
           Choosing someone to treat you means trusting them. Here is exactly what we check before a clinician appears on Care Bora, what
           that does and does not tell you, and how you can check for yourself.

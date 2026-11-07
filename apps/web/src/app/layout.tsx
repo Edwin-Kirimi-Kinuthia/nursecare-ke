@@ -12,7 +12,7 @@ import WhatsAppButton from "@/components/WhatsAppButton";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
-const inter = Inter({ subsets: ["latin"], display: "swap" });
+const inter = Inter({ subsets: ["latin"], display: "swap", variable: "--font-inter" });
 // Display face for headings and the landing hero, from the sage & forest theme.
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-poppins" });
 
@@ -71,8 +71,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-KE" className={`${inter.className} ${poppins.variable}`}>
-      <body className="min-h-screen bg-[#f4f7f3] text-slate-900 antialiased" suppressHydrationWarning>
+    <html lang="en-KE" className={`${inter.variable} ${poppins.variable}`}>
+      <body className="min-h-screen bg-background text-foreground antialiased" suppressHydrationWarning>
         <AuthProvider>
           <IdleLogout />
           <LocationProvider>

@@ -28,9 +28,9 @@ export default function AboutPage() {
       <JsonLd data={breadcrumbSchema(trail)} />
       <Breadcrumbs trail={trail} />
 
-      <header>
+      <header className="page-banner page-banner--inset">
         <p className="text-sm font-semibold text-teal-600">About us</p>
-        <h1 className="mt-1.5 text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">About Care Bora Kenya</h1>
+        <h1 className="page-title mt-4 text-slate-900">About Care Bora Kenya</h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-600">
           Care Bora is a Kenyan telehealth platform based in Nairobi. We connect people with clinicians whose practice licences we have checked,
           so that seeing a doctor, getting a sick-off sheet or arranging a home visit takes a few minutes on a phone instead of a day of travel

@@ -22,34 +22,33 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 export const revalidate = 600;
 
 /**
- * Each service has its own colour, used for its card tint, its icon and the
- * illustration's accent (the SVGs in /public/illustrations are recoloured to
- * match), so the grid reads as a set of distinct, friendly doors.
+ * Pale sage panels and forest-green actions repeat the reference's palette.
+ * Illustrations and labels distinguish services within the shared theme.
  */
 const SERVICES = [
   { title: "See a doctor online", desc: "Private video consultations with licence-checked doctors and nurses, from anywhere in Kenya.", href: "/online-doctor-kenya", art: "/illustrations/svc-video.svg", Icon: Video,
     card: "from-teal-50 to-emerald-50 ring-teal-100", icon: "bg-teal-600", link: "text-teal-700" },
   { title: "Pharmacy delivery", desc: "Everyday medicines from licensed pharmacies, delivered to your door.", href: "/pharmacy", art: "/illustrations/svc-pharmacy.svg", Icon: Pill,
-    card: "from-orange-50 to-rose-50 ring-orange-100", icon: "bg-[#f97366]", link: "text-[#d9483a]" },
+    card: "from-[#dce8d3] to-[#edf2e5] ring-teal-200", icon: "bg-teal-700", link: "text-teal-800" },
   { title: "Care at home", desc: "A nurse or physiotherapist comes to you.", href: "/home-visits-nairobi", art: "/illustrations/svc-home.svg", Icon: HomeIcon,
-    card: "from-sky-50 to-cyan-50 ring-sky-100", icon: "bg-sky-500", link: "text-sky-700" },
+    card: "from-[#e5eddc] to-[#f1f4e9] ring-teal-200", icon: "bg-teal-600", link: "text-teal-800" },
   { title: "Lab tests", desc: "Book tests at an approved lab; results land in your record.", href: "/labs", art: "/illustrations/svc-lab.svg", Icon: FlaskConical,
-    card: "from-violet-50 to-fuchsia-50 ring-violet-100", icon: "bg-violet-500", link: "text-violet-700" },
+    card: "from-[#d6e3cd] to-[#ecf0e2] ring-teal-200", icon: "bg-teal-700", link: "text-teal-800" },
   { title: "Sick-off sheets & forms", desc: "Medical reports and school, work or insurance forms, signed by a clinician.", href: "/contact", art: "/illustrations/svc-docs.svg", Icon: FileText,
-    card: "from-pink-50 to-rose-50 ring-pink-100", icon: "bg-pink-500", link: "text-pink-700" },
+    card: "from-[#e7edde] to-[#f3f5ec] ring-teal-200", icon: "bg-teal-600", link: "text-teal-800" },
 ] as const;
 
 const STEPS = [
   { n: "1", title: "Create an account", desc: "Sign up in seconds — all you need is an email.", art: "/illustrations/step-signup.svg", tint: "bg-teal-50", badge: "bg-teal-600" },
-  { n: "2", title: "Find your provider", desc: "Browse licence-checked clinicians, see their fees and pick an open time.", art: "/illustrations/step-find.svg", tint: "bg-violet-50", badge: "bg-violet-500" },
-  { n: "3", title: "Pay, then see your doctor", desc: "Pay with M-Pesa, then join a private video call at your time.", art: "/illustrations/step-pay.svg", tint: "bg-amber-50", badge: "bg-amber-500" },
+  { n: "2", title: "Find your provider", desc: "Browse licence-checked clinicians, see their fees and pick an open time.", art: "/illustrations/step-find.svg", tint: "bg-[#e5eddc]", badge: "bg-teal-700" },
+  { n: "3", title: "Pay, then see your doctor", desc: "Pay with M-Pesa, then join a private video call at your time.", art: "/illustrations/step-pay.svg", tint: "bg-[#dce8d3]", badge: "bg-teal-800" },
 ];
 
 const WHY = [
   { Icon: BadgeCheck, title: "Licence-checked clinicians", desc: "Every provider submits their practice licence for review before they appear.", tone: "bg-teal-50 text-teal-700" },
-  { Icon: Lock, title: "Private by design", desc: "Your records are yours. You choose who else can see them.", tone: "bg-violet-50 text-violet-700" },
-  { Icon: Smartphone, title: "Pay with M-Pesa", desc: "Fees shown upfront. No cards, no surprises.", tone: "bg-amber-50 text-amber-700" },
-  { Icon: FileText, title: "Documents you can use", desc: "Sick-off sheets, medical reports and forms, signed by a clinician.", tone: "bg-pink-50 text-pink-700" },
+  { Icon: Lock, title: "Private by design", desc: "Your records are yours. You choose who else can see them.", tone: "bg-teal-100 text-teal-700" },
+  { Icon: Smartphone, title: "Pay with M-Pesa", desc: "Fees shown upfront. No cards, no surprises.", tone: "bg-teal-50 text-teal-700" },
+  { Icon: FileText, title: "Documents you can use", desc: "Sick-off sheets, medical reports and forms, signed by a clinician.", tone: "bg-teal-100 text-teal-700" },
 ];
 
 export default async function HomePage() {
@@ -68,12 +67,11 @@ export default async function HomePage() {
 
       {/* ── Hero — sage sky, clouds and rolling hills, with the consultation photo at its centre. */}
       <section className="hero-sky relative isolate overflow-hidden">
-        <Cloud className="hero-cloud slow -left-10 top-6 w-56 sm:w-80" />
         <Cloud className="hero-cloud right-[-2rem] top-24 hidden w-44 sm:block" />
         <Cloud className="hero-cloud slow -left-16 top-[46%] hidden w-72 opacity-80 lg:block" />
         <Hills />
 
-        <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-10 sm:pt-14 lg:min-h-[920px] lg:pb-14">
+        <div className="relative mx-auto max-w-7xl px-4 pb-10 pt-10 sm:pt-14 lg:min-h-[840px] lg:pb-14">
           {/* Giant display line, partly behind the photo */}
           <h1 className="relative z-0 text-center lg:text-left">
             <span className="hero-title animate-slide-up block text-[clamp(3rem,10.5vw,9.25rem)] uppercase">Quality care</span>
@@ -85,10 +83,19 @@ export default async function HomePage() {
             Licence-checked doctors, right on your phone.
           </p>
 
+          <div className="relative z-20 mt-6 flex flex-wrap justify-center gap-3 lg:hidden">
+            <Link href="/providers" className="inline-flex items-center justify-center gap-2 rounded-md bg-teal-800 px-5 py-3 text-sm font-semibold text-white hover:bg-teal-900">
+              Find a provider <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link href="/pharmacy" className="inline-flex items-center justify-center gap-2 rounded-md border border-white/50 bg-white/10 px-5 py-3 text-sm font-medium text-white hover:bg-white/20">
+              Browse the pharmacy
+            </Link>
+          </div>
+
           {/* The photo — the centrepiece */}
           <div className="animate-fade-in delay-200 relative z-10 mx-auto mt-8 w-full max-w-xl lg:absolute lg:left-1/2 lg:top-[9rem] lg:mt-0 lg:w-[min(38vw,520px)] lg:max-w-none lg:-translate-x-1/2">
             <div className="pointer-events-none absolute -inset-10 -z-10 rounded-full bg-[radial-gradient(closest-side,rgba(230,245,232,.7),transparent)]" />
-            <div className="relative aspect-[3/2] overflow-hidden rounded-[2rem] shadow-2xl shadow-[#16361d]/35 ring-4 ring-white/40">
+            <div className="relative aspect-[3/2] overflow-hidden rounded-xl shadow-xl shadow-[#16361d]/25 ring-1 ring-white/50">
               <Image src={heroImg} alt="A woman on a video consultation with a smiling doctor on her laptop" fill placeholder="blur" fetchPriority="high" loading="eager"
                 sizes="(min-width: 1024px) 520px, 92vw" className="object-cover" />
             </div>
@@ -139,12 +146,12 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="lg:justify-self-end">
+            <div className="rounded-lg bg-[#24472d]/95 p-5 lg:justify-self-end">
               <p className="mx-auto max-w-md border-white/80 text-center text-lg leading-snug text-white sm:text-xl lg:mx-0 lg:max-w-lg lg:border-l-4 lg:pl-5 lg:text-left lg:text-[1.35rem]">
                 Speak to a qualified doctor by video, get prescriptions when appropriate, and have your
                 medicines delivered to your doorstep.
               </p>
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start lg:pl-6">
+              <div className="mt-6 hidden justify-start gap-3 lg:flex lg:pl-6">
                 <Link href="/providers" className="inline-flex items-center justify-center gap-2 rounded-md bg-[#1f5a26] px-6 py-3.5 font-semibold text-white shadow-lg shadow-[#0b1f10]/30 transition hover:-translate-y-0.5 hover:bg-[#184a1f]">
                   Find a provider <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -200,7 +207,7 @@ export default async function HomePage() {
       <section className="mx-auto max-w-6xl px-4 py-20">
         <Reveal className="mx-auto max-w-2xl text-center">
           <p className="text-sm font-bold uppercase tracking-widest text-teal-600">What we offer</p>
-          <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Everything your family needs</h2>
+          <h2 className="section-title mt-3 text-3xl text-slate-900 sm:text-4xl">Everything your family needs</h2>
           <p className="mt-3 text-slate-500">One place for consultations, medicines, tests and care at home.</p>
         </Reveal>
 
@@ -248,7 +255,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl px-4">
           <Reveal className="mx-auto max-w-2xl text-center">
             <p className="text-sm font-bold uppercase tracking-widest text-teal-600">How it works</p>
-            <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Care in three simple steps</h2>
+            <h2 className="section-title mt-3 text-3xl text-slate-900 sm:text-4xl">Care in three simple steps</h2>
             <p className="mt-3 text-slate-500">From sign-up to your consultation, all from your phone.</p>
           </Reveal>
           <div className="relative mt-14 grid gap-6 md:grid-cols-3">
@@ -292,7 +299,7 @@ export default async function HomePage() {
           <div className="order-1 lg:order-2">
             <Reveal>
               <p className="text-sm font-bold uppercase tracking-widest text-teal-600">Why Care Bora</p>
-              <h2 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Care you can trust, for the whole family</h2>
+              <h2 className="section-title mt-3 text-3xl text-slate-900 sm:text-4xl">Care you can trust, for the whole family</h2>
               <p className="mt-3 text-slate-500">Built in Kenya, for how Kenyans actually get care: on the phone, paid with M-Pesa, with real clinicians.</p>
             </Reveal>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
@@ -315,11 +322,11 @@ export default async function HomePage() {
         <section className="mx-auto max-w-6xl px-4 py-16" aria-labelledby="reviews">
           <Reveal className="text-center">
             <p className="text-sm font-bold uppercase tracking-widest text-teal-600">Reviews</p>
-            <h2 id="reviews" className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">What patients say</h2>
+            <h2 id="reviews" className="section-title mt-3 text-3xl text-slate-900 sm:text-4xl">What patients say</h2>
           </Reveal>
           <div className="mt-10 grid gap-5 md:grid-cols-3">
             {reviews.map((r, i) => {
-              const tone = ["bg-teal-50", "bg-violet-50", "bg-amber-50"][i % 3];
+              const tone = ["bg-teal-50", "bg-[#dce8d3]", "bg-[#e7edde]"][i % 3];
               return (
                 <Reveal key={r.id} delay={i * 100}>
                   <figure className={`relative h-full rounded-3xl ${tone} p-6`}>
@@ -347,7 +354,7 @@ export default async function HomePage() {
         <div className="grid items-start gap-10 lg:grid-cols-[0.85fr_1.15fr]">
           <Reveal className="lg:sticky lg:top-24">
             <p className="text-sm font-bold uppercase tracking-widest text-teal-600">FAQ</p>
-            <h2 id="faq" className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Questions people ask</h2>
+            <h2 id="faq" className="section-title mt-3 text-3xl text-slate-900 sm:text-4xl">Questions people ask</h2>
             <p className="mt-3 text-slate-500">
               More in <Link href="/online-doctor-kenya" className="font-semibold text-teal-700 hover:underline">how online consultations work</Link> and{" "}
               <Link href="/how-we-verify-providers" className="font-semibold text-teal-700 hover:underline">how we verify providers</Link>.
@@ -368,7 +375,7 @@ export default async function HomePage() {
             <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
             <div className="pointer-events-none absolute -right-16 -top-16 h-64 w-64 rounded-full bg-white/10" />
             <div className="relative text-center lg:text-left">
-              <h2 className="text-3xl font-extrabold text-white sm:text-4xl">Ready to see a doctor?</h2>
+              <h2 className="section-title text-3xl text-white sm:text-4xl">Ready to see a doctor?</h2>
               <p className="mx-auto mt-3 max-w-lg text-teal-50 lg:mx-0">Create a free account and get quality care from anywhere in Kenya.</p>
               <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row lg:justify-start">
                 <Link href="/login" className="inline-flex items-center justify-center gap-2 rounded-xl bg-white px-6 py-3.5 font-semibold text-teal-800 transition hover:-translate-y-0.5">

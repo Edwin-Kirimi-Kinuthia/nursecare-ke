@@ -36,15 +36,15 @@ export default function PageHeader({
     <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-4 ${className}`}>
       <div className="min-w-0">
         {eyebrow && (
-          <p className={`flex items-center gap-1.5 text-sm font-semibold ${TONE_TEXT[tone]}`}>
+          <p className={`page-eyebrow flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] ${TONE_TEXT[tone]}`}>
             {Icon && <Icon className="h-4 w-4 shrink-0" />}
             {eyebrow}
           </p>
         )}
-        <h1 className="mt-1.5 text-balance text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">
+        <h1 className="page-title mt-4 text-slate-900">
           {title}
         </h1>
-        {lede && <p className="mt-2 max-w-2xl text-slate-500">{lede}</p>}
+        {lede && <p className="mt-4 max-w-2xl leading-relaxed text-slate-600 sm:text-lg">{lede}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

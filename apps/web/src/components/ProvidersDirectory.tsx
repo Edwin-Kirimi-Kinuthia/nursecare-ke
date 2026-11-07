@@ -55,8 +55,8 @@ export default function ProvidersDirectory({
   return (
     <div>
       {/* Header */}
-      <section className="border-b border-slate-200 bg-white">
-        <div className="mx-auto max-w-6xl px-4 py-12">
+      <section className="page-banner">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:py-16">
           <PageHeader
             eyebrow="Care providers"
             Icon={Stethoscope}

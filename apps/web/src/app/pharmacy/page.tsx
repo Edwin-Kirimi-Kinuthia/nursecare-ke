@@ -8,6 +8,7 @@ import DrugCard from "@/components/DrugCard";
 import DrugDetailModal from "@/components/DrugDetailModal";
 import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
 import EmptyState from "@/components/EmptyState";
+import PageHeader from "@/components/PageHeader";
 
 export default function PharmacyPage() {
   const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
@@ -59,16 +60,11 @@ export default function PharmacyPage() {
   return (
     <div>
       {/* Header */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-orange-50 via-white to-teal-50">
-        <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(249,115,102,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="pointer-events-none absolute -left-24 -top-24 h-72 w-72 rounded-full bg-orange-200/50 blur-3xl" />
-        <div className="pointer-events-none absolute -right-20 bottom-0 h-72 w-72 rounded-full bg-teal-200/50 blur-3xl" />
+      <section className="page-banner">
         <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:py-14 md:grid-cols-[1.2fr_1fr]">
           <div>
-          <p className="flex items-center gap-1.5 text-sm font-semibold text-[#e05a4c]"><Pill className="h-4 w-4" /> Pharmacy</p>
-          <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">Medicine, delivered</h1>
-          <p className="mt-3 max-w-xl text-slate-600 sm:text-lg">Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa.</p>
-          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-2xl bg-white p-1.5 shadow-xl shadow-slate-900/10 ring-1 ring-slate-200">
+          <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Medicine, delivered" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
+          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-lg bg-[#f9fbf5] p-1.5 ring-1 ring-teal-300">
             <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
             <input
               value={search}

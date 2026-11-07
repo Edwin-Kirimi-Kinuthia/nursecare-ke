@@ -86,8 +86,8 @@ export default function Nav() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
-        <nav className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3">
+      <header className="site-header sticky top-0 z-50 border-b backdrop-blur-xl">
+        <nav className="mx-auto flex h-16 max-w-7xl items-center gap-2 px-4 sm:gap-3">
           <button
             onClick={() => setOpen(true)}
             aria-label="Open menu"
@@ -97,7 +97,7 @@ export default function Nav() {
             <Menu className="h-5 w-5" />
           </button>
 
-          <Link href="/" className="flex shrink-0 items-center gap-2 font-extrabold tracking-tight text-slate-900">
+          <Link href="/" className="flex shrink-0 items-center gap-2 font-medium tracking-tight text-slate-900">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo-mark.png" alt="Care Bora Kenya" width={40} height={35} className="h-9 w-auto" />
             <span className="text-lg">Care&nbsp;Bora</span>
@@ -125,7 +125,7 @@ export default function Nav() {
               </Link>
             )}
             <NotificationBell />
-            <button onClick={openCart} className="relative rounded-lg p-2 text-slate-600 transition hover:bg-slate-100" aria-label="Open cart">
+            <button onClick={openCart} className="relative rounded-md bg-teal-700 p-2.5 text-white transition hover:bg-teal-800" aria-label="Open cart">
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && (
                 <span className="absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white">
@@ -147,7 +147,7 @@ export default function Nav() {
                 <span className="max-w-[8rem] truncate text-sm font-medium text-slate-700">{user.fullName.split(" ")[0]}</span>
               </Link>
             ) : (
-              <Link href="/login" className="rounded-xl bg-slate-900 px-3 py-2 text-sm font-semibold text-white transition hover:bg-slate-700 sm:px-4">
+              <Link href="/login" className="rounded-md border border-teal-300 bg-teal-100 px-3 py-2 text-sm font-medium text-teal-900 transition hover:bg-teal-200 sm:px-4">
                 Log in
               </Link>
             )}
@@ -167,7 +167,7 @@ export default function Nav() {
         role="dialog"
         aria-modal="true"
         aria-label="Menu"
-        className={`fixed left-0 top-0 z-[70] flex h-dvh w-[20rem] max-w-[85vw] flex-col bg-white shadow-2xl transition-transform duration-200 ease-out ${
+        className={`fixed left-0 top-0 z-[70] flex h-dvh w-[20rem] max-w-[85vw] flex-col bg-background shadow-2xl transition-transform duration-200 ease-out ${
           open ? "translate-x-0" : "-translate-x-full"
         }`}
       >

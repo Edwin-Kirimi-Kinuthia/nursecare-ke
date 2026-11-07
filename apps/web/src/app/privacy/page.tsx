@@ -32,7 +32,7 @@ export default function PrivacyPolicyPage() {
       <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">
         <ShieldCheck className="h-4 w-4" /> Legal
       </div>
-      <h1 className="mt-1 text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Privacy Policy</h1>
+      <h1 className="page-title mt-4 text-slate-900">Privacy Policy</h1>
       <p className="mt-2 text-sm text-slate-500">Effective {EFFECTIVE_DATE}</p>
 
       <p className="mt-6 leading-relaxed text-slate-600">

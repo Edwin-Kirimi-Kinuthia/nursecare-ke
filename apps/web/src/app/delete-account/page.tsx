@@ -28,9 +28,9 @@ export default function DeleteAccountPage() {
       <JsonLd data={breadcrumbSchema(trail)} />
       <Breadcrumbs trail={trail} />
 
-      <header>
+      <header className="page-banner page-banner--inset">
         <p className="flex items-center gap-1.5 text-sm font-semibold text-rose-600"><Trash2 className="h-4 w-4" aria-hidden /> Your data</p>
-        <h1 className="mt-1.5 text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">Delete your Care Bora account</h1>
+        <h1 className="page-title mt-4 text-slate-900">Delete your Care Bora account</h1>
         <p className="mt-4 text-lg leading-relaxed text-slate-600">
           You can delete your account and personal data yourself, at any time, from the app or this website. It takes under a minute and cannot be undone.
         </p>

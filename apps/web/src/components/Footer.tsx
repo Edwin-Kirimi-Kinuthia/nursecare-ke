@@ -18,7 +18,7 @@ export default function Footer() {
   if (pathname?.startsWith("/consultations/")) return null;
 
   return (
-    <footer className="mt-20 border-t border-slate-200 bg-white">
+    <footer className="site-footer mt-20 border-t">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 sm:grid-cols-2 lg:grid-cols-[1.2fr_1fr_1fr_1.4fr]">
         {/* Brand */}
         <div className="sm:col-span-2 lg:col-span-1">

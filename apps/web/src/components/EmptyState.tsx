@@ -27,7 +27,7 @@ export default function EmptyState({
   className?: string;
 }) {
   return (
-    <div className={`rounded-3xl border border-dashed border-slate-300 bg-white px-6 py-12 text-center ${className}`}>
+    <div className={`rounded-xl border border-slate-200 bg-[#e9eee1] px-6 py-12 text-center ${className}`}>
       <div className={`mx-auto grid h-14 w-14 place-items-center rounded-2xl ${TONE[tone]}`}>
         <Icon className="h-7 w-7" />
       </div>

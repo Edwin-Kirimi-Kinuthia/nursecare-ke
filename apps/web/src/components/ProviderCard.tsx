@@ -13,11 +13,12 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
   return (
     <Link
       href={`/providers/${p.userId}`}
-      className="card-lift group block overflow-hidden rounded-2xl border border-slate-200 bg-white"
+      className="card-lift group block overflow-hidden rounded-xl border border-teal-200 bg-[#f9fbf5]"
     >
       {/* Banner */}
-      <div className="relative h-24 bg-gradient-to-br from-teal-500 via-teal-600 to-emerald-600">
-        <div className="absolute inset-0 opacity-20 [background:radial-gradient(circle_at_20%_20%,white,transparent_40%)]" />
+      <div className="relative h-24 overflow-hidden bg-[#c8d9bd]">
+        <div className="absolute -bottom-16 -left-8 h-28 w-[75%] rotate-[-8deg] rounded-[50%] bg-[#9db78d]" />
+        <div className="absolute -bottom-20 right-[-10%] h-32 w-[90%] rotate-[6deg] rounded-[50%] bg-[#7f9d72]" />
         {verified && (
           <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-xs font-semibold text-teal-700 shadow-sm">
             <BadgeCheck className="h-3.5 w-3.5" /> Verified
@@ -34,10 +35,10 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
             alt={p.user.fullName}
             width={72}
             height={72}
-            className="-mt-10 h-[72px] w-[72px] rounded-2xl border-4 border-white bg-white object-cover object-top shadow-md"
+            className="-mt-10 h-[72px] w-[72px] rounded-lg border-4 border-[#f9fbf5] bg-white object-cover object-top shadow-sm"
           />
         ) : (
-          <div className="-mt-10 grid h-[72px] w-[72px] place-items-center rounded-2xl border-4 border-white bg-gradient-to-br from-teal-100 to-emerald-100 text-2xl font-bold text-teal-700 shadow-md">
+          <div className="-mt-10 grid h-[72px] w-[72px] place-items-center rounded-lg border-4 border-[#f9fbf5] bg-teal-100 text-2xl font-medium text-teal-800 shadow-sm">
             {nameInitial(p.user.fullName)}
           </div>
         )}
@@ -45,7 +46,7 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
 
       {/* Body */}
       <div className="px-5 pb-5 pt-3">
-        <h3 className="font-bold text-slate-900">{p.user.fullName}</h3>
+        <h3 className="text-lg font-medium text-slate-900">{p.user.fullName}</h3>
         <p className="text-sm text-teal-700">
           {p.specialty ?? "Clinician"}
           {p.subSpecialty && <span className="text-slate-400"> · {p.subSpecialty}</span>}

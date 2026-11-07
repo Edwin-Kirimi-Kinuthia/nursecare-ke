@@ -4,6 +4,7 @@ import { ArrowRight, Phone, AlertTriangle } from "lucide-react";
 import { JsonLd } from "@/components/JsonLd";
 import Breadcrumbs from "@/components/Breadcrumbs";
 import FaqList from "@/components/FaqList";
+import PageHeader from "@/components/PageHeader";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
 import { breadcrumbSchema, faqSchema, serviceSchema, type Faq } from "@/lib/structured-data";
 
@@ -54,10 +55,8 @@ export default function ServicePage(p: ServicePageProps) {
 
       <Breadcrumbs trail={trail} />
 
-      <header>
-        <p className="text-sm font-semibold text-teal-600">{p.eyebrow}</p>
-        <h1 className="mt-1.5 text-balance text-3xl font-extrabold tracking-tight text-slate-900 sm:text-4xl">{p.h1}</h1>
-        <p className="mt-4 text-lg leading-relaxed text-slate-600">{p.intro}</p>
+      <header className="page-banner page-banner--inset">
+        <PageHeader eyebrow={p.eyebrow} title={p.h1} lede={p.intro} />
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <Link href={p.cta.href} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700">
             {p.cta.label} <ArrowRight className="h-4 w-4" />
@@ -67,9 +66,9 @@ export default function ServicePage(p: ServicePageProps) {
           Written by the Care Bora team · Last checked {updatedLabel}. This page describes how our service works and is not medical advice.
         </p>
         {p.illustration && (
-          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl bg-gradient-to-br from-teal-50 via-white to-emerald-100 ring-1 ring-slate-200/70">
+          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-[#eef3e7] ring-1 ring-teal-200">
             <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-teal-200/50 blur-2xl" />
-            <div className="absolute -bottom-12 -left-8 h-52 w-52 rounded-full bg-rose-200/40 blur-2xl" />
+            <div className="absolute -bottom-12 -left-8 h-52 w-52 rounded-full bg-teal-200/40 blur-2xl" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={p.illustration.src} alt={p.illustration.alt} className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
           </div>
