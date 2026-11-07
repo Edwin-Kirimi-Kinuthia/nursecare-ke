@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Inter, Poppins } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import IdleLogout from "@/components/IdleLogout";
@@ -13,6 +13,8 @@ import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], display: "swap" });
+// Display face for headings and the landing hero, from the sage & forest theme.
+const poppins = Poppins({ subsets: ["latin"], weight: ["400", "500", "600", "700"], display: "swap", variable: "--font-poppins" });
 
 export const metadata: Metadata = {
   // Driven by NEXT_PUBLIC_APP_URL so canonicals and OG URLs follow the real
@@ -69,8 +71,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en-KE" className={inter.className}>
-      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased" suppressHydrationWarning>
+    <html lang="en-KE" className={`${inter.className} ${poppins.variable}`}>
+      <body className="min-h-screen bg-[#f4f7f3] text-slate-900 antialiased" suppressHydrationWarning>
         <AuthProvider>
           <IdleLogout />
           <LocationProvider>

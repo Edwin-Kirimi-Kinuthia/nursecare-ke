@@ -16,7 +16,7 @@ export function GET() {
   <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
   <style>
     body { margin: 0; }
-    #swagger-ui .topbar { background: #0d9488; }
+    #swagger-ui .topbar { background: #2f6638; }
     #swagger-ui .topbar-wrapper img { content: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg"/>'); width: 0; }
     #swagger-ui .topbar-wrapper::before { content: "CareBora API"; color: white; font-size: 1.25rem; font-weight: 700; }
   </style>

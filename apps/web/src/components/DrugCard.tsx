@@ -33,7 +33,7 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
           {d.requiresPrescription ? "Rx" : "OTC"}
         </span>
         {qty > 0 && (
-          <span className="pcard__chip inline-flex items-center gap-1" style={{ right: ".6rem", top: ".6rem", background: "#0d9488", color: "#fff" }}>
+          <span className="pcard__chip inline-flex items-center gap-1" style={{ right: ".6rem", top: ".6rem", background: "#2f6638", color: "#fff" }}>
             <Check className="h-3 w-3" /> {qty} in cart
           </span>
         )}
