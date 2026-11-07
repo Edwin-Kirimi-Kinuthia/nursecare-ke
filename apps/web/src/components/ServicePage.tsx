@@ -25,8 +25,6 @@ export interface ServicePageProps {
   faqs: Faq[];
   /** A photo shown under the introduction. */
   image?: { src: StaticImageData; alt: string; credit?: { author: string; license: string; source: string } };
-  /** Or a flat illustration (public path), shown on a pastel panel. */
-  illustration?: { src: string; alt: string };
   related: { label: string; href: string; blurb: string }[];
   /** ISO date the content was last checked. Shown to readers and used by the sitemap. */
   updated: string;
@@ -48,45 +46,42 @@ export default function ServicePage(p: ServicePageProps) {
   const updatedLabel = new Date(p.updated).toLocaleDateString("en-KE", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Nairobi" });
 
   return (
-    <article className="mx-auto max-w-3xl px-4 py-10">
+    <article className="service-landing mx-auto px-4 py-8 sm:py-10">
       <JsonLd data={serviceSchema({ name: p.name, description: p.schemaDescription, path: p.path })} />
       <JsonLd data={faqSchema(p.faqs, p.path)} />
       <JsonLd data={breadcrumbSchema(trail)} />
 
       <Breadcrumbs trail={trail} />
 
-      <header className="page-banner page-banner--inset">
+      <header className={`page-banner page-banner--inset grid items-center gap-8 ${p.image ? "lg:grid-cols-[1.1fr_1fr]" : ""}`}>
+        <div>
         <PageHeader eyebrow={p.eyebrow} title={p.h1} lede={p.intro} />
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Link href={p.cta.href} className="inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-3 font-semibold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700">
+          <Link href={p.cta.href} className="button-primary">
             {p.cta.label} <ArrowRight className="h-4 w-4" />
           </Link>
         </div>
-        <p className="mt-4 text-xs text-slate-400">
+        <p className="mt-4 text-xs leading-relaxed text-slate-500">
           Written by the Care Bora team · Last checked {updatedLabel}. This page describes how our service works and is not medical advice.
         </p>
-        {p.illustration && (
-          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-xl bg-[#eef3e7] ring-1 ring-teal-200">
-            <div className="absolute -right-10 -top-10 h-48 w-48 rounded-full bg-teal-200/50 blur-2xl" />
-            <div className="absolute -bottom-12 -left-8 h-52 w-52 rounded-full bg-teal-200/40 blur-2xl" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={p.illustration.src} alt={p.illustration.alt} className="absolute inset-0 h-full w-full object-contain p-6 sm:p-10" />
-          </div>
-        )}
+        </div>
         {p.image && (
-          <div className="relative mt-8 aspect-[16/9] overflow-hidden rounded-3xl shadow-xl shadow-slate-900/10">
-            <Image src={p.image.src} alt={p.image.alt} fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 768px) 736px, 92vw" className="object-cover" />
+          <figure>
+          <div className="service-photo aspect-[4/3] overflow-hidden rounded-xl">
+            <Image src={p.image.src} alt={p.image.alt} fill placeholder="blur" fetchPriority="high" loading="eager" sizes="(min-width: 1024px) 450px, 92vw" className="object-[center_40%]" />
           </div>
-        )}
-        {p.image?.credit && (
-          <p className="mt-2 text-right text-[11px] text-slate-400">
+        {p.image.credit && (
+          <figcaption className="mt-2 text-[11px] leading-relaxed text-slate-500">
             Photo: <a href={p.image.credit.source} target="_blank" rel="noopener noreferrer" className="hover:text-teal-700 hover:underline">{p.image.credit.author}</a>, {p.image.credit.license}
-          </p>
+          </figcaption>
+        )}
+          </figure>
         )}
       </header>
 
+      <div className="service-body">
       <section className="mt-12" aria-labelledby="how">
-        <h2 id="how" className="text-2xl font-extrabold tracking-tight text-slate-900">{p.stepsHeading}</h2>
+        <h2 id="how" className="text-2xl font-semibold tracking-tight text-slate-900">{p.stepsHeading}</h2>
         <ol className="mt-5 space-y-4">
           {p.steps.map((s, i) => (
             <li key={s.title} className="flex gap-4 rounded-2xl border border-slate-200 bg-white p-5">
@@ -102,7 +97,7 @@ export default function ServicePage(p: ServicePageProps) {
 
       {p.sections.map((s) => (
         <section key={s.heading} className="mt-12">
-          <h2 className="text-2xl font-extrabold tracking-tight text-slate-900">{s.heading}</h2>
+          <h2 className="text-2xl font-semibold tracking-tight text-slate-900">{s.heading}</h2>
           {s.paragraphs?.map((t) => <p key={t.slice(0, 32)} className="mt-4 leading-relaxed text-slate-600">{t}</p>)}
           {s.bullets && (
             <ul className="mt-4 list-disc space-y-2 pl-5 leading-relaxed text-slate-600 marker:text-teal-600">
@@ -125,12 +120,12 @@ export default function ServicePage(p: ServicePageProps) {
       )}
 
       <section className="mt-12" aria-labelledby="faq">
-        <h2 id="faq" className="text-2xl font-extrabold tracking-tight text-slate-900">Questions people ask</h2>
+        <h2 id="faq" className="text-2xl font-semibold tracking-tight text-slate-900">Questions people ask</h2>
         <FaqList faqs={p.faqs} className="mt-5" />
       </section>
 
       <section className="mt-12" aria-labelledby="more">
-        <h2 id="more" className="text-xl font-extrabold tracking-tight text-slate-900">Related</h2>
+        <h2 id="more" className="text-xl font-semibold tracking-tight text-slate-900">Related</h2>
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {p.related.map((r) => (
             <Link key={r.href} href={r.href} className="card-lift rounded-2xl border border-slate-200 bg-white p-4">
@@ -140,6 +135,7 @@ export default function ServicePage(p: ServicePageProps) {
           ))}
         </div>
       </section>
+      </div>
     </article>
   );
 }

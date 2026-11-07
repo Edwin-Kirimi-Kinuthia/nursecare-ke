@@ -57,7 +57,7 @@ export default function HowWeVerifyPage() {
       </header>
 
       <section className="mt-12" aria-labelledby="process">
-        <h2 id="process" className="text-2xl font-extrabold tracking-tight text-slate-900">What a provider has to submit</h2>
+        <h2 id="process" className="text-2xl font-semibold tracking-tight text-slate-900">What a provider has to submit</h2>
         <p className="mt-4 leading-relaxed text-slate-600">
           Nobody can list themselves. Every doctor, nurse, physiotherapist or pharmacy professional applies, and their application stays out of
           the directory until our team has reviewed it. The application asks for:
@@ -71,7 +71,7 @@ export default function HowWeVerifyPage() {
       </section>
 
       <section className="mt-12" aria-labelledby="review">
-        <h2 id="review" className="text-2xl font-extrabold tracking-tight text-slate-900">What we do with it</h2>
+        <h2 id="review" className="text-2xl font-semibold tracking-tight text-slate-900">What we do with it</h2>
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <div className="rounded-2xl border border-slate-200 bg-white p-5">
             <FileCheck2 className="h-6 w-6 text-teal-600" aria-hidden />
@@ -87,7 +87,7 @@ export default function HowWeVerifyPage() {
       </section>
 
       <section className="mt-12" aria-labelledby="limits">
-        <h2 id="limits" className="text-2xl font-extrabold tracking-tight text-slate-900">What verification does not mean</h2>
+        <h2 id="limits" className="text-2xl font-semibold tracking-tight text-slate-900">What verification does not mean</h2>
         <p className="mt-4 leading-relaxed text-slate-600">
           It means we reviewed the licence details a provider gave us. It does not mean we guarantee any diagnosis, treatment or result, and it is
           not a substitute for your own judgement. You should always feel free to ask a provider about their experience, to seek a second
@@ -97,7 +97,7 @@ export default function HowWeVerifyPage() {
       </section>
 
       <section className="mt-12" aria-labelledby="reviews">
-        <h2 id="reviews" className="text-2xl font-extrabold tracking-tight text-slate-900">How reviews work</h2>
+        <h2 id="reviews" className="text-2xl font-semibold tracking-tight text-slate-900">How reviews work</h2>
         <p className="mt-4 leading-relaxed text-slate-600">
           Only a patient who has had a completed appointment can review that provider, once per appointment. Reviews show the reviewer&apos;s
           name and are shown on the provider&apos;s profile, with an average rating once they have any. Providers can&apos;t write or edit reviews
@@ -106,7 +106,7 @@ export default function HowWeVerifyPage() {
       </section>
 
       <section className="mt-12" aria-labelledby="concerns">
-        <h2 id="concerns" className="flex items-center gap-2 text-2xl font-extrabold tracking-tight text-slate-900">
+        <h2 id="concerns" className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-slate-900">
           <MessageSquareWarning className="h-6 w-6 text-teal-600" aria-hidden /> If something goes wrong
         </h2>
         <p className="mt-4 leading-relaxed text-slate-600">
@@ -116,7 +116,7 @@ export default function HowWeVerifyPage() {
       </section>
 
       <section className="mt-12" aria-labelledby="faq">
-        <h2 id="faq" className="text-2xl font-extrabold tracking-tight text-slate-900">Questions people ask</h2>
+        <h2 id="faq" className="text-2xl font-semibold tracking-tight text-slate-900">Questions people ask</h2>
         <FaqList faqs={FAQS} className="mt-5" />
       </section>
     </article>

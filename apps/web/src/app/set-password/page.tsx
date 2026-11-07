@@ -42,18 +42,13 @@ function SetPasswordForm() {
 
   return (
     <div className="relative flex min-h-[calc(100vh-4rem)] items-center justify-center overflow-hidden px-4 py-12">
-      <div className="pointer-events-none absolute inset-0 -z-10">
-        <div className="animate-blob absolute -left-20 top-10 h-72 w-72 rounded-full bg-teal-200/50 blur-3xl" />
-        <div className="animate-blob absolute -right-20 bottom-10 h-72 w-72 rounded-full bg-emerald-200/50 blur-3xl delay-200" />
-      </div>
-
       <div className="w-full max-w-md">
         <div className="mb-6 flex justify-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo-full.png" alt="Care Bora Kenya" width={150} height={124} className="h-28 w-auto" />
         </div>
 
-        <div className="rounded-3xl border border-slate-200 bg-white/80 p-8 shadow-xl shadow-slate-200/50 backdrop-blur">
+        <div className="rounded-xl border border-slate-200 bg-white p-8">
           <h1 className="text-center text-2xl font-extrabold text-slate-900">Set your password</h1>
           <p className="mt-1 text-center text-sm text-slate-500">Choose a new password to continue to CareBora.</p>
 

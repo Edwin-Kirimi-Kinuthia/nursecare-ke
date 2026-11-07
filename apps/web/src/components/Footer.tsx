@@ -30,6 +30,12 @@ export default function Footer() {
           <p className="mt-2 max-w-xs text-sm text-slate-500">
             Kenya&apos;s telehealth platform — verified care, home visits, pharmacy delivery, and M-Pesa payments.
           </p>
+          {SITE_FACTS.legalName && (
+            <p className="mt-3 max-w-xs text-xs leading-relaxed text-slate-500">
+              Registered as {SITE_FACTS.legalName}
+              {SITE_FACTS.registrationNumber && <span className="block">Registration {SITE_FACTS.registrationNumber}</span>}
+            </p>
+          )}
           {/* The non-profit this belongs to, linked from every page of the site. */}
           {SITE_FACTS.parentOrgName && SITE_FACTS.parentOrgUrl && (
             <p className="mt-3 max-w-xs text-sm text-slate-500">
@@ -70,6 +76,7 @@ export default function Footer() {
           <Link href="/how-we-verify-providers" className="block text-slate-500 hover:text-teal-700">How we verify providers</Link>
           <Link href="/providers/apply" className="block text-slate-500 hover:text-teal-700">Join as a provider</Link>
           <Link href="/privacy" className="block text-slate-500 hover:text-teal-700">Privacy policy</Link>
+          <Link href="/photo-credits" className="block text-slate-500 hover:text-teal-700">Photography credits</Link>
           <Link href="/delete-account" className="block text-slate-500 hover:text-teal-700">Delete your account</Link>
           <a href="/api/v1/docs" className="block text-slate-500 hover:text-teal-700">API docs</a>
         </nav>
@@ -110,7 +117,7 @@ export default function Footer() {
             <MessageSquare className="h-4 w-4 shrink-0" /> Message us / request a document
           </Link>
           <div className="flex items-center gap-2 text-slate-500">
-            <MapPin className="h-4 w-4 shrink-0" /> Nairobi, Kenya
+            <MapPin className="h-4 w-4 shrink-0" /> {SITE_FACTS.physicalAddress ?? "Nairobi, Kenya"}
           </div>
         </div>
       </div>

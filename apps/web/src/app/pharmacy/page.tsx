@@ -9,6 +9,8 @@ import DrugDetailModal from "@/components/DrugDetailModal";
 import { useLocation, KENYA_COUNTIES } from "@/components/LocationProvider";
 import EmptyState from "@/components/EmptyState";
 import PageHeader from "@/components/PageHeader";
+import Image from "next/image";
+import { CARE_IMAGES } from "@/lib/care-imagery";
 
 export default function PharmacyPage() {
   const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
@@ -61,10 +63,10 @@ export default function PharmacyPage() {
     <div>
       {/* Header */}
       <section className="page-banner">
-        <div className="relative mx-auto grid max-w-6xl items-center gap-8 px-4 py-10 sm:py-14 md:grid-cols-[1.2fr_1fr]">
+        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-8 sm:py-12 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
           <div>
           <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Medicine, delivered" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
-          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-lg bg-[#f9fbf5] p-1.5 ring-1 ring-teal-300">
+          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-lg bg-white p-1.5 ring-1 ring-slate-300">
             <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
             <input
               value={search}
@@ -75,10 +77,10 @@ export default function PharmacyPage() {
             />
           </div>
           </div>
-          <div className="relative hidden aspect-[4/3] md:block">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/illustrations/pharmacy-banner.svg" alt="" className="absolute inset-0 h-full w-full object-contain" />
-          </div>
+          <figure className="overflow-hidden rounded-2xl bg-[#234f34]">
+            <div className="service-photo h-44 sm:h-64 lg:h-72"><Image src={CARE_IMAGES.pharmacy.src} alt={CARE_IMAGES.pharmacy.alt} fill placeholder="blur" loading="eager" sizes="(min-width: 1024px) 480px, 92vw" /></div>
+            <figcaption className="px-5 py-4 text-sm leading-relaxed text-white">Compare pharmacy offers and delivery options. Upload a prescription when required.</figcaption>
+          </figure>
         </div>
       </section>
 

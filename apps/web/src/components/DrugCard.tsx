@@ -7,27 +7,26 @@ import { categoryTheme } from "@/lib/catalog";
 import { useCart } from "@/components/CartProvider";
 
 /**
- * A pharmacy product card. `index` picks one of four pastel backgrounds so a
- * grid reads as a patchwork rather than a wall of white (the style of the
- * owner's earlier shop). Styles live in globals.css (.pcard).
+ * A pharmacy product card. Photos, pricing, and stock share the same neutral
+ * layout. Styles live in globals.css (.pcard).
  */
 export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; onOpen?: () => void; index?: number }) {
   const { items, add, sub } = useCart();
   const qty = items[d.listingId] ?? 0;
-  const { Icon, from, to } = categoryTheme(d.category);
+  const { Icon } = categoryTheme(d.category);
   const lowStock = d.stockQty > 0 && d.stockQty < 20;
   const outOfStock = d.stockQty === 0;
 
   return (
     <article className="pcard" data-tone={index % 4}>
-      <div className="pcard__img" onClick={onOpen} role={onOpen ? "button" : undefined} aria-label={onOpen ? `View ${d.name} details` : undefined}>
+      <button type="button" className="pcard__img w-full text-left" onClick={onOpen} disabled={!onOpen} aria-label={`View ${d.name} details`}>
         {d.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={d.imageUrl} alt={d.name} loading="lazy" />
         ) : (
-          <div className={`pcard__tile bg-gradient-to-br ${from} ${to}`}>
-            <Icon className="h-14 w-14 text-white/90 drop-shadow" strokeWidth={1.5} />
-          </div>
+          <span className="pcard__tile bg-slate-50">
+            <Icon className="h-12 w-12 text-slate-400" strokeWidth={1.5} />
+          </span>
         )}
         <span className="pcard__chip" style={{ left: ".6rem", top: ".6rem", color: d.requiresPrescription ? "#6d28d9" : "#047857" }}>
           {d.requiresPrescription ? "Rx" : "OTC"}
@@ -40,11 +39,11 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
         {outOfStock && <span className="pcard__chip" style={{ left: ".6rem", bottom: ".6rem", background: "#e11d48", color: "#fff" }}>Out of stock</span>}
         {lowStock && <span className="pcard__chip" style={{ left: ".6rem", bottom: ".6rem", background: "#f59e0b", color: "#fff" }}>Only {d.stockQty} left</span>}
         {onOpen && <span className="pcard__view" aria-hidden><Eye className="h-4 w-4" /></span>}
-      </div>
+      </button>
 
-      <div className="pcard__body" onClick={onOpen} role={onOpen ? "button" : undefined}>
+      <div className="pcard__body">
         <div className="pcard__cat" title={d.category}>{d.category}</div>
-        <h3 className="pcard__title">{d.name}</h3>
+        <h3 className="pcard__title">{onOpen ? <button type="button" onClick={onOpen} className="text-left hover:underline">{d.name}</button> : d.name}</h3>
         <p className="pcard__meta">
           <MapPin className="h-3 w-3 shrink-0" />
           <span className="truncate">

@@ -36,7 +36,7 @@ export default function PageHeader({
     <div className={`flex flex-wrap items-end justify-between gap-x-6 gap-y-4 ${className}`}>
       <div className="min-w-0">
         {eyebrow && (
-          <p className={`page-eyebrow flex items-center gap-2 text-xs font-semibold uppercase tracking-[.14em] ${TONE_TEXT[tone]}`}>
+          <p className={`flex items-center gap-2 text-sm font-medium ${TONE_TEXT[tone]}`}>
             {Icon && <Icon className="h-4 w-4 shrink-0" />}
             {eyebrow}
           </p>

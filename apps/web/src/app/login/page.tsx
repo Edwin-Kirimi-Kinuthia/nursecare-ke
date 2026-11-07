@@ -2,6 +2,8 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { CARE_IMAGES } from "@/lib/care-imagery";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
@@ -147,35 +149,18 @@ function LoginForm() {
 
   return (
     <div className="relative grid min-h-[calc(100vh-4rem)] lg:grid-cols-[1fr_1.05fr]">
-      {/* Illustrated panel (wide screens only) */}
-      <aside className="relative hidden overflow-hidden bg-gradient-to-br from-[#647f6c] via-[#526f57] to-[#24472d] lg:flex lg:flex-col" aria-hidden>
-        <div className="pointer-events-none absolute inset-0 [background-image:radial-gradient(rgba(255,255,255,.14)_1px,transparent_1px)] [background-size:22px_22px]" />
-        <div className="relative mx-10 mt-14 flex-1 rounded-xl bg-[#e4eddc] p-8 shadow-xl shadow-black/10 xl:mx-14">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/illustrations/login-welcome.svg" alt="" className="h-full max-h-[22rem] w-full object-contain" />
+      <aside className="hidden flex-col justify-center gap-8 bg-[#e3ebda] px-12 py-12 text-slate-900 lg:flex xl:px-16">
+        <div>
+          <p className="text-sm font-medium text-teal-700">Care Bora Kenya</p>
+          <h2 className="mt-5 max-w-md text-4xl font-medium leading-tight tracking-tight">Your care.<br />All in one place.</h2>
+          <p className="mt-5 max-w-md leading-relaxed text-slate-600">Manage your appointments, join a consultation, and find your prescriptions and care records.</p>
         </div>
-        <div className="relative p-10 xl:p-14">
-          <p className="font-display text-3xl font-normal leading-tight tracking-tight text-white xl:text-4xl">Quality care, from wherever you are.</p>
-          <ul className="mt-6 space-y-2.5 text-teal-50">
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Licence-checked doctors and nurses</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Private video consultations</li>
-            <li className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-white" /> Pay with M-Pesa, no cards</li>
-          </ul>
-        </div>
+        <div className="service-photo aspect-[4/3] w-full max-w-lg rounded-2xl"><Image src={CARE_IMAGES.consultation.src} alt={CARE_IMAGES.consultation.alt} fill placeholder="blur" loading="eager" sizes="(min-width: 1280px) 500px, 45vw" className="object-[center_40%]" /></div>
+        <p className="text-sm text-slate-600">Need a hand with your account? <Link href="/contact" className="font-semibold text-teal-700 underline underline-offset-4">Contact our team</Link>.</p>
       </aside>
     <div className="relative flex items-center justify-center overflow-hidden px-4 py-14">
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-slate-50 via-white to-slate-50">
-        <div className="animate-blob absolute -left-24 top-10 h-80 w-80 rounded-full bg-teal-200/40 blur-3xl" />
-        <div className="animate-blob absolute -right-24 bottom-10 h-80 w-80 rounded-full bg-teal-200/40 blur-3xl delay-200" />
-      </div>
-
       <div className="w-full max-w-md">
-        <div className="mb-7 flex justify-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-full.png" alt="Care Bora Kenya" width={150} height={124} className="h-24 w-auto drop-shadow-sm" />
-        </div>
-
-        <div className="rounded-xl border border-teal-200 bg-[#f9fbf5] p-8 shadow-xl shadow-teal-900/5 sm:p-10">
+        <div className="rounded-xl border border-slate-200 bg-white p-8 sm:p-10">
           {step === "login-otp" ? (
             <>
               <div className="mx-auto mb-4 grid h-12 w-12 place-items-center rounded-2xl bg-teal-50">
@@ -198,7 +183,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy || loginCode.length !== 6}
-                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-primary w-full"
                 >
                   {busy ? "Verifying…" : "Verify & log in"}
                 </button>
@@ -234,7 +219,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy}
-                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-primary w-full"
                 >
                   {busy ? "Sending…" : "Send reset link"}
                 </button>
@@ -269,7 +254,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy || code.length !== 6}
-                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-primary w-full"
                 >
                   {busy ? "Please wait…" : "Verify"}
                 </button>
@@ -357,7 +342,7 @@ function LoginForm() {
 
                 <button
                   type="submit" disabled={busy}
-                  className="w-full rounded-xl bg-teal-700 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-600/20 transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  className="button-primary w-full"
                 >
                   {busy ? "Please wait…" : mode === "login" ? "Log in" : "Create account"}
                 </button>
