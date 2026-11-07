@@ -29,6 +29,7 @@ export const PRIVATE_PATHS = [
   "/labs",
   "/ambulance",
   "/profile",
+  "/settings",
   "/consultations",
   "/login",
   "/api",

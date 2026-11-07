@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Trash2, Loader2, AlertTriangle } from "lucide-react";
 import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
@@ -10,13 +9,12 @@ import { useAuth } from "@/components/AuthProvider";
 import { PasswordField } from "@/components/PasswordField";
 
 /**
- * "Delete account", at the bottom of the profile. Collapsed by default so it is
+ * "Delete account", in settings and at the bottom of the profile. Collapsed by default so it is
  * findable (both app stores require it) without inviting an accidental tap. Two
  * deliberate steps: the password, and typing DELETE.
  */
 export default function DeleteAccountSection() {
-  const router = useRouter();
-  const { refresh } = useAuth();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [password, setPassword] = useState("");
   const [phrase, setPhrase] = useState("");
@@ -25,12 +23,14 @@ export default function DeleteAccountSection() {
 
   async function confirm(e: React.FormEvent) {
     e.preventDefault();
+    if (busy || phrase !== "DELETE") return;
     setBusy(true);
     setError(null);
     try {
       await api.deleteAccount({ confirm: "DELETE", ...(password ? { password } : {}) });
-      await refresh();
-      router.push("/");
+      // Clear the whole signed-in client state in one navigation, before the
+      // protected settings/profile page can redirect in response to sign-out.
+      window.location.replace("/");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not delete your account. Please try again.");
       setBusy(false);
@@ -40,7 +40,9 @@ export default function DeleteAccountSection() {
   return (
     <div className="mt-6 rounded-2xl border border-rose-200 bg-rose-50/40 p-6">
       <div className="flex items-center gap-2 font-bold text-rose-900"><Trash2 className="h-5 w-5" /> Delete account</div>
-      {!open ? (
+      {user?.role === "admin" ? (
+        <p className="mt-2 text-sm text-slate-600">Ask another administrator to delete your administrator account from the Users tab.</p>
+      ) : !open ? (
         <>
           <p className="mt-2 text-sm text-slate-600">
             Permanently remove your account and personal details. This can&apos;t be undone.{" "}
@@ -60,16 +62,19 @@ export default function DeleteAccountSection() {
             Upcoming appointments will be cancelled and you&apos;ll be signed out everywhere.
           </p>
           <PasswordField label="Your password" value={password} onChange={setPassword} autoComplete="current-password" />
+          <p className="text-xs text-slate-500">Leave the password blank if you only sign in with Google or Facebook.</p>
           <label className="block">
             <span className="mb-1 block text-sm font-medium text-slate-700">Type DELETE to confirm</span>
             <input
               value={phrase}
               onChange={(e) => setPhrase(e.target.value)}
+              disabled={busy}
+              autoComplete="off"
               autoCapitalize="characters"
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
             />
           </label>
-          {error && <p className="rounded-xl bg-white px-3 py-2 text-sm text-rose-700">{error}</p>}
+          {error && <p role="alert" className="rounded-xl bg-white px-3 py-2 text-sm text-rose-700">{error}</p>}
           <div className="flex gap-2">
             <button
               type="submit"
@@ -78,7 +83,7 @@ export default function DeleteAccountSection() {
             >
               {busy && <Loader2 className="h-4 w-4 animate-spin" />} Delete permanently
             </button>
-            <button type="button" onClick={() => { setOpen(false); setError(null); }} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50">
+            <button type="button" disabled={busy} onClick={() => { setOpen(false); setError(null); setPhrase(""); setPassword(""); }} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">
               Cancel
             </button>
           </div>

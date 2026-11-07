@@ -1,5 +1,6 @@
 import type {
   AdminPatchUserInput,
+  AdminDeleteUserInput,
   AdminUsersQuery,
   ApiResult,
   AppointmentsQuery,
@@ -637,6 +638,12 @@ export class CareBoraClient {
   }
   adminPatchUser(userId: string, input: AdminPatchUserInput) {
     return this.patch<AdminUserSummary>(`/admin/users/${userId}`, input);
+  }
+  adminDeleteUser(userId: string, input: AdminDeleteUserInput) {
+    return this.request<{ deleted: true; appointmentsCancelled: number }>(`/admin/users/${userId}`, {
+      method: "DELETE",
+      body: JSON.stringify(input),
+    });
   }
   /** Recruit a provider directly, skipping the public apply-and-review queue. */
   adminCreateProvider(input: AdminCreateProviderInput) {

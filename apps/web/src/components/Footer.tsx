@@ -120,9 +120,18 @@ export default function Footer() {
           © {new Date().getFullYear()} Care Bora Kenya. All rights reserved. ·{" "}
           <Link href="/privacy" className="hover:text-teal-700 hover:underline">Privacy Policy</Link>
         </p>
-        <p className="mt-1.5">
+        <p className="mt-1.5 px-4">
           Developed by{" "}
-          <span className="font-semibold text-teal-700">Dr. Mercy Chebet Limo</span>
+          <a
+            href="https://edwin-kirimi-kinuthia.github.io/Edwin-Kirimi-Portfolio"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-teal-700 hover:underline"
+          >
+            Edwin Kirimi Kinuthia
+          </a>
+          {" & "}
+          <span className="font-semibold text-teal-700">Dr. Mercy Limo</span>
         </p>
       </div>
     </footer>

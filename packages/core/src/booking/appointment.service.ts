@@ -49,7 +49,7 @@ export const appointmentService = {
     if (slot.startsAt <= new Date()) throw ApiError.badRequest("Cannot book a slot in the past");
 
     const provider = await db.providerProfile.findUnique({
-      where: { userId: slot.providerId },
+      where: { userId: slot.providerId, user: { isActive: true, deletedAt: null } },
     });
     if (!provider) throw ApiError.notFound("Provider not found");
     // Only listed (verified) providers can be booked. Also what stops a slot

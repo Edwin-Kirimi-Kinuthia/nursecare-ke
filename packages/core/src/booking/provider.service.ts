@@ -31,7 +31,9 @@ function withPublicAvatar<T extends { user: { id: string; avatarUrl: string | nu
 export const providerService = {
   /** Paginated, filterable provider directory (defaults to verified providers). */
   async list(query: ProvidersQuery) {
-    const where: Prisma.ProviderProfileWhereInput = {};
+    const where: Prisma.ProviderProfileWhereInput = {
+      user: { isActive: true, deletedAt: null },
+    };
 
     if (query.specialty) {
       // Matches the specialty *or* the sub-specialty, exactly. Compared in code
@@ -42,6 +44,7 @@ export const providerService = {
       // "contains" would instead fold "Medicine" into "Internal Medicine".
       const wanted = cleanLabel(query.specialty).toLowerCase();
       const candidates = await db.providerProfile.findMany({
+        where: { user: { isActive: true, deletedAt: null } },
         select: { userId: true, specialty: true, subSpecialty: true },
       });
       const ids = candidates
@@ -92,7 +95,7 @@ export const providerService = {
    */
   async specialties() {
     const rows = await db.providerProfile.findMany({
-      where: { verificationStatus: "verified" },
+      where: { verificationStatus: "verified", user: { isActive: true, deletedAt: null } },
       select: { userId: true, specialty: true, subSpecialty: true },
     });
 
@@ -121,7 +124,7 @@ export const providerService = {
   /** Full public profile for a single provider by their user ID. */
   async getById(providerId: string) {
     const profile = await db.providerProfile.findUnique({
-      where: { userId: providerId },
+      where: { userId: providerId, user: { isActive: true, deletedAt: null } },
       include: { user: PUBLIC_USER },
     });
     if (!profile || profile.user.deletedAt) throw ApiError.notFound("Provider not found");

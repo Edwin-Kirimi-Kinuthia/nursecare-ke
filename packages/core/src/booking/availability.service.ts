@@ -34,7 +34,7 @@ export const availabilityService = {
    */
   async ensureSchedule(providerId: string) {
     const profile = await db.providerProfile.findUnique({
-      where: { userId: providerId },
+      where: { userId: providerId, user: { isActive: true, deletedAt: null } },
       select: { verificationStatus: true, consultationFeeKes: true },
     });
     if (!profile || profile.verificationStatus !== "verified") return { eligible: false as const };
@@ -113,6 +113,11 @@ export const availabilityService = {
 
   /** List open slots for a provider (unbooked, in the future). */
   async listSlots(providerId: string, query: SlotsQuery) {
+    const provider = await db.providerProfile.findFirst({
+      where: { userId: providerId, verificationStatus: "verified", user: { isActive: true, deletedAt: null } },
+      select: { userId: true },
+    });
+    if (!provider) throw ApiError.notFound("Provider not found");
     await this.topUpIfNeeded(providerId);
     const now = new Date();
     return db.slot.findMany({

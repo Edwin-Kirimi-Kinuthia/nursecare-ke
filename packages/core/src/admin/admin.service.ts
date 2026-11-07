@@ -14,6 +14,7 @@ import {
 } from "@carebora/shared";
 import { settlementService } from "../payment/settlement.service";
 import { toPublicUser, issuePasswordInvite } from "../auth/auth.service";
+import { deleteAccountAsAdmin } from "../auth/account-deletion";
 import { putFile } from "../storage/storage";
 
 async function writeAuditLog(
@@ -46,7 +47,7 @@ export const adminService = {
   // ── User management ───────────────────────────────────────────────────────
 
   async listUsers(query: AdminUsersQuery) {
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { deletedAt: null };
     if (query.role !== undefined) where.role = query.role;
     if (query.isActive !== undefined) where.isActive = query.isActive;
     if (query.search) {
@@ -70,7 +71,7 @@ export const adminService = {
 
   async getUser(userId: string) {
     const user = await db.user.findUnique({
-      where: { id: userId },
+      where: { id: userId, deletedAt: null },
       select: {
         ...USER_SUMMARY,
         patientProfile: true,
@@ -90,7 +91,7 @@ export const adminService = {
 
   async patchUser(targetId: string, actorId: string, input: AdminPatchUserInput) {
     const user = await db.user.findUnique({ where: { id: targetId } });
-    if (!user) throw ApiError.notFound("User not found");
+    if (!user || user.deletedAt) throw ApiError.notFound("User not found");
 
     let avatarUrl = input.avatarUrl;
     if (typeof avatarUrl === "string" && avatarUrl.startsWith("data:")) {
@@ -110,6 +111,11 @@ export const adminService = {
       select: USER_SUMMARY,
     });
 
+    if (input.isActive === false) {
+      await db.session.deleteMany({ where: { userId: targetId } });
+      await db.verificationCode.deleteMany({ where: { userId: targetId, channel: "login_otp" } });
+    }
+
     // Clinical fields, only where there is a provider profile to put them on —
     // an admin fixing a licence number or specialty during verification.
     if (input.providerProfile && Object.keys(input.providerProfile).length > 0) {
@@ -123,6 +129,11 @@ export const adminService = {
 
     await writeAuditLog(actorId, "admin_patch_user", "user", targetId, input as Record<string, unknown>);
     return updated;
+  },
+
+  /** Close an account at its holder's request, preserving linked care and payment records. */
+  async deleteUser(targetId: string, actorId: string) {
+    return deleteAccountAsAdmin(targetId, actorId);
   },
 
   /**
@@ -221,7 +232,7 @@ export const adminService = {
   // ── Provider verification ─────────────────────────────────────────────────
 
   async listVerifications(query: VerificationsQuery) {
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { user: { deletedAt: null } };
     if (query.status) where.verificationStatus = query.status;
     if (query.specialty) where.specialty = { contains: query.specialty, mode: "insensitive" };
 
@@ -319,7 +330,7 @@ export const adminService = {
       homeVisitGroups,
       revenueBySubject,
     ] = await Promise.all([
-      db.user.groupBy({ by: ["role"], _count: { _all: true } }),
+      db.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: { _all: true } }),
       db.appointment.groupBy({ by: ["status"], _count: { _all: true } }),
       sumCollected(),
       sumCollected(startOfToday),

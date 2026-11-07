@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { db } from "@carebora/db";
 import { verifyAccessToken, resolveMembership, profileService, type AccessClaims } from "@carebora/core";
 import { ApiError, type UserRole } from "@carebora/shared";
 import type { RequestMeta } from "@carebora/core";
@@ -66,7 +67,15 @@ export async function getAuth(req: Request): Promise<AccessClaims | null> {
   const token = extractToken(req);
   if (!token) return null;
   try {
-    return await verifyAccessToken(token);
+    const claims = await verifyAccessToken(token);
+    // A token can outlive an account's disable/delete action or role change.
+    // Check the current identity before granting access on any protected route.
+    const user = await db.user.findUnique({
+      where: { id: claims.sub },
+      select: { role: true, isActive: true, deletedAt: true },
+    });
+    if (!user?.isActive || user.deletedAt) return null;
+    return { sub: claims.sub, role: user.role };
   } catch {
     return null;
   }

@@ -56,6 +56,12 @@ export const adminPatchUserSchema = z.object({
 }).refine((d) => Object.keys(d).length > 0, { message: "Nothing to update" });
 export type AdminPatchUserInput = z.infer<typeof adminPatchUserSchema>;
 
+/** Deliberate confirmation before an admin closes the selected user's account. */
+export const adminDeleteUserSchema = z.object({
+  confirm: z.literal("DELETE"),
+});
+export type AdminDeleteUserInput = z.infer<typeof adminDeleteUserSchema>;
+
 /** Counts of what a launch reset would delete — shown before the confirm step. */
 export interface LaunchResetPreview {
   nonAdminUsers: number;

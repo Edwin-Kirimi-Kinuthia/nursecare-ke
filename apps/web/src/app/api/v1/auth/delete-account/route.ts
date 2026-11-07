@@ -2,6 +2,7 @@ import { route, jsonOk } from "@/server/http";
 import { requireAuth, clearAuthCookies } from "@/server/auth";
 import { deleteAccountSchema } from "@carebora/shared";
 import { authService } from "@carebora/core";
+import { revalidateProviderPages } from "@/server/revalidate-provider-pages";
 
 /**
  * POST /api/v1/auth/delete-account — permanently delete your own account.
@@ -17,5 +18,6 @@ export const POST = route(async (req) => {
   const auth = await requireAuth(req);
   const input = deleteAccountSchema.parse(await req.json());
   const result = await authService.deleteAccount(auth.sub, input);
+  revalidateProviderPages(auth.sub);
   return clearAuthCookies(jsonOk(result));
 });

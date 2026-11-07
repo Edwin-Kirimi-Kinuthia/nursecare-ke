@@ -98,7 +98,9 @@ export const homeVisitService = {
     if (!visit) throw ApiError.notFound("Home visit not found");
     if (visit.status !== "pending") throw ApiError.badRequest("Only pending visits can be assigned");
 
-    const provider = await db.providerProfile.findUnique({ where: { userId: input.providerId } });
+    const provider = await db.providerProfile.findUnique({
+      where: { userId: input.providerId, verificationStatus: "verified", user: { isActive: true, deletedAt: null } },
+    });
     if (!provider) throw ApiError.notFound("Provider not found");
 
     const updated = await db.homeVisit.update({

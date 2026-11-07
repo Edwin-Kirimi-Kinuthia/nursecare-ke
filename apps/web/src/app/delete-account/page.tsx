@@ -46,7 +46,7 @@ export default function DeleteAccountPage() {
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <Globe className="h-6 w-6 text-teal-600" aria-hidden />
           <h3 className="mt-3 font-bold text-slate-900">On the website</h3>
-          <p className="mt-1 text-sm leading-relaxed text-slate-600"><Link href="/login" className="font-semibold text-teal-700 hover:underline">Sign in</Link>, open <strong>Profile</strong>, and use <strong>Delete account</strong> at the bottom.</p>
+          <p className="mt-1 text-sm leading-relaxed text-slate-600"><Link href="/login" className="font-semibold text-teal-700 hover:underline">Sign in</Link>, open <Link href="/settings" className="font-semibold text-teal-700 hover:underline">Settings</Link>, and choose <strong>Delete account</strong>.</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5">
           <Mail className="h-6 w-6 text-teal-600" aria-hidden />

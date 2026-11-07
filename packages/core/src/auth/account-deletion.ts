@@ -26,21 +26,46 @@ import { inAppNotifications } from "../notifications/inapp.service";
  * Kept, de-identified: clinical notes and prescriptions written by clinicians,
  * lab results, appointments, payments and orders.
  */
-export async function deleteAccount(userId: string, input: DeleteAccountInput) {
+export function deleteAccount(userId: string, input: DeleteAccountInput) {
+  return removeAccount(userId, { kind: "self", input });
+}
+
+/** Admin-assisted deletion uses the same cleanup, without the account holder's password. */
+export function deleteAccountAsAdmin(userId: string, actorId: string) {
+  return removeAccount(userId, { kind: "admin", actorId });
+}
+
+type DeletionAuthorization =
+  | { kind: "self"; input: DeleteAccountInput }
+  | { kind: "admin"; actorId: string };
+
+async function removeAccount(userId: string, authorization: DeletionAuthorization) {
+  if (authorization.kind === "admin") {
+    const actor = await db.user.findFirst({
+      where: { id: authorization.actorId, role: "admin", isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!actor) throw ApiError.forbidden();
+    if (actor.id === userId) {
+      throw ApiError.forbidden("Ask another administrator to delete your administrator account.");
+    }
+  }
+
   const user = await db.user.findUnique({
     where: { id: userId },
     include: { credentials: true, providerProfile: { select: { userId: true } } },
   });
   if (!user || user.deletedAt) throw ApiError.notFound("Account not found");
 
-  if (user.role === "admin") {
+  if (authorization.kind === "self" && user.role === "admin") {
     throw ApiError.forbidden("Administrator accounts can't be deleted here. Ask another administrator.");
   }
 
   // Proof it is really the account holder. Without a password (social-only
   // accounts) the typed confirmation is all there is to ask for.
-  if (user.credentials) {
-    if (!input.password || !verifyPassword(input.password, user.credentials.passwordHash)) {
+  if (authorization.kind === "self" && user.credentials) {
+    const { password } = authorization.input;
+    if (!password || !verifyPassword(password, user.credentials.passwordHash)) {
       throw ApiError.unauthorized("That password isn't right.");
     }
   }
@@ -53,7 +78,9 @@ export async function deleteAccount(userId: string, input: DeleteAccountInput) {
   });
   if (ownedOrg) {
     throw ApiError.conflict(
-      "You own a business account on Care Bora. Please contact support to transfer or close it before deleting yours.",
+      authorization.kind === "admin"
+        ? "This user owns a business account on Care Bora. Transfer or close it before deleting their account."
+        : "You own a business account on Care Bora. Please contact support to transfer or close it before deleting yours.",
     );
   }
 
@@ -142,6 +169,16 @@ export async function deleteAccount(userId: string, input: DeleteAccountInput) {
         phoneVerifiedAt: null,
         isActive: false,
         deletedAt: now,
+      },
+    });
+
+    await tx.auditLog.create({
+      data: {
+        actorId: authorization.kind === "admin" ? authorization.actorId : userId,
+        action: authorization.kind === "admin" ? "admin_delete_user" : "account_deleted",
+        entityType: "user",
+        entityId: userId,
+        metadata: { appointmentsCancelled: upcoming.length },
       },
     });
   });

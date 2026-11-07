@@ -72,7 +72,11 @@ export const reviewService = {
    */
   async featured(limit = 3) {
     const rows = await db.review.findMany({
-      where: { isVisible: true, rating: { gte: 4 }, comment: { not: null } },
+      where: {
+        isVisible: true, rating: { gte: 4 }, comment: { not: null },
+        provider: { user: { isActive: true, deletedAt: null } },
+        patient: { deletedAt: null },
+      },
       orderBy: { createdAt: "desc" },
       take: limit * 3,
       select: {

@@ -258,9 +258,10 @@ function RevenueCard({ payments: p }: { payments: PlatformStats["payments"] }) {
 }
 
 // ── Users ─────────────────────────────────────────────────────────────────────
-const ROLE_FILTERS = ["all", "patient", "doctor", "nurse", "physio", "pharmacy", "admin"] as const;
+const ROLE_FILTERS = ["all", "patient", "doctor", "nurse", "physio", "pharmacy", "vendor", "admin"] as const;
 
 function UsersTab() {
+  const { user: currentUser } = useAuth();
   const fetcher = useCallback(() => api.adminListUsers({ limit: 100 }).then((r) => r.users), []);
   const { data, loading, error, reload } = useSection(fetcher);
   const [roleFilter, setRoleFilter] = useState<(typeof ROLE_FILTERS)[number]>("all");
@@ -268,6 +269,7 @@ function UsersTab() {
   const [creating, setCreating] = useState(false);
   const [openUserId, setOpenUserId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [deletingUser, setDeletingUser] = useState<AdminUserSummary | null>(null);
   const users = (data ?? []).filter((u) => roleFilter === "all" || u.role === roleFilter);
 
   async function toggleActive(u: AdminUserSummary) {
@@ -331,18 +333,42 @@ function UsersTab() {
                   </span>
                 </td>
                 <td className="px-4 py-3 text-right">
-                  {u.role !== "admin" && (
-                    <button onClick={() => toggleActive(u)} disabled={busyId === u.id}
-                      className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${u.isActive ? "border border-rose-200 text-rose-600 hover:bg-rose-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
-                      <Power className="h-3.5 w-3.5" /> {u.isActive ? "Disable" : "Enable"}
+                  <div className="flex justify-end gap-2">
+                    {u.role !== "admin" && (
+                      <button onClick={() => toggleActive(u)} disabled={busyId === u.id}
+                        className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-semibold disabled:opacity-60 ${u.isActive ? "border border-rose-200 text-rose-600 hover:bg-rose-50" : "bg-emerald-600 text-white hover:bg-emerald-700"}`}>
+                        <Power className="h-3.5 w-3.5" /> {u.isActive ? "Disable" : "Enable"}
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setDeletingUser(u)}
+                      disabled={busyId === u.id || u.id === currentUser?.id}
+                      aria-label={`Delete account for ${u.fullName}`}
+                      title={u.id === currentUser?.id ? "Ask another administrator to delete your administrator account." : undefined}
+                      className="inline-flex items-center gap-1 rounded-lg border border-rose-200 px-2.5 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Delete
                     </button>
-                  )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {deletingUser && (
+        <DeleteUserModal
+          key={deletingUser.id}
+          user={deletingUser}
+          onClose={() => setDeletingUser(null)}
+          onDeleted={async () => {
+            setDeletingUser(null);
+            setOpenUserId(null);
+            setNotice(`The account for ${deletingUser.fullName} has been deleted.`);
+            await reload();
+          }}
+        />
+      )}
       {creating && (
         <CreateProviderModal
           onClose={() => setCreating(false)}
@@ -354,6 +380,77 @@ function UsersTab() {
         />
       )}
     </SectionShell>
+  );
+}
+
+function DeleteUserModal({ user, onClose, onDeleted }: {
+  user: AdminUserSummary;
+  onClose: () => void;
+  onDeleted: () => Promise<void>;
+}) {
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const [phrase, setPhrase] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    dialog?.showModal();
+    return () => dialog?.close();
+  }, []);
+
+  async function confirm(e: React.FormEvent) {
+    e.preventDefault();
+    if (phrase !== "DELETE" || busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await api.adminDeleteUser(user.id, { confirm: "DELETE" });
+      await onDeleted();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete this account. Please try again.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby="delete-user-title"
+      onCancel={(e) => { e.preventDefault(); if (!busy) onClose(); }}
+      className="m-auto w-[calc(100%_-_2rem)] max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl backdrop:bg-slate-900/50"
+    >
+      <h2 id="delete-user-title" className="flex items-center gap-2 text-lg font-bold text-rose-900">
+        <Trash2 className="h-5 w-5" /> Delete user account
+      </h2>
+      <p className="mt-3 break-words text-sm text-slate-700">
+        You are deleting <strong>{user.fullName}</strong> ({user.email}). Only continue if the account holder requested it.
+      </p>
+      <p className="mt-3 text-sm text-slate-600">
+        Their personal details will be removed, they will be signed out everywhere, and upcoming appointments will be cancelled.
+        Linked care and payment records will be retained. This cannot be undone.
+      </p>
+      <form onSubmit={confirm} className="mt-4 space-y-4">
+        <label className="block">
+          <span className="mb-1 block text-sm font-medium text-slate-700">Type DELETE to confirm</span>
+          <input
+            value={phrase}
+            onChange={(e) => setPhrase(e.target.value)}
+            disabled={busy}
+            autoComplete="off"
+            className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-100"
+          />
+        </label>
+        {error && <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>}
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" onClick={onClose} disabled={busy} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Cancel</button>
+          <button type="submit" disabled={busy || phrase !== "DELETE"} className="inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-rose-700 disabled:opacity-50">
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+            {busy ? "Deleting…" : "Delete permanently"}
+          </button>
+        </div>
+      </form>
+    </dialog>
   );
 }
 

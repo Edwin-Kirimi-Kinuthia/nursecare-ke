@@ -1492,6 +1492,74 @@
             "$ref": "#/components/responses/Error"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Delete a user or provider account at their request.",
+        "description": "Requires role: admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirm": {
+                    "type": "string",
+                    "enum": [
+                      "DELETE"
+                    ]
+                  }
+                },
+                "required": [
+                  "confirm"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
       }
     },
     "/admin/users": {
@@ -1837,6 +1905,119 @@
         }
       }
     },
+    "/ai/clinical": {
+      "post": {
+        "tags": [
+          "AI"
+        ],
+        "summary": "Clinicians' reference: drug dosing (routes, doses, durations), differential diagnosis for a presentation, o…",
+        "description": "Clinicians' reference: drug dosing (routes, doses, durations), differential diagnosis for a presentation, or a free question. Clinical staff only; patients use /ai/symptom-check. Requires role: doctor, nurse, physio, admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "drug",
+                      "differential",
+                      "question"
+                    ]
+                  },
+                  "query": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 1500
+                  },
+                  "patientAge": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 150
+                  },
+                  "sex": {
+                    "type": "string",
+                    "enum": [
+                      "female",
+                      "male"
+                    ]
+                  },
+                  "pregnant": {
+                    "type": "boolean"
+                  },
+                  "duration": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "allergies": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 20
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 20
+                  },
+                  "currentMedicines": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 20
+                  },
+                  "weightKg": {
+                    "type": "number",
+                    "minimum": 0.3,
+                    "maximum": 400
+                  }
+                },
+                "required": [
+                  "mode",
+                  "query"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/ai/fact-check": {
       "post": {
         "tags": [
@@ -1943,8 +2124,7 @@
         "tags": [
           "AI"
         ],
-        "summary": "Claude-powered triage and specialist recommendation.",
-        "description": "Requires role: patient, doctor, nurse, physio.",
+        "summary": "Symptom guidance: likely causes, self-care, OTC options, red flags, urgency.",
         "security": [
           {
             "bearerAuth": []
@@ -1960,17 +2140,48 @@
                   "symptoms": {
                     "type": "string",
                     "minLength": 5,
-                    "maxLength": 1000
+                    "maxLength": 1500
                   },
                   "patientAge": {
                     "type": "integer",
                     "minimum": 0,
                     "maximum": 150
                   },
+                  "sex": {
+                    "type": "string",
+                    "enum": [
+                      "female",
+                      "male"
+                    ]
+                  },
+                  "pregnant": {
+                    "type": "boolean"
+                  },
+                  "duration": {
+                    "type": "string",
+                    "maxLength": 80
+                  },
                   "allergies": {
                     "type": "array",
                     "items": {
-                      "type": "string"
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 20
+                  },
+                  "conditions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
+                    },
+                    "maxItems": 20
+                  },
+                  "currentMedicines": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 80
                     },
                     "maxItems": 20
                   }

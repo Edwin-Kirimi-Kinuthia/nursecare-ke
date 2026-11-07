@@ -16,7 +16,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ provide
   if (!/^[0-9a-f-]{36}$/i.test(providerId)) return new Response("Not found", { status: 404 });
 
   const user = await db.user.findFirst({
-    where: { id: providerId, providerProfile: { verificationStatus: "verified" } },
+    where: { id: providerId, isActive: true, deletedAt: null, providerProfile: { verificationStatus: "verified" } },
     select: { avatarUrl: true },
   });
   const m = user?.avatarUrl ? /^data:(image\/[-\w.+]+);base64,([A-Za-z0-9+/=]+)$/.exec(user.avatarUrl) : null;

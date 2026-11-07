@@ -190,6 +190,8 @@ export function toPublicUser(u: User): PublicUser {
 
 /** Create a session row (hashed refresh token) and mint an access token. */
 export async function issueSession(userId: string, role: UserRole, meta?: RequestMeta) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true } });
+  if (!user?.isActive || user.deletedAt) throw ApiError.forbidden("This account is disabled");
   const accessToken = await signAccessToken({ sub: userId, role });
   const refreshToken = generateRefreshToken();
   await db.session.create({
