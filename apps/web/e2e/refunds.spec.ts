@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect, type APIRequestContext } from "@playwright/test";
 
 /**
@@ -14,7 +15,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  */
 
 const UNIQUE = Date.now();
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -101,11 +102,7 @@ test.describe("Refunds", () => {
     expect(p.status()).toBe(201);
     patientToken = (await p.json()).data.accessToken;
 
-    const a = await request.post("/api/v1/auth/login", {
-      data: { email: "admin@carebora.ke", password: "Demo1234!" },
-    });
-    expect(a.status()).toBe(200);
-    adminToken = (await a.json()).data.accessToken;
+    adminToken = (await seededSession("admin@carebora.ke")).accessToken;
   });
 
   test("a refund reverses the whole split, not just the gross", async ({ request }) => {

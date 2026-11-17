@@ -32,6 +32,7 @@ export default function ProfilePage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-10">
       <IdentityCard user={user} onSaved={refresh} />
+      <Link href="/settings" className="mt-4 inline-block text-sm font-semibold text-teal-700 hover:underline">Account settings</Link>
 
       {/* Everyone has patient details of their own — blood group, allergies, an
           emergency contact — because any account can receive care. A clinician
@@ -146,11 +147,12 @@ function ChangePasswordCard() {
 
 /* ── shared field ─────────────────────────────────────────────────────────── */
 function Field({
-  label, value, onChange, placeholder, type = "text", revealable, list,
+  label, value, onChange, placeholder, type = "text", revealable, list, inputMode,
 }: {
   label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; revealable?: boolean;
   /** id of a <datalist> to suggest values from. */
   list?: string;
+  inputMode?: "numeric";
 }) {
   const [reveal, setReveal] = useState(false);
   const resolvedType = revealable ? (reveal ? "text" : "password") : type;
@@ -158,7 +160,7 @@ function Field({
     <label className="block">
       <span className="text-sm font-medium text-slate-700">{label}</span>
       <div className="relative mt-1">
-        <input type={resolvedType} value={value} placeholder={placeholder} list={list} onChange={(e) => onChange(e.target.value)}
+        <input type={resolvedType} inputMode={inputMode} value={value} placeholder={placeholder} list={list} onChange={(e) => onChange(e.target.value)}
           className={`w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100 ${revealable ? "pr-10" : ""}`} />
         {revealable && (
           <button type="button" tabIndex={-1} onClick={() => setReveal((r) => !r)} aria-label={reveal ? "Hide password" : "Show password"}
@@ -305,6 +307,9 @@ function ProviderSection() {
   const [p, setP] = useState<ProviderProfile | null>(null);
   const [languagesText, setLanguagesText] = useState("");
   const [servicesText, setServicesText] = useState("");
+  const [consultationFee, setConsultationFee] = useState("");
+  const [homeVisitFee, setHomeVisitFee] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -317,6 +322,8 @@ function ProviderSection() {
           setP(prof);
           setLanguagesText(prof.languages.join(", "));
           setServicesText(prof.services.join(", "));
+          setConsultationFee(String(prof.consultationFeeKes ?? ""));
+          setHomeVisitFee(String(prof.homeVisitFeeKes ?? ""));
         }
       } catch { /* ignore */ }
     })();
@@ -357,8 +364,16 @@ function ProviderSection() {
 
   async function save() {
     if (!p) return;
-    setSaving(true); setSaved(false);
+    setSaving(true); setSaved(false); setSaveError(null);
     try {
+      const fee = (text: string, label: string) => {
+        const value = text.trim().replace(/,/g, "");
+        if (!value) return null;
+        if (!/^\d+$/.test(value) || !Number.isSafeInteger(Number(value)) || Number(value) > 2_147_483_647) {
+          throw new Error(`${label} must be a whole number of KES, zero, or blank.`);
+        }
+        return Number(value);
+      };
       const updated = await api.patchProviderProfile({
         specialty: p.specialty ?? undefined,
         subSpecialty: p.subSpecialty ?? undefined,
@@ -367,13 +382,19 @@ function ProviderSection() {
         town: p.town ?? undefined,
         languages: list(languagesText),
         services: list(servicesText),
-        consultationFeeKes: p.consultationFeeKes ?? undefined,
-        homeVisitFeeKes: p.homeVisitFeeKes ?? undefined,
+        consultationFeeKes: fee(consultationFee, "Consultation fee"),
+        homeVisitFeeKes: fee(homeVisitFee, "Home visit fee"),
+        licenceNumber: p.licenceNumber ?? "",
+        licenceBody: p.licenceBody ?? "",
       });
       setP(updated);
       setLanguagesText(updated.languages.join(", "));
       setServicesText(updated.services.join(", "));
+      setConsultationFee(String(updated.consultationFeeKes ?? ""));
+      setHomeVisitFee(String(updated.homeVisitFeeKes ?? ""));
       setSaved(true);
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Could not save your professional profile.");
     } finally { setSaving(false); }
   }
 
@@ -399,8 +420,10 @@ function ProviderSection() {
         <Field label="Sub-specialty (optional)" list="specialty-options" placeholder="e.g. Cardiology" value={p.subSpecialty ?? ""} onChange={(v) => set("subSpecialty", v)} />
         <Field label="County" value={p.county ?? ""} onChange={(v) => set("county", v)} />
         <Field label="Town" value={p.town ?? ""} onChange={(v) => set("town", v)} />
-        <Field label="Consultation fee (KES)" value={String(p.consultationFeeKes ?? "")} onChange={(v) => set("consultationFeeKes", v ? Number(v) : null)} />
-        <Field label="Home visit fee (KES)" value={String(p.homeVisitFeeKes ?? "")} onChange={(v) => set("homeVisitFeeKes", v ? Number(v) : null)} />
+        <Field label="Consultation fee (KES)" inputMode="numeric" value={consultationFee} onChange={setConsultationFee} />
+        <Field label="Home visit fee (KES)" inputMode="numeric" value={homeVisitFee} onChange={setHomeVisitFee} />
+        <Field label="Licensing body" value={p.licenceBody ?? ""} placeholder="e.g. KMPDC or Nursing Council of Kenya" onChange={(v) => set("licenceBody", v)} />
+        <Field label="Licence / registration number" value={p.licenceNumber ?? ""} onChange={(v) => set("licenceNumber", v)} />
         <Field label="Languages (comma-separated)" value={languagesText} onChange={setLanguagesText} />
         <Field label="Services (comma-separated)" value={servicesText} onChange={setServicesText} />
       </div>
@@ -444,6 +467,7 @@ function ProviderSection() {
           </p>
         )}
       </div>
+      {saveError && <p role="alert" className="mt-4 rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{saveError}</p>}
       <button onClick={save} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
         <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
       </button>

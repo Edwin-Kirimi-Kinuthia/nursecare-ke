@@ -14,6 +14,7 @@ import type { Consultation, Message, RxRecord, MedicationRecord, FactCheckResult
 import { clinicalTemplateFor, type ClinicalRecord } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import SickOffPanel from "@/components/SickOffPanel";
 
 /** LiveKit video grid — must render inside <LiveKitRoom>. */
 function VideoStage() {
@@ -46,7 +47,7 @@ export default function ConsultationRoom() {
   const [ended, setEnded] = useState(false);
 
   const isDoctor = !!(consultation?.appointment && user && consultation.appointment.providerId === user.id);
-  const [tab, setTab] = useState<"notes" | "rx" | "chat" | "ai">("chat");
+  const [tab, setTab] = useState<"notes" | "rx" | "chat" | "ai" | "sickoff">("chat");
 
   // AI clinical fact-check (provider only)
   const [aiQuestion, setAiQuestion] = useState("");
@@ -199,10 +200,11 @@ export default function ConsultationRoom() {
     );
   }
 
-  const tabs: { key: "notes" | "rx" | "chat" | "ai"; label: string; Icon: typeof FileText }[] = [
+  const tabs: { key: "notes" | "rx" | "chat" | "ai" | "sickoff"; label: string; Icon: typeof FileText }[] = [
     ...(isDoctor ? [{ key: "notes" as const, label: template.shortLabel, Icon: FileText }] : []),
     { key: "rx", label: "Prescriptions", Icon: Pill },
     { key: "chat", label: "Chat", Icon: MessageSquare },
+    { key: "sickoff", label: "Sick-off", Icon: FileText },
     ...(isDoctor ? [{ key: "ai" as const, label: "AI assist", Icon: Sparkles }] : []),
   ];
 
@@ -254,6 +256,7 @@ export default function ConsultationRoom() {
         </div>
 
         {/* Structured clinical record (doctor treatment sheet / nurse cardex / physio assessment) */}
+        {tab === "sickoff" && <div className="min-h-0 flex-1 overflow-y-auto p-4"><SickOffPanel consultationId={consultationId} canIssue={isDoctor} /></div>}
         {tab === "notes" && isDoctor && (
           <div className="flex min-h-0 flex-1 flex-col overflow-y-auto p-4">
             <div className="mb-3 flex items-start justify-between">

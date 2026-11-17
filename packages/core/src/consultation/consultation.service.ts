@@ -18,7 +18,7 @@ async function getConsultation(id: string) {
   const c = await db.consultation.findUnique({
     where: { id },
     include: {
-      appointment: { select: { patientId: true, providerId: true, appointmentType: true, status: true } },
+      appointment: { select: { patientId: true, providerId: true, appointmentType: true, status: true, feeKes: true, paymentWaived: true } },
     },
   });
   if (!c) throw ApiError.notFound("Consultation not found");
@@ -54,7 +54,6 @@ export const consultationService = {
       throw ApiError.badRequest("Appointment must be confirmed or completed before starting a consultation");
     }
     const resuming = appointment.status === "completed" || appointment.consultation?.status === "ended";
-    if (appointment.consultation && !resuming) return appointment.consultation;
 
     // Paid before seen. Confirmation alone used to be enough, so a patient
     // could be taken into a consultation without ever paying for it — and
@@ -71,6 +70,7 @@ export const consultationService = {
         throw ApiError.badRequest("This consultation hasn't been paid for yet. You can start it once the patient has paid.");
       }
     }
+    if (appointment.consultation && !resuming) return appointment.consultation;
 
     const consultation = await db.$transaction(async (tx) => {
       if (resuming) {
@@ -250,6 +250,15 @@ export const consultationService = {
   async generateToken(consultationId: string, userId: string, displayName: string) {
     const c = await getConsultation(consultationId);
     assertParticipant(c, userId);
+    if (c.status === "ended" || c.appointment.status !== "confirmed") {
+      throw ApiError.badRequest("The provider must start or resume this consultation before you can join");
+    }
+    if (!c.appointment.paymentWaived && c.appointment.feeKes > 0) {
+      const paid = await db.payment.findFirst({
+        where: { subjectType: "appointment", subjectId: c.appointmentId, status: "completed" }, select: { id: true },
+      });
+      if (!paid) throw ApiError.badRequest("Payment is required before joining this consultation");
+    }
 
     const apiKey = process.env.LIVEKIT_API_KEY;
     const apiSecret = process.env.LIVEKIT_API_SECRET;

@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const EMAIL = `orders+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 

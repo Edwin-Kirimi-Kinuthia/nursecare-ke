@@ -469,6 +469,7 @@ model Consultation {
   appointment      Appointment       @relation(fields: [appointmentId], references: [id])
   messages         Message[]
   prescriptions    Prescription[]
+  sickOffs         SickOff[]
   vitalSigns       VitalSign[]
   medicalDocuments MedicalDocument[]
   labOrders        LabOrder[]
@@ -518,6 +519,28 @@ model Prescription {
 }
 
 // ─── M4: Payments ────────────────────────────────────────────────────────────
+
+/// Issued clinical certificate. Identity, licence and signature are snapshots.
+model SickOff {
+  id               String   @id @default(uuid()) @db.Uuid
+  consultationId   String   @map("consultation_id") @db.Uuid
+  patientName      String   @map("patient_name")
+  providerName     String   @map("provider_name")
+  licenceNumber    String   @map("licence_number")
+  licenceBody      String   @map("licence_body")
+  assessedAt       DateTime @map("assessed_at") @db.Timestamptz(6)
+  fromDate         DateTime @map("from_date") @db.Date
+  throughDate      DateTime @map("through_date") @db.Date
+  advice           String?
+  signatureDataUrl String   @map("signature_data_url")
+  stampDataUrl     String?  @map("stamp_data_url")
+  issuedAt         DateTime @default(now()) @map("issued_at") @db.Timestamptz(6)
+
+  consultation Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@index([consultationId, issuedAt])
+  @@map("sick_offs")
+}
 
 /// M-Pesa payment record tied to an appointment.
 /// checkoutRequestId is the Daraja STK-push correlation key used to match callbacks.

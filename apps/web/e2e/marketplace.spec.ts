@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -7,7 +8,7 @@ import { test, expect } from "@playwright/test";
  */
 
 const UNIQUE = Date.now();
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -64,12 +65,8 @@ async function createApprovedVendor(request: import("@playwright/test").APIReque
 }
 
 test.describe("Multi-vendor cart split", () => {
-  test("login admin", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: "admin@carebora.ke", password: "Demo1234!" },
-    });
-    expect(res.status()).toBe(200);
-    adminToken = (await res.json()).data.accessToken;
+  test("login admin", async () => {
+    adminToken = (await seededSession("admin@carebora.ke")).accessToken;
   });
 
   test("onboard two approved vendors with distinct listings", async ({ request }) => {

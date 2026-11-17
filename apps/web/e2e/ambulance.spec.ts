@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -8,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const PATIENT_EMAIL = `ambulance-patient+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -26,20 +27,12 @@ test.describe("Ambulance request and dispatch", () => {
     patientToken = (await res.json()).data.accessToken;
   });
 
-  test("login ambulance operator", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: "owner.rapidresponse@example.com", password: "Demo1234!" },
-    });
-    expect(res.status()).toBe(200);
-    operatorToken = (await res.json()).data.accessToken;
+  test("login ambulance operator", async () => {
+    operatorToken = (await seededSession("owner.rapidresponse@example.com")).accessToken;
   });
 
-  test("login a pharmacy vendor (wrong business type, for the isolation check below)", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: "owner.wellcare@example.com", password: "Demo1234!" },
-    });
-    expect(res.status()).toBe(200);
-    pharmacyVendorToken = (await res.json()).data.accessToken;
+  test("login a pharmacy vendor (wrong business type, for the isolation check below)", async () => {
+    pharmacyVendorToken = (await seededSession("owner.wellcare@example.com")).accessToken;
   });
 
   test("POST /ambulance-requests requests an ambulance near Nairobi CBD", async ({ request }) => {

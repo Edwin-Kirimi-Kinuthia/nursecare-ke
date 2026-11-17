@@ -101,7 +101,8 @@ test.describe("SEO", () => {
     expect(org.name).toBeTruthy();
     expect(org.telephone).toBeTruthy();
     expect(org.areaServed.name).toBe("Kenya");
-    expect(org.availableService.length).toBeGreaterThan(3);
+    expect(org.hasOfferCatalog["@type"]).toBe("OfferCatalog");
+    expect(org.hasOfferCatalog.itemListElement.length).toBeGreaterThan(3);
 
     expect(blocks.find((d) => d["@type"] === "WebSite")).toBeTruthy();
   });

@@ -1,5 +1,7 @@
 "use client";
 
+import SickOffPanel from "@/components/SickOffPanel";
+
 import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -397,6 +399,7 @@ function ConsultationsTab({ consultations }: { consultations: import("@carebora/
               <p className="mt-3 text-sm text-slate-400">Your clinician hasn&apos;t written this up yet.</p>
             )}
 
+            <div className="mt-4"><SickOffPanel consultationId={c.id} canIssue={false} /></div>
             {c.prescriptions.length > 0 && (
               <div className="mt-4 border-t border-slate-100 pt-4">
                 <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Prescribed</div>

@@ -1,3 +1,5 @@
+import { seededSession } from "./support/auth";
+import { payAppointment } from "./support/payments";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -11,7 +13,7 @@ import { test, expect } from "@playwright/test";
 const UNIQUE = Date.now();
 const OWNER_EMAIL = `records-owner+${UNIQUE}@carebora.test`;
 const STRANGER_EMAIL = `records-stranger+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -40,12 +42,8 @@ test.describe("Medical records access control", () => {
     strangerToken = (await res.json()).data.accessToken;
   });
 
-  test("login admin", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: "admin@carebora.ke", password: "Demo1234!" },
-    });
-    expect(res.status()).toBe(200);
-    adminToken = (await res.json()).data.accessToken;
+  test("login admin", async () => {
+    adminToken = (await seededSession("admin@carebora.ke")).accessToken;
   });
 
   test("owner adds an allergy to their own record", async ({ request }) => {
@@ -172,11 +170,7 @@ test.describe("Records surface the clinician's treatment sheet", () => {
     patientToken = regData.accessToken;
     patientId = regData.user.id;
 
-    const login = await request.post("/api/v1/auth/login", {
-      data: { email: "dr.amina@carebora.ke", password: "Demo1234!" },
-    });
-    expect(login.status()).toBe(200);
-    doctorToken = (await login.json()).data.accessToken;
+    doctorToken = (await seededSession("dr.amina@carebora.ke")).accessToken;
   });
 
   test("book a slot and open the consultation", async ({ request }) => {
@@ -199,6 +193,7 @@ test.describe("Records surface the clinician's treatment sheet", () => {
       headers: { Authorization: `Bearer ${doctorToken}` },
       data: { status: "confirmed" },
     });
+    await payAppointment(request, appointmentId, patientToken, (await seededSession("admin@carebora.ke")).accessToken);
     const consultRes = await request.post(`/api/v1/appointments/${appointmentId}/consultation`, {
       headers: { Authorization: `Bearer ${doctorToken}` },
     });

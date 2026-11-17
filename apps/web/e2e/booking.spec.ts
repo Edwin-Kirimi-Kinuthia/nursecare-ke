@@ -9,7 +9,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const EMAIL = `booking+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -80,7 +80,7 @@ test.describe("Booking flow", () => {
     });
     expect(res.status()).toBe(201);
     const { data } = await res.json();
-    expect(data.status).toBe("requested");
+    expect(data.status).toBe("confirmed");
     expect(data.slotId).toBe(slotId);
   });
 

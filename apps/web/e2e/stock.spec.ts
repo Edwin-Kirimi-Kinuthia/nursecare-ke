@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect, type APIRequestContext } from "@playwright/test";
 
 /**
@@ -11,7 +12,7 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
  */
 
 const UNIQUE = Date.now();
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -43,11 +44,7 @@ test.describe("Stock reservation", () => {
     expect(p.status()).toBe(201);
     patientToken = (await p.json()).data.accessToken;
 
-    const v = await request.post("/api/v1/auth/login", {
-      data: { email: "owner.wellcare@example.com", password: "Demo1234!" },
-    });
-    expect(v.status()).toBe(200);
-    vendorToken = (await v.json()).data.accessToken;
+    vendorToken = (await seededSession("owner.wellcare@example.com")).accessToken;
 
     // An over-the-counter listing, so checkout doesn't demand a prescription.
     const res = await request.get("/api/v1/vendor/listings", {

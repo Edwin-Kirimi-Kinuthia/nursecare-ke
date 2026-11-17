@@ -1,8 +1,9 @@
+import { completeLogin } from "./support/auth";
 import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const EMAIL = `e2e+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 // register → login → me is a sequential journey sharing one account,
 // so these must run in order (not parallel across workers).
@@ -20,10 +21,8 @@ test.describe("Auth flow", () => {
     expect(typeof body.data.accessToken).toBe("string");
   });
 
-  test("login with correct credentials → returns token", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: EMAIL, password: PASSWORD },
-    });
+  test("login requires email OTP before issuing a token", async ({ request }) => {
+    const res = await completeLogin(request, EMAIL, PASSWORD);
     expect(res.status()).toBe(200);
     const body = await res.json();
     expect(body.data.user.email).toBe(EMAIL);
@@ -39,9 +38,7 @@ test.describe("Auth flow", () => {
 
   test("GET /auth/me with valid token → returns user", async ({ request }) => {
     // login fresh to get token
-    const loginRes = await request.post("/api/v1/auth/login", {
-      data: { email: EMAIL, password: PASSWORD },
-    });
+    const loginRes = await completeLogin(request, EMAIL, PASSWORD);
     const { data } = await loginRes.json();
     const token = data.accessToken;
 

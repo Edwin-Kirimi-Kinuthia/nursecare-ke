@@ -136,6 +136,9 @@ export const appointmentService = {
       slot.appointmentType === "teleconsult"
         ? (provider.consultationFeeKes ?? 0)
         : (provider.homeVisitFeeKes ?? 0);
+    if (feeKes <= 0) {
+      throw ApiError.badRequest("This provider has not set a booking fee. Only a provider can invite you to a free consultation.");
+    }
 
     // A clinician travelling to the patient needs a number to reach them on;
     // a teleconsult happens in-app, so it stays optional there.

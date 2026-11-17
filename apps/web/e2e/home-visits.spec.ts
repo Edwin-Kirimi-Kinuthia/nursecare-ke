@@ -8,7 +8,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const EMAIL = `hv+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -33,6 +33,7 @@ test.describe("Home visit flow", () => {
         urgency: "routine",
         description: "I need wound dressing for a post-surgery incision.",
         address: "House 5, Kilimani Road",
+        contactPhone: "0712345678",
         county: "Nairobi",
       },
     });

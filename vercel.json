@@ -1,6 +1,6 @@
 {
   "installCommand": "npm install",
-  "buildCommand": "npm run db:deploy && cd apps/web && npm run build",
+  "buildCommand": "npm run db:generate && npm run db:deploy && cd apps/web && npm run build",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs"
 }

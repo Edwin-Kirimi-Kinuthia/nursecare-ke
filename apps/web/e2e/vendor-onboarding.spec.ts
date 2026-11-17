@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -9,7 +10,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const OWNER_EMAIL = `vendor-owner+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 const ORG_NAME = `E2E Test Pharmacy ${UNIQUE}`;
 
 test.describe.configure({ mode: "serial" });
@@ -22,12 +23,8 @@ let drugId = "";
 let listingId = "";
 
 test.describe("Vendor onboarding", () => {
-  test("login admin", async ({ request }) => {
-    const res = await request.post("/api/v1/auth/login", {
-      data: { email: "admin@carebora.ke", password: "Demo1234!" },
-    });
-    expect(res.status()).toBe(200);
-    adminToken = (await res.json()).data.accessToken;
+  test("login admin", async () => {
+    adminToken = (await seededSession("admin@carebora.ke")).accessToken;
   });
 
   test("POST /vendors/apply creates a pending pharmacy org", async ({ request }) => {

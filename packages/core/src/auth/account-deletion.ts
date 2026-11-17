@@ -100,6 +100,7 @@ async function removeAccount(userId: string, authorization: DeletionAuthorizatio
   });
 
   await db.$transaction(async (tx) => {
+    await tx.sickOff.updateMany({ where: { consultation: { appointment: { patientId: userId } } }, data: { patientName: "Deleted user" } });
     if (upcoming.length) {
       await tx.appointment.updateMany({ where: { id: { in: upcoming.map((a) => a.id) } }, data: { status: "cancelled" } });
       await tx.slot.updateMany({ where: { id: { in: upcoming.map((a) => a.slotId) } }, data: { isBooked: false } });

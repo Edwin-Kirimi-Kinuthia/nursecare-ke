@@ -1,3 +1,4 @@
+import { seededSession } from "./support/auth";
 import { test, expect } from "@playwright/test";
 
 /**
@@ -10,7 +11,7 @@ import { test, expect } from "@playwright/test";
 
 const UNIQUE = Date.now();
 const PATIENT_EMAIL = `lab-patient+${UNIQUE}@carebora.test`;
-const PASSWORD = "Test1234!";
+const PASSWORD = "Test12345!";
 
 test.describe.configure({ mode: "serial" });
 
@@ -34,24 +35,12 @@ test.describe("Lab orders — payment-gated fulfilment", () => {
     patientToken = (await res.json()).data.accessToken;
   });
 
-  test("login lab vendor and admin", async ({ request }) => {
-    const labRes = await request.post("/api/v1/auth/login", {
-      data: { email: "owner.precisionlab@example.com", password: "Demo1234!" },
-    });
-    expect(labRes.status()).toBe(200);
-    labToken = (await labRes.json()).data.accessToken;
+  test("use seeded lab, admin and pharmacy sessions", async () => {
+    labToken = (await seededSession("owner.precisionlab@example.com")).accessToken;
 
-    const adminRes = await request.post("/api/v1/auth/login", {
-      data: { email: "admin@carebora.ke", password: "Demo1234!" },
-    });
-    expect(adminRes.status()).toBe(200);
-    adminToken = (await adminRes.json()).data.accessToken;
+    adminToken = (await seededSession("admin@carebora.ke")).accessToken;
 
-    const pharmacyRes = await request.post("/api/v1/auth/login", {
-      data: { email: "owner.wellcare@example.com", password: "Demo1234!" },
-    });
-    expect(pharmacyRes.status()).toBe(200);
-    pharmacyVendorToken = (await pharmacyRes.json()).data.accessToken;
+    pharmacyVendorToken = (await seededSession("owner.wellcare@example.com")).accessToken;
   });
 
   test("GET /storefront/labs finds the seeded lab", async ({ request }) => {

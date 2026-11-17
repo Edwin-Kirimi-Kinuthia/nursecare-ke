@@ -17,6 +17,7 @@ import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 import EmptyState from "@/components/EmptyState";
 import ScheduleMeetingModal from "@/components/ScheduleMeetingModal";
+import SickOffPanel from "@/components/SickOffPanel";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
@@ -214,6 +215,9 @@ export default function AppointmentsPage() {
                 )}
 
                 {/* Rate a finished appointment — the patient's side only. */}
+                {a.appointmentType === "teleconsult" && a.consultation && a.consultation.status !== "pending" && (
+                  <SickOffPanel consultationId={a.consultation.id} canIssue={isProvider} />
+                )}
                 {a.status === "completed" && !isProvider && (
                   <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
                     {a.review ? (

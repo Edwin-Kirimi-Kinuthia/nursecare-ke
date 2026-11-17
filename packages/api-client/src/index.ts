@@ -8,6 +8,7 @@ import type {
   AuditLogsQuery,
   AuthResult,
   CreateAppointmentInput,
+  IssueSickOffInput,
   ProviderMeetingInput,
   CreateAvailabilityInput,
   CreateHomeVisitInput,
@@ -353,6 +354,15 @@ export class CareBoraClient {
   }
   scheduleProviderMeeting(input: ProviderMeetingInput) {
     return this.post<Appointment>("/appointments/provider-meeting", input);
+  }
+  listSickOffs(consultationId: string) {
+    return this.request<SickOffCertificate[]>(`/consultations/${consultationId}/sick-offs`);
+  }
+  issueSickOff(consultationId: string, input: IssueSickOffInput) {
+    return this.post<SickOffCertificate>(`/consultations/${consultationId}/sick-offs`, input);
+  }
+  sickOffPdfUrl(consultationId: string, certificateId: string) {
+    return `${this.opts.baseUrl}/consultations/${consultationId}/sick-offs/${certificateId}/pdf`;
   }
   getAppointment(appointmentId: string) {
     return this.request<Appointment>(`/appointments/${appointmentId}`);
@@ -1016,6 +1026,17 @@ export interface Appointment {
   payment?: PaymentSummary | null;
   /** Present once the patient has rated this appointment. */
   review?: { id: string; rating: number; comment: string | null } | null;
+}
+
+export interface SickOffCertificate {
+  id: string;
+  consultationId: string;
+  providerName: string;
+  licenceNumber: string;
+  licenceBody: string;
+  fromDate: string;
+  throughDate: string;
+  issuedAt: string;
 }
 
 export interface AppointmentListResult {
