@@ -1,5 +1,7 @@
 "use client";
 
+import ClinicalPdfLink from "@/components/ClinicalPdfLink";
+
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import {
@@ -265,14 +267,12 @@ export default function ConsultationRoom() {
                 <p className="text-xs text-slate-400">Saves automatically · appears in the patient&apos;s records</p>
               </div>
               <div className="flex flex-col items-end gap-1">
-                <a
+                <ClinicalPdfLink
                   href={api.treatmentSheetPdfUrl(consultationId)}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-medium text-teal-700 hover:bg-slate-50"
                 >
                   <Download className="h-3.5 w-3.5" /> PDF
-                </a>
+                </ClinicalPdfLink>
                 <span className="text-xs">
                   {noteState === "saving" && <span className="text-slate-400">Saving…</span>}
                   {noteState === "saved" && <span className="inline-flex items-center gap-1 text-emerald-600"><Check className="h-3 w-3" /> Saved</span>}
@@ -333,9 +333,9 @@ export default function ConsultationRoom() {
                 <div key={rx.id} className="rounded-xl border border-slate-200 p-3">
                   <div className="mb-1 flex items-center justify-between">
                     <span className="text-xs text-slate-400">{when(rx.issuedAt)}</span>
-                    <a href={api.prescriptionPdfUrl(consultationId, rx.id)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
+                    <ClinicalPdfLink href={api.prescriptionPdfUrl(consultationId, rx.id)} className="inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline">
                       <Download className="h-3.5 w-3.5" /> PDF
-                    </a>
+                    </ClinicalPdfLink>
                   </div>
                   {rx.medications.map((m, i) => (
                     <div key={i} className="text-sm text-slate-700">

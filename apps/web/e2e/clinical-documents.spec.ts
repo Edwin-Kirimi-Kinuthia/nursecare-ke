@@ -4,6 +4,7 @@ import { PDFDocument } from "pdf-lib";
 import { db } from "@carebora/db";
 import { signAccessToken } from "@carebora/core";
 import { payAppointment } from "./support/payments";
+import { authorizeDocumentSignature } from "./support/document-signature";
 
 test.describe.configure({ mode: "serial" });
 test.skip(process.env.PROVIDER_MEETINGS_E2E !== "1", "Requires an explicitly enabled disposable test database");
@@ -126,6 +127,33 @@ test("only the treating provider can issue a signed certificate, and invalid det
   expect(c.signatureDataUrl).toBeUndefined();
 });
 
+test("a provider's saved signature is private, authorized, and used on prescriptions and treatment sheets", async ({ request }) => {
+  const signingPath = "/api/v1/providers/me/document-signature";
+  expect((await request.get(signingPath, { headers: auth(patientToken) })).status()).toBe(403);
+  expect((await request.put(signingPath, { headers: auth(patientToken), data: { signatureDataUrl: image, authorize: true } })).status()).toBe(403);
+  expect((await request.put(signingPath, { headers: auth(providerToken), data: { signatureDataUrl: image, authorize: false } })).status()).toBe(422);
+  expect((await request.get(`/api/v1/consultations/${consultationId}/pdf`, { headers: auth(patientToken) })).status()).toBe(400);
+  await authorizeDocumentSignature(request, providerToken);
+  const other = await request.get(signingPath, { headers: auth(strangerToken) });
+  expect((await other.json()).data).toBeNull();
+  const profile = await request.get(`/api/v1/providers/${providerId}`);
+  expect(JSON.stringify(await profile.json())).not.toContain("signatureDataUrl");
+  const sheet = await request.get(`/api/v1/consultations/${consultationId}/pdf`, { headers: auth(patientToken) });
+  expect(sheet.status()).toBe(200);
+  expect(sheet.headers()["cache-control"]).toBe("private, no-store");
+  const rx = await request.post(`/api/v1/consultations/${consultationId}/prescriptions`, { headers: auth(providerToken), data: {
+    medications: [{ name: "Example medication", dosage: "100 mg", frequency: "Twice daily", duration: "5 days" }], instructions: "Follow the treating provider's instructions.",
+  } });
+  expect(rx.status()).toBe(201);
+  const rxId = (await rx.json()).data.id;
+  const url = `/api/v1/consultations/${consultationId}/prescriptions/${rxId}/pdf`;
+  const pdf = await request.get(url, { headers: auth(patientToken) });
+  expect(pdf.status()).toBe(200);
+  expect((await PDFDocument.load(await pdf.body())).getAuthor()).toBe("Dr Clinical Provider");
+  expect((await request.get(url, { headers: auth(strangerToken) })).status()).toBe(403);
+  expect((await request.get(`/api/v1/consultations/00000000-0000-4000-8000-000000000000/prescriptions/${rxId}/pdf`, { headers: auth(patientToken) })).status()).toBe(404);
+});
+
 test("patient downloads the PDF; strangers cannot read or download it; profile edits do not alter an issued copy", async ({ request }) => {
   await request.patch("/api/v1/providers/me/profile", { headers: auth(providerToken), data: { licenceNumber: "NEW-5678", licenceBody: "New Council" } });
   const path = `/api/v1/consultations/${consultationId}/sick-offs`;
@@ -143,6 +171,19 @@ test("patient downloads the PDF; strangers cannot read or download it; profile e
   const stored = await db.sickOff.findUniqueOrThrow({ where: { id: certificateId } });
   expect(stored.advice).toBeNull(); expect(stored.signatureDataUrl).toBe(image); expect(stored.stampDataUrl).toBe(image);
   expect(await db.auditLog.count({ where: { actorId: providerId, action: "sick_off.issued", entityId: certificateId } })).toBe(1);
+});
+
+test("provider can save their document signature from Professional profile", async ({ page }) => {
+  await page.context().addCookies([{ name: "cb_access", value: providerToken, url: test.info().project.use.baseURL! }]);
+  await page.goto("/profile");
+  await page.getByLabel("Upload signature", { exact: true }).setInputFiles({ name: "signature.png", mimeType: "image/png", buffer: Buffer.from(image.split(",")[1], "base64") });
+  await page.getByLabel("I authorize this signature on my prescriptions and clinical records.").check();
+  const saved = page.waitForResponse((r) => r.url().endsWith("/providers/me/document-signature") && r.request().method() === "PUT");
+  await page.getByRole("button", { name: "Save document signature" }).click();
+  expect((await saved).status()).toBe(200);
+  await expect(page.getByText("Document signature saved.")).toBeVisible();
+  await page.reload();
+  await expect(page.getByAltText("Your document signature preview")).toBeVisible();
 });
 
 test("provider can draw a signature and issue a sick-off from the appointment screen", async ({ page }) => {
@@ -168,4 +209,13 @@ test("patient UI downloads existing certificates and cannot issue one", async ({
   await page.goto("/appointments"); await page.getByText("Sick-off certificates", { exact: true }).click();
   await expect(page.getByRole("link", { name: /Download signed sick-off/ }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Issue signed sick-off" })).toHaveCount(0);
+});
+
+test("patient can download the signed treatment sheet from Records", async ({ page }) => {
+  await page.context().addCookies([{ name: "cb_access", value: patientToken, url: test.info().project.use.baseURL! }]);
+  await page.goto("/records");
+  await page.getByRole("button", { name: "Consultations", exact: true }).click();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "PDF", exact: true }).click();
+  expect((await download).suggestedFilename()).toMatch(/^treatment-sheet-.*\.pdf$/);
 });

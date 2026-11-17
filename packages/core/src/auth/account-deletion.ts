@@ -108,6 +108,7 @@ async function removeAccount(userId: string, authorization: DeletionAuthorizatio
 
     // A deleted provider must not stay bookable or listed.
     if (user.providerProfile) {
+      await tx.providerDocumentSignature.deleteMany({ where: { providerId: userId } });
       // Closed, not deleted: a cancelled appointment still points at its slot,
       // so the row has to stay. Marking every future slot booked is what takes
       // them off the calendar. (This runs after the cancellations above, which

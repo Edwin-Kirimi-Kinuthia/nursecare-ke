@@ -47,6 +47,7 @@ export { appointmentService } from "./booking/appointment.service";
 export { consultationService } from "./consultation/consultation.service";
 export { prescriptionService } from "./consultation/prescription.service";
 export { sickOffService } from "./consultation/sick-off.service";
+export { documentSignatureService } from "./consultation/document-signature.service";
 export { paymentService, toPaymentSummary, type PaymentSummary, type InitiateInput } from "./payment/payment.service";
 export { settlementService } from "./payment/settlement.service";
 export { drugService } from "./pharmacy/drug.service";

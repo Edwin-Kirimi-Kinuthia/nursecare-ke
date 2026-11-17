@@ -1,3 +1,4 @@
+import { authorizeDocumentSignature } from "./support/document-signature";
 import { seededSession } from "./support/auth";
 import { payAppointment } from "./support/payments";
 import { test, expect } from "@playwright/test";
@@ -241,6 +242,7 @@ test.describe("Records surface the clinician's treatment sheet", () => {
   });
 
   test("the patient can download it as a PDF, a stranger cannot", async ({ request }) => {
+    await authorizeDocumentSignature(request, doctorToken);
     const ok = await request.get(`/api/v1/consultations/${consultationId}/pdf`, {
       headers: { Authorization: `Bearer ${patientToken}` },
     });

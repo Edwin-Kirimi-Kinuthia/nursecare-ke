@@ -1,5 +1,7 @@
 "use client";
 
+import ClinicalPdfLink from "@/components/ClinicalPdfLink";
+
 import SickOffPanel from "@/components/SickOffPanel";
 
 import { useCallback, useState } from "react";
@@ -373,14 +375,12 @@ function ConsultationsTab({ consultations }: { consultations: import("@carebora/
                 </div>
               </div>
               {(filled.length > 0 || c.prescriptions.length > 0) && (
-                <a
+                <ClinicalPdfLink
                   href={`/api/v1/consultations/${c.id}/pdf`}
-                  target="_blank"
-                  rel="noreferrer"
                   className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
                 >
                   <Download className="h-3.5 w-3.5" /> PDF
-                </a>
+                </ClinicalPdfLink>
               )}
             </div>
 

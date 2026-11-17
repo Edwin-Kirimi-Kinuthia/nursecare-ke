@@ -9,6 +9,7 @@ import type {
   AuthResult,
   CreateAppointmentInput,
   IssueSickOffInput,
+  DocumentSignatureInput,
   ProviderMeetingInput,
   CreateAvailabilityInput,
   CreateHomeVisitInput,
@@ -357,6 +358,12 @@ export class CareBoraClient {
   }
   listSickOffs(consultationId: string) {
     return this.request<SickOffCertificate[]>(`/consultations/${consultationId}/sick-offs`);
+  }
+  getDocumentSignature() {
+    return this.request<{ signatureDataUrl: string; authorizedAt: string } | null>("/providers/me/document-signature");
+  }
+  saveDocumentSignature(input: DocumentSignatureInput) {
+    return this.request<{ signatureDataUrl: string; authorizedAt: string }>("/providers/me/document-signature", { method: "PUT", body: JSON.stringify(input) });
   }
   issueSickOff(consultationId: string, input: IssueSickOffInput) {
     return this.post<SickOffCertificate>(`/consultations/${consultationId}/sick-offs`, input);

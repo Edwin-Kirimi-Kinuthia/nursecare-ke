@@ -38,6 +38,9 @@ const nextConfig: NextConfig = {
   ],
   // Keep Prisma's engine out of the bundle; load it from node_modules at runtime.
   serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  outputFileTracingIncludes: {
+    "/api/v1/consultations/**/*": ["./public/logo-mark.png"],
+  },
 
   async headers() {
     return [

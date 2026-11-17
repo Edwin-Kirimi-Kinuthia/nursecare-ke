@@ -1,5 +1,7 @@
 "use client";
 
+import ClinicalPdfLink from "@/components/ClinicalPdfLink";
+
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -16,6 +18,7 @@ import { PhoneField } from "@/components/PhoneField";
 import { PasswordField } from "@/components/PasswordField";
 import IdentityCard from "@/components/IdentityCard";
 import DeleteAccountSection from "@/components/DeleteAccountSection";
+import DocumentSignatureSettings from "@/components/DocumentSignatureSettings";
 
 export default function ProfilePage() {
   const { user, loading: authLoading, refresh } = useAuth();
@@ -271,14 +274,12 @@ function PatientSection() {
                 {c.clinicalNotes ? (
                   <>
                     <p className="mt-2 whitespace-pre-wrap text-sm text-slate-600">{c.clinicalNotes}</p>
-                    <a
+                    <ClinicalPdfLink
                       href={api.treatmentSheetPdfUrl(c.id)}
-                      target="_blank"
-                      rel="noreferrer"
                       className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-teal-700 hover:underline"
                     >
                       <Download className="h-3.5 w-3.5" /> Download treatment sheet (PDF)
-                    </a>
+                    </ClinicalPdfLink>
                   </>
                 ) : (
                   <p className="mt-2 text-sm italic text-slate-400">No clinical notes recorded.</p>
@@ -471,6 +472,7 @@ function ProviderSection() {
       <button onClick={save} disabled={saving} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
         <Save className="h-4 w-4" /> {saving ? "Saving…" : "Save changes"}
       </button>
+      <DocumentSignatureSettings />
     </div>
   );
 }

@@ -317,6 +317,7 @@ model ProviderProfile {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   availabilities Availability[]
+  documentSignature ProviderDocumentSignature?
   slots          Slot[]
   appointments   Appointment[]
   homeVisits     HomeVisit[]
@@ -325,6 +326,16 @@ model ProviderProfile {
   @@index([verificationStatus])
   @@index([specialty])
   @@map("provider_profiles")
+}
+
+/// Private signature explicitly authorized by its provider for clinical PDFs.
+model ProviderDocumentSignature {
+  providerId       String   @id @map("provider_id") @db.Uuid
+  signatureDataUrl String   @map("signature_data_url")
+  authorizedAt     DateTime @default(now()) @map("authorized_at") @db.Timestamptz(6)
+  provider ProviderProfile @relation(fields: [providerId], references: [userId], onDelete: Cascade)
+
+  @@map("provider_document_signatures")
 }
 
 /// KYC / licence documents uploaded by providers for verification.

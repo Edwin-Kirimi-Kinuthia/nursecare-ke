@@ -68,6 +68,12 @@ export const patchProviderProfileSchema = z.object({
 
 export type PatchProviderProfileInput = z.infer<typeof patchProviderProfileSchema>;
 
+export const documentSignatureSchema = z.object({
+  signatureDataUrl: z.string().max(700_000).regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/, "Draw or upload your PNG/JPEG signature"),
+  authorize: z.literal(true),
+});
+export type DocumentSignatureInput = z.infer<typeof documentSignatureSchema>;
+
 /** Register a phone for push notifications. The token comes from expo-notifications on the device. */
 export const registerPushDeviceSchema = z.object({
   token: z.string().trim().regex(/^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/, "Not a valid push token"),
