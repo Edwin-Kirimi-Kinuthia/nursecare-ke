@@ -3,10 +3,9 @@
 The site supports Meta's WhatsApp Cloud API. The WhatsApp Business phone app on
 its own does not provide the API credentials needed by the website.
 
-Admin recipient: **+16807783483**, as requested. This is a recipient, not a sender
-credential. Use an API sending number different from the admin recipient: a
-business number cannot send WhatsApp messages to itself. If this number will
-become the API sender, configure a separate admin recipient in `WHATSAPP_ADMIN_TO`.
+Configure admin recipients privately in `WHATSAPP_ADMIN_TO`. These are recipient
+numbers, not sender credentials. Use an API sending number different from the
+admin recipient: a business number cannot send WhatsApp messages to itself.
 Multiple opted-in admin numbers can be comma-separated.
 
 ## Events
@@ -51,8 +50,8 @@ only provider invitations/resumed consultations waive it.
    `https://app.carebora.co.ke/api/v1/consultations/livekit-webhook` with the same
    API key as the site. Signed `participant_joined` events cover native and web
    calls. The browser also verifies presence with the server after connecting.
-6. Configure `WHATSAPP_ADMIN_TO=+16807783483` (or another distinct, opted-in
-   recipient) and `WHATSAPP_ENABLED=true`, then redeploy. No historical events
+6. Configure `WHATSAPP_ADMIN_TO` with a distinct, opted-in admin recipient and
+   `WHATSAPP_ENABLED=true`, then redeploy. No historical events
    are queued while sending is disabled.
 7. Set a random `CRON_SECRET` and schedule an HTTPS GET every minute to
    `/api/v1/notifications/whatsapp/process`, with
