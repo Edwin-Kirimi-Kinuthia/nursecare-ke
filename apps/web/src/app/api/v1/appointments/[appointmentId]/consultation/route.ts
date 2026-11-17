@@ -5,7 +5,8 @@ import { consultationService } from "@carebora/core";
 
 /**
  * POST /api/v1/appointments/:appointmentId/consultation
- * Provider starts (or retrieves) the consultation for their appointment.
+ * Provider starts or resumes their consultation, including completed appointments.
+ * Resuming preserves the clinical record and requires no additional payment.
  */
 export const POST = route(async (req, { params }: { params: Promise<{ appointmentId: string }> }) => {
   const { appointmentId } = await params;

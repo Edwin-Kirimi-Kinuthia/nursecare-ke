@@ -3,9 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2, Star } from "lucide-react";
+import { CalendarDays, Video, MapPin, Clock, CheckCircle2, Loader2, Star, Plus } from "lucide-react";
 import type { Appointment } from "@carebora/api-client";
-import { ApiError, nameInitial } from "@carebora/shared";
+import { ApiError, nameInitial, PROVIDER_ROLES } from "@carebora/shared";
 import { api, kes, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
@@ -16,6 +16,7 @@ import ReviewModal from "@/components/ReviewModal";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
 import EmptyState from "@/components/EmptyState";
+import ScheduleMeetingModal from "@/components/ScheduleMeetingModal";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
@@ -31,6 +32,8 @@ export default function AppointmentsPage() {
   const [appts, setAppts] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [scheduleEmail, setScheduleEmail] = useState<string | null>(null);
+  const canSchedule = !!user && PROVIDER_ROLES.includes(user.role);
 
   // pay modal
   const [payAppt, setPayAppt] = useState<Appointment | null>(null);
@@ -54,7 +57,7 @@ export default function AppointmentsPage() {
 
   async function load() {
     try {
-      const res = await api.listAppointments();
+      const res = await api.listAppointments({ limit: 50 });
       setAppts(res.appointments);
       return res.appointments;
     } catch {
@@ -78,7 +81,7 @@ export default function AppointmentsPage() {
       if (!payId) return;
       window.history.replaceState(null, "", window.location.pathname);
       const target = list.find((a) => a.id === payId);
-      if (target && target.status === "confirmed" && target.feeKes > 0
+      if (target && target.status === "confirmed" && target.feeKes > 0 && !target.paymentWaived
           && target.payment?.status !== "completed" && target.providerId !== user.id) {
         setPayAppt(target); setPayMsg(null); setSimCheckoutId(null);
         setPendingPaymentId(null); setPayPhone(user.phone ?? "");
@@ -154,6 +157,12 @@ export default function AppointmentsPage() {
         lede="Your upcoming and past consultations, home visits and the records that came out of them."
       />
 
+      {canSchedule && (
+        <button onClick={() => setScheduleEmail("")} className="mt-5 inline-flex items-center gap-2 rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700">
+          <Plus className="h-4 w-4" /> Schedule a meeting
+        </button>
+      )}
+
       {appts.length === 0 ? (
         <EmptyState
           className="mt-8"
@@ -171,13 +180,15 @@ export default function AppointmentsPage() {
           {appts.map((a) => {
             const st = STATUS[a.status] ?? { label: a.status, cls: "bg-slate-100 text-slate-600" };
             const isProvider = actingAsProvider(a);
+            const noPayment = a.paymentWaived || a.feeKes <= 0;
+            const otherName = isProvider ? a.patient.fullName : a.provider?.user?.fullName;
             return (
               <div key={a.id} className="card-lift flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
                 <div className="grid h-12 w-12 place-items-center rounded-xl bg-gradient-to-br from-teal-100 to-emerald-100 font-bold text-teal-700">
-                  {nameInitial(a.provider?.user?.fullName)}
+                  {nameInitial(otherName)}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-bold text-slate-900">{a.provider?.user?.fullName ?? "Provider"}</div>
+                  <div className="font-bold text-slate-900">{otherName ?? "Provider"}</div>
                   <div className="mt-0.5 flex items-center gap-3 text-sm text-slate-500">
                     <span className="flex items-center gap-1">
                       {a.appointmentType === "home_visit" ? <MapPin className="h-3.5 w-3.5" /> : <Video className="h-3.5 w-3.5" />}
@@ -187,9 +198,20 @@ export default function AppointmentsPage() {
                   </div>
                 </div>
                 <div className="ml-auto flex items-center gap-3">
-                  <span className="font-bold text-slate-700">{kes(a.feeKes)}</span>
+                  <span className="font-bold text-slate-700">{a.feeKes <= 0 ? "Free" : kes(a.feeKes)}</span>
                   <span className={`rounded-full px-3 py-1 text-xs font-semibold ${st.cls}`}>{st.label}</span>
                 </div>
+
+                {isProvider && (
+                  <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                    <button onClick={() => setScheduleEmail(a.patient.email ?? "")} className="rounded-xl border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">Schedule new meeting</button>
+                    {a.appointmentType === "teleconsult" && a.status === "completed" && (
+                      <button onClick={() => startConsult(a)} disabled={busyId === a.id} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
+                        <Video className="h-4 w-4" /> {busyId === a.id ? "Resuming…" : "Resume consultation"}
+                      </button>
+                    )}
+                  </div>
+                )}
 
                 {/* Rate a finished appointment — the patient's side only. */}
                 {a.status === "completed" && !isProvider && (
@@ -234,13 +256,13 @@ export default function AppointmentsPage() {
                       </button>
                     )}
                     {/* Doctor starts / resumes the consultation */}
-                    {isProvider && a.status === "confirmed" && a.feeKes > 0 && a.payment?.status !== "completed" && !a.consultation && (
+                    {isProvider && a.status === "confirmed" && !noPayment && a.payment?.status !== "completed" && !a.consultation && (
                       // Paid before seen: nothing to start until the fee is in.
                       <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-700">
                         <Clock className="h-3.5 w-3.5" /> Waiting for the patient to pay
                       </span>
                     )}
-                    {isProvider && a.status === "confirmed" && (a.feeKes <= 0 || a.payment?.status === "completed" || !!a.consultation) && (
+                    {isProvider && a.status === "confirmed" && (noPayment || a.payment?.status === "completed" || !!a.consultation) && (
                       <button
                         onClick={() => startConsult(a)}
                         disabled={busyId === a.id}
@@ -255,6 +277,8 @@ export default function AppointmentsPage() {
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Paid
                         </span>
+                      ) : noPayment ? (
+                        <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">No payment required</span>
                       ) : a.payment?.status === "awaiting_verification" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700">
                           <Clock className="h-3.5 w-3.5" /> Verifying payment
@@ -283,8 +307,8 @@ export default function AppointmentsPage() {
                       </span>
                     )}
                     {/* Only once paid — before that the next step is paying, not waiting. */}
-                    {!isProvider && a.status === "confirmed" && !a.consultation && a.payment?.status === "completed" && (
-                      <span className="text-xs text-slate-500">Paid — waiting for the doctor to start…</span>
+                    {!isProvider && a.status === "confirmed" && !a.consultation && (noPayment || a.payment?.status === "completed") && (
+                      <span className="text-xs text-slate-500">{noPayment ? "No payment required" : "Paid"} — waiting for the provider to start…</span>
                     )}
                   </div>
                 )}
@@ -292,6 +316,19 @@ export default function AppointmentsPage() {
             );
           })}
         </div>
+      )}
+
+      {scheduleEmail !== null && (
+        <ScheduleMeetingModal
+          clientEmail={scheduleEmail}
+          clients={Array.from(new Map(appts.filter(actingAsProvider).filter((a) => a.patient.email).map((a) => [a.patient.email!, { email: a.patient.email!, fullName: a.patient.fullName }])).values())}
+          onClose={() => setScheduleEmail(null)}
+          onDone={(appointment, meetNow) => {
+            setScheduleEmail(null);
+            setAppts((prev) => [...prev, appointment].sort((a, b) => +new Date(a.slot.startsAt) - +new Date(b.slot.startsAt)));
+            if (meetNow) void startConsult(appointment);
+          }}
+        />
       )}
 
       {reviewAppt && (

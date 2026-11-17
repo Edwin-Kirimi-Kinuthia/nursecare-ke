@@ -175,6 +175,25 @@ export const notificationService = backgrounded({
     void sendSms(opts.patientPhone, `CareBora: Appointment with ${opts.providerName} requested for ${slot}. Awaiting confirmation.`);
   },
 
+  async providerMeetingScheduled(opts: {
+    patientEmail: string;
+    patientPhone?: string | null;
+    patientName: string;
+    providerName: string;
+    slotTime: Date;
+  }) {
+    const slot = nairobi(opts.slotTime);
+    await sendEmail(opts.patientEmail, "Your provider invited you to a meeting — CareBora", renderEmail({
+      preheader: `${opts.providerName} · ${slot} · No payment required`,
+      heading: "Your provider scheduled a meeting",
+      body: p(`Hi ${firstName(opts.patientName)}, ${esc(opts.providerName)} has invited you to a video meeting.`)
+        + rows([["Provider", esc(opts.providerName)], ["When", slot], ["Fee", "Free — no payment required"]])
+        + panel("You'll be notified when your provider starts the meeting. Open your appointments to join."),
+      button: { label: "View your meeting", url: `${appBase()}/appointments` },
+    }));
+    void sendSms(opts.patientPhone, `CareBora: ${opts.providerName} invited you to a video meeting on ${slot}. No payment required. View it in your appointments.`);
+  },
+
   async appointmentConfirmed(opts: {
     patientEmail: string;
     patientPhone?: string | null;
@@ -182,18 +201,20 @@ export const notificationService = backgrounded({
     providerName: string;
     slotTime: Date;
     feeKes: number;
+    paymentWaived?: boolean;
   }) {
     const slot = nairobi(opts.slotTime);
+    const free = opts.paymentWaived || opts.feeKes <= 0;
     await sendEmail(opts.patientEmail, "Appointment confirmed — CareBora", renderEmail({
       preheader: `Confirmed: ${opts.providerName} · ${slot}`,
       heading: "Your appointment is confirmed",
       body:
         p(`Hi ${firstName(opts.patientName)}, ${esc(opts.providerName)} has confirmed your appointment.`)
         + rows([["Provider", esc(opts.providerName)], ["When", slot], ["Fee", money(opts.feeKes)]])
-        + panel("Pay with M-Pesa in the app to complete your booking. You'll get an M-Pesa prompt on your phone."),
-      button: { label: "Pay for your appointment", url: `${appBase()}/appointments` },
+        + panel(free ? "No payment is required. You'll be notified when your provider is ready." : "Pay with M-Pesa in the app to complete your booking. You'll get an M-Pesa prompt on your phone."),
+      button: { label: free ? "View your appointment" : "Pay for your appointment", url: `${appBase()}/appointments` },
     }));
-    void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. Please pay KES ${opts.feeKes} on the app.`);
+    void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. ${free ? "No payment required." : `Please pay KES ${opts.feeKes} on the app.`}`);
   },
 
   async consultationStarted(opts: {

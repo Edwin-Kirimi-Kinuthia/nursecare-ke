@@ -33,7 +33,7 @@ function assertParticipant(c: ConsultationWithAppointment, userId: string) {
 
 export const consultationService = {
   /**
-   * Start (or retrieve) the consultation for an appointment.
+   * Start, retrieve, or resume the consultation for an appointment.
    * Only the provider can initiate. Idempotent — safe to call twice.
    */
   async start(appointmentId: string, providerId: string) {
@@ -47,17 +47,22 @@ export const consultationService = {
     });
     if (!appointment) throw ApiError.notFound("Appointment not found");
     if (appointment.providerId !== providerId) throw ApiError.forbidden();
-    if (appointment.status !== "confirmed") {
-      throw ApiError.badRequest("Appointment must be confirmed before starting a consultation");
+    if (appointment.appointmentType !== "teleconsult") {
+      throw ApiError.badRequest("Only video appointments have a consultation room");
     }
-    if (appointment.consultation) return appointment.consultation;
+    if (appointment.status !== "confirmed" && appointment.status !== "completed") {
+      throw ApiError.badRequest("Appointment must be confirmed or completed before starting a consultation");
+    }
+    const resuming = appointment.status === "completed" || appointment.consultation?.status === "ended";
+    if (appointment.consultation && !resuming) return appointment.consultation;
 
     // Paid before seen. Confirmation alone used to be enough, so a patient
     // could be taken into a consultation without ever paying for it — and
     // nothing afterwards chases the money. Checked here, at the one place a
     // consultation begins, so it holds regardless of which screen or client
     // asks. A free appointment (no fee) has nothing to pay and passes.
-    if (appointment.feeKes > 0) {
+    // Reopening is a provider request and never charges the client again.
+    if (!resuming && !appointment.paymentWaived && appointment.feeKes > 0) {
       const paid = await db.payment.findFirst({
         where: { subjectType: "appointment", subjectId: appointmentId, status: "completed" },
         select: { id: true },
@@ -67,8 +72,25 @@ export const consultationService = {
       }
     }
 
-    const consultation = await db.consultation.create({
-      data: { appointmentId, roomName: `consult-${appointmentId}` },
+    const consultation = await db.$transaction(async (tx) => {
+      if (resuming) {
+        await tx.appointment.update({
+          where: { id: appointmentId },
+          data: { status: "confirmed", paymentWaived: true },
+        });
+      }
+      if (appointment.consultation) {
+        // Retain the room, clinical record, prescriptions and original start.
+        return tx.consultation.update({
+          where: { id: appointment.consultation.id },
+          data: { status: "active", endedAt: null },
+        });
+      }
+      return tx.consultation.upsert({
+        where: { appointmentId },
+        create: { appointmentId, roomName: `consult-${appointmentId}` },
+        update: {},
+      });
     });
 
     // Notify the patient to join — in-app bell + email/SMS with a join link.
@@ -77,8 +99,8 @@ export const consultationService = {
     const appUrl = process.env.APP_URL || "https://nursecare-ke-five.vercel.app";
     void inAppNotifications.create(appointment.patient.id, {
       type: "consultation_started",
-      title: "Your doctor is ready — join now",
-      body: `${providerName} has started your video consultation.`,
+      title: "Your provider is ready — join now",
+      body: `${providerName} has ${resuming ? "resumed" : "started"} your video consultation.${resuming ? " No additional payment is required." : ""}`,
       link,
     });
     void notificationService.consultationStarted({
@@ -174,9 +196,15 @@ export const consultationService = {
     const c = await getConsultation(consultationId);
     assertParticipant(c, userId);
 
-    const isProvider = PROVIDER_ROLES.includes(role);
+    const isProvider = PROVIDER_ROLES.includes(role) && c.appointment.providerId === userId;
     if ((input.clinicalNotes !== undefined || input.clinicalRecord !== undefined) && !isProvider) {
       throw ApiError.forbidden("Only providers can update clinical documentation");
+    }
+    if (input.status && !isProvider) {
+      throw ApiError.forbidden("Only the appointment's provider can change the consultation status");
+    }
+    if (input.status === "active" && (c.status === "ended" || c.appointment.status !== "confirmed")) {
+      throw ApiError.badRequest("Resume the appointment before reopening this consultation");
     }
 
     const data: {

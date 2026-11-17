@@ -8,6 +8,7 @@ import type {
   AuditLogsQuery,
   AuthResult,
   CreateAppointmentInput,
+  ProviderMeetingInput,
   CreateAvailabilityInput,
   CreateHomeVisitInput,
   CreateOrderInput,
@@ -349,6 +350,9 @@ export class CareBoraClient {
   }
   createAppointment(input: CreateAppointmentInput) {
     return this.post<Appointment>("/appointments", input);
+  }
+  scheduleProviderMeeting(input: ProviderMeetingInput) {
+    return this.post<Appointment>("/appointments/provider-meeting", input);
   }
   getAppointment(appointmentId: string) {
     return this.request<Appointment>(`/appointments/${appointmentId}`);
@@ -994,6 +998,7 @@ export interface Appointment {
   appointmentType: AppointmentType;
   status: AppointmentStatus;
   feeKes: number;
+  paymentWaived: boolean;
   patientNotes: string | null;
   notes: string | null;
   createdAt: string;
@@ -1006,7 +1011,7 @@ export interface Appointment {
     homeVisitFeeKes: number | null;
     user: { fullName: string; avatarUrl: string | null };
   };
-  patient: { id: string; fullName: string; avatarUrl: string | null };
+  patient: { id: string; fullName: string; avatarUrl: string | null; email?: string };
   consultation?: Consultation | null;
   payment?: PaymentSummary | null;
   /** Present once the patient has rated this appointment. */

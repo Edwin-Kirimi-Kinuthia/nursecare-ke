@@ -423,6 +423,8 @@ model Appointment {
   appointmentType AppointmentType   @map("appointment_type")
   status          AppointmentStatus @default(requested)
   feeKes          Int               @map("fee_kes")
+  /// Provider invitations and provider-resumed appointments require no client payment.
+  paymentWaived   Boolean           @default(false) @map("payment_waived")
   patientNotes    String?           @map("patient_notes")
   /// How the clinician reaches the patient — required for home ("door to door") visits.
   contactPhone    String?           @map("contact_phone")

@@ -2584,8 +2584,8 @@
         "tags": [
           "Appointments"
         ],
-        "summary": "POST /api/v1/appointments/:appointmentId/consultation Provider starts (or retrieves) the consultation for t…",
-        "description": "POST /api/v1/appointments/:appointmentId/consultation Provider starts (or retrieves) the consultation for their appointment.",
+        "summary": "POST /api/v1/appointments/:appointmentId/consultation Provider starts or resumes their consultation, includ…",
+        "description": "POST /api/v1/appointments/:appointmentId/consultation Provider starts or resumes their consultation, including completed appointments. Resuming preserves the clinical record and requires no additional payment.",
         "security": [
           {
             "bearerAuth": []
@@ -2803,6 +2803,70 @@
             "$ref": "#/components/responses/Error"
           },
           "404": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/appointments/provider-meeting": {
+      "post": {
+        "tags": [
+          "Appointments"
+        ],
+        "summary": "Schedule a free meeting with any registered client (verified providers only).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientEmail": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "startsAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "durationMinutes": {
+                    "type": "integer",
+                    "minimum": 5,
+                    "maximum": 240,
+                    "default": 30
+                  }
+                },
+                "required": [
+                  "clientEmail"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
             "$ref": "#/components/responses/Error"
           },
           "422": {

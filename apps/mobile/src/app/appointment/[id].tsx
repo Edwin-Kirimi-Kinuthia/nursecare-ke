@@ -41,7 +41,7 @@ export default function AppointmentScreen() {
   const isProvider = a.providerId === user.id;
   const other = isProvider ? a.patient : a.provider.user;
   const status = describeAppointment(a, user.id);
-  const paid = a.payment?.status === "completed" || a.feeKes <= 0;
+  const paid = a.payment?.status === "completed" || a.paymentWaived || a.feeKes <= 0;
   const consultation = a.consultation && a.consultation.status !== "ended" ? a.consultation : null;
 
   async function run(fn: () => Promise<void>) {
@@ -53,7 +53,8 @@ export default function AppointmentScreen() {
   const confirm = () => run(async () => { await api.patchAppointment(a.id, { status: "confirmed" }); });
 
   const startOrJoin = () => run(async () => {
-    const c = consultation ?? (await api.startConsultation(a.id));
+    const c = isProvider ? await api.startConsultation(a.id) : consultation;
+    if (!c) return;
     router.push({ pathname: "/consultation/[id]", params: { id: c.id, appointmentId: a.id } });
   });
 
@@ -79,6 +80,7 @@ export default function AppointmentScreen() {
           <Row label="Time" value={`${timeOnly(a.slot.startsAt)} – ${timeOnly(a.slot.endsAt)}`} />
           <Row label="Type" value="Video consultation" />
           <Row label="Fee" value={kes(a.feeKes)} />
+          {a.paymentWaived && <Row label="Payment" value="No payment required" />}
           {a.payment?.receiptNumber ? <Row label="M-Pesa receipt" value={a.payment.receiptNumber} /> : null}
         </View>
       </Card>
@@ -112,7 +114,7 @@ export default function AppointmentScreen() {
       {!isProvider && ["requested", "confirmed"].includes(a.status) && !paid && !consultation && (
         <Button title="Cancel appointment" variant="ghost" onPress={cancel} disabled={busy} />
       )}
-      {!isProvider && paid && a.feeKes > 0 && ["confirmed"].includes(a.status) && (
+      {!isProvider && a.payment?.status === "completed" && a.feeKes > 0 && ["confirmed"].includes(a.status) && (
         <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
           Need to cancel a paid appointment? Message us from the Account tab and we&apos;ll arrange a refund.
         </Text>
@@ -127,6 +129,12 @@ export default function AppointmentScreen() {
       )}
       {isProvider && a.status === "confirmed" && paid && (
         <Button title={consultation ? "Rejoin consultation" : "Start consultation"} onPress={startOrJoin} loading={busy} />
+      )}
+      {isProvider && a.appointmentType === "teleconsult" && a.status === "completed" && (
+        <Button title="Resume consultation" onPress={startOrJoin} loading={busy} />
+      )}
+      {isProvider && (
+        <Button title="Schedule new meeting" variant="secondary" onPress={() => router.push({ pathname: "/appointment/new", params: { clientEmail: a.patient.email ?? "" } })} />
       )}
       {isProvider && a.status === "completed" && a.review && (
         <Card>

@@ -69,6 +69,16 @@ export const createAppointmentSchema = z.object({
 
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 
+/** A provider invitation is always free and does not require a published slot. */
+export const providerMeetingSchema = z.object({
+  clientEmail: z.string().trim().toLowerCase().email("Enter the client's registered email"),
+  // Omit startsAt for an immediate meeting; the server supplies the time.
+  startsAt: z.string().datetime({ offset: true }).optional(),
+  durationMinutes: z.number().int().min(5).max(240).default(30),
+});
+
+export type ProviderMeetingInput = z.infer<typeof providerMeetingSchema>;
+
 export const patchAppointmentSchema = z.object({
   status: z.enum(["confirmed", "completed", "cancelled", "no_show"]).optional(),
   notes: z.string().max(5000).optional(),

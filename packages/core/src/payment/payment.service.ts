@@ -61,6 +61,9 @@ export const paymentService = {
     if (appointment.status !== "confirmed") {
       throw ApiError.badRequest("Only confirmed appointments can be paid for");
     }
+    if (appointment.paymentWaived || appointment.feeKes <= 0) {
+      throw ApiError.badRequest("No payment is required for this appointment");
+    }
     const existing = await db.payment.findFirst({
       where: { subjectType: "appointment", subjectId: appointment.id, status: "completed" },
     });

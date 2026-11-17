@@ -120,7 +120,7 @@ export const availabilityService = {
     if (!provider) throw ApiError.notFound("Provider not found");
     await this.topUpIfNeeded(providerId);
     const now = new Date();
-    return db.slot.findMany({
+    const slots = await db.slot.findMany({
       where: {
         providerId,
         isBooked: false,
@@ -133,6 +133,17 @@ export const availabilityService = {
       orderBy: { startsAt: "asc" },
       take: 100,
     });
+    const firstSlot = slots[0];
+    if (!firstSlot) return slots;
+    const booked = await db.slot.findMany({
+      where: {
+        providerId, isBooked: true,
+        startsAt: { lt: new Date(Math.max(...slots.map((s) => s.endsAt.getTime()))) },
+        endsAt: { gt: firstSlot.startsAt },
+      },
+      select: { startsAt: true, endsAt: true },
+    });
+    return slots.filter((slot) => !booked.some((busy) => busy.startsAt < slot.endsAt && busy.endsAt > slot.startsAt));
   },
 
   /** Manually add a one-off slot (provider override). */

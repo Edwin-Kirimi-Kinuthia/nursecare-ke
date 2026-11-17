@@ -5,6 +5,7 @@ import {
   type AppointmentsQuery,
   type CreateAppointmentInput,
   type PatchAppointmentInput,
+  type ProviderMeetingInput,
   type UserRole,
 } from "@carebora/shared";
 import { notificationService } from "../notifications/notification.service";
@@ -41,6 +42,71 @@ async function attachPayments<T extends { id: string }>(appointments: T[]) {
 }
 
 export const appointmentService = {
+  /** Invite any active client, independently of recurring availability and fees. */
+  async scheduleMeeting(providerId: string, role: UserRole, input: ProviderMeetingInput) {
+    if (!PROVIDER_ROLES.includes(role)) throw ApiError.forbidden();
+    const provider = await db.providerProfile.findUnique({
+      where: { userId: providerId, user: { isActive: true, deletedAt: null } },
+    });
+    if (!provider || provider.verificationStatus !== "verified") {
+      throw ApiError.forbidden("Only verified care providers can schedule meetings");
+    }
+    const patient = await db.user.findFirst({
+      where: { email: { equals: input.clientEmail, mode: "insensitive" }, isActive: true, deletedAt: null },
+      select: { id: true },
+    });
+    if (!patient) throw ApiError.notFound("No active client found with that email");
+    if (patient.id === providerId) throw ApiError.badRequest("You cannot schedule a meeting with yourself");
+
+    const startsAt = input.startsAt ? new Date(input.startsAt) : new Date();
+    if (input.startsAt && startsAt <= new Date()) {
+      throw ApiError.badRequest("Choose a future meeting time or Meet now");
+    }
+    const endsAt = new Date(startsAt.getTime() + input.durationMinutes * 60_000);
+    let appointment;
+    try {
+      appointment = await db.$transaction(async (tx) => {
+        const overlapping = await tx.slot.findFirst({
+          where: { providerId, isBooked: true, startsAt: { lt: endsAt }, endsAt: { gt: startsAt } },
+          select: { id: true },
+        });
+        if (overlapping) throw ApiError.conflict("You already have a booking at that time. Choose another time.");
+        const slot = await tx.slot.upsert({
+          where: { providerId_startsAt: { providerId, startsAt } },
+          create: { providerId, appointmentType: "teleconsult", startsAt, endsAt, isBooked: true },
+          update: { appointmentType: "teleconsult", endsAt, isBooked: true },
+        });
+        await tx.patientProfile.upsert({ where: { userId: patient.id }, create: { userId: patient.id }, update: {} });
+        return tx.appointment.create({
+          data: {
+            patientId: patient.id, providerId, slotId: slot.id,
+            appointmentType: "teleconsult", status: "confirmed", feeKes: 0, paymentWaived: true,
+          },
+          include: APPOINTMENT_INCLUDE,
+        });
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && ["P2002", "P2034"].includes(err.code)) {
+        throw ApiError.conflict("The calendar changed while scheduling. Please try again.");
+      }
+      throw err;
+    }
+    void notificationService.providerMeetingScheduled({
+      patientEmail: appointment.patient.email,
+      patientPhone: appointment.patient.phone,
+      patientName: appointment.patient.fullName,
+      providerName: appointment.provider.user.fullName,
+      slotTime: startsAt,
+    });
+    void inAppNotifications.create(patient.id, {
+      type: "provider_meeting_scheduled",
+      title: "Your provider scheduled a meeting",
+      body: `${appointment.provider.user.fullName} invited you to a video meeting. No payment is required.`,
+      link: "/appointments",
+    });
+    return attachPayment(appointment);
+  },
+
   /** Patient books a slot. Fails if the slot is already taken. */
   async create(patientId: string, input: CreateAppointmentInput) {
     const slot = await db.slot.findUnique({ where: { id: input.slotId } });
@@ -85,8 +151,14 @@ export const appointmentService = {
     const autoConfirm = provider.isAvailable && slot.appointmentType === "teleconsult";
 
     try {
-      const [appointment] = await db.$transaction([
-        db.appointment.create({
+      const appointment = await db.$transaction(async (tx) => {
+        // Custom provider meetings may span several published slots.
+        const overlapping = await tx.slot.findFirst({
+          where: { providerId: slot.providerId, isBooked: true, startsAt: { lt: slot.endsAt }, endsAt: { gt: slot.startsAt } },
+          select: { id: true },
+        });
+        if (overlapping) throw ApiError.conflict("The provider already has a booking at this time");
+        const created = await tx.appointment.create({
           data: {
             patientId,
             providerId: slot.providerId,
@@ -98,9 +170,10 @@ export const appointmentService = {
             contactPhone: input.contactPhone ?? null,
           },
           include: APPOINTMENT_INCLUDE,
-        }),
-        db.slot.update({ where: { id: slot.id }, data: { isBooked: true } }),
-      ]);
+        });
+        await tx.slot.update({ where: { id: slot.id }, data: { isBooked: true } });
+        return created;
+      }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       const providerName = appointment.provider.user.fullName;
       if (autoConfirm) {
         // Already confirmed: tell the patient to pay, not to wait.
@@ -140,7 +213,7 @@ export const appointmentService = {
     } catch (err) {
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
-        err.code === "P2002"
+        ["P2002", "P2034"].includes(err.code)
       ) {
         throw ApiError.conflict("This slot was just booked by someone else");
       }
@@ -243,6 +316,7 @@ export const appointmentService = {
         providerName: updated.provider.user.fullName,
         slotTime: updated.slot.startsAt,
         feeKes: updated.feeKes,
+        paymentWaived: updated.paymentWaived,
       });
       void inAppNotifications.create(updated.patientId, {
         type: "appointment_confirmed",

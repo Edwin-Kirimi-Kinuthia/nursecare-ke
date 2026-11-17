@@ -1,6 +1,7 @@
 import { Pressable, View } from "react-native";
 import { router } from "expo-router";
 import type { Appointment } from "@carebora/api-client";
+import { PROVIDER_ROLES } from "@carebora/shared";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useAsync } from "@/lib/useAsync";
@@ -9,6 +10,7 @@ import { describeAppointment } from "@/features/appointmentStatus";
 import { SignInPrompt } from "@/features/SignInPrompt";
 import { Screen, Card } from "@/ui/Screen";
 import { Text } from "@/ui/Text";
+import { Button } from "@/ui/Button";
 import { Avatar, Badge, Banner, Empty, Loading } from "@/ui/parts";
 
 export default function AppointmentsScreen() {
@@ -42,6 +44,7 @@ export default function AppointmentsScreen() {
 
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing}>
+      {PROVIDER_ROLES.includes(user.role) && <Button title="Schedule a meeting" onPress={() => router.push("/appointment/new")} />}
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading && !list.data ? (
         <View style={{ height: 240 }}><Loading /></View>

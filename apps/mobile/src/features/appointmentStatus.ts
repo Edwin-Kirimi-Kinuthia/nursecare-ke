@@ -10,7 +10,7 @@ export type StatusView = { label: string; tone: "ok" | "warn" | "danger" | "info
  */
 export function describeAppointment(a: Appointment, meId: string): StatusView {
   const isProvider = a.providerId === meId;
-  const paid = a.payment?.status === "completed" || a.feeKes <= 0;
+  const paid = a.payment?.status === "completed" || a.paymentWaived || a.feeKes <= 0;
   const live = a.consultation && a.consultation.status !== "ended";
 
   switch (a.status) {
@@ -18,7 +18,7 @@ export function describeAppointment(a: Appointment, meId: string): StatusView {
     case "confirmed":
       if (live) return { label: "In progress", tone: "ok" };
       if (!paid) return isProvider ? { label: "Awaiting payment", tone: "warn" } : { label: "Pay now", tone: "warn" };
-      return { label: "Paid · ready", tone: "ok" };
+      return { label: a.paymentWaived || a.feeKes <= 0 ? "Ready · no payment needed" : "Paid · ready", tone: "ok" };
     case "completed": return { label: "Completed", tone: "neutral" };
     case "cancelled": return { label: "Cancelled", tone: "danger" };
     case "no_show": return { label: "Missed", tone: "danger" };

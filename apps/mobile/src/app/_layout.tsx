@@ -110,6 +110,7 @@ function Gate() {
         {/* Signed-in only. Signing out while on one of these sends you back to the tabs. */}
         <Stack.Protected guard={isAuthed}>
           <Stack.Screen name="appointment/[id]" options={{ title: "Appointment" }} />
+          <Stack.Screen name="appointment/new" options={{ title: "Schedule a meeting" }} />
           <Stack.Screen name="consultation/[id]" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
           <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
