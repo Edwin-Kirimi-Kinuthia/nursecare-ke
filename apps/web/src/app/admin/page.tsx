@@ -25,8 +25,9 @@ import { useSection, SectionShell } from "@/components/dashboard/section";
 import { fileToDataUrl } from "@/lib/files";
 import { PhoneField } from "@/components/PhoneField";
 import { NameFields, EMPTY_NAME, composeFullName, splitFullName, type NameParts } from "@/components/NameFields";
+import WhatsAppStatus from "@/components/admin/WhatsAppStatus";
 
-type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify";
+type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify" | "whatsapp";
 
 const TONES: Record<string, string> = {
   teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
@@ -66,6 +67,7 @@ export default function AdminPage() {
     { id: "orders", label: "Orders", Icon: ShoppingBag },
     { id: "home-visits", label: "Home visits", Icon: HomeIcon },
     { id: "support", label: "Messages", Icon: MessageSquare },
+    { id: "whatsapp", label: "WhatsApp", Icon: Send },
     ...(IS_TILL_MODE ? [{ id: "pay-verify" as Tab, label: "Verify payments", Icon: Wallet }] : []),
     { id: "reviews", label: "Reviews", Icon: Star },
     { id: "audit", label: "Audit log", Icon: ScrollText },
@@ -122,6 +124,7 @@ export default function AdminPage() {
         <div className="mt-6">
           {tab === "overview" && <OverviewTab stats={stats} loading={statsSec.loading} error={statsSec.error} onRetry={statsSec.reload} />}
           {tab === "appointments" && <AppointmentsTab />}
+          {tab === "whatsapp" && <WhatsAppStatus />}
           {tab === "users" && <UsersTab />}
           {tab === "verifications" && <VerificationsTab />}
           {tab === "organizations" && <OrganizationsTab />}

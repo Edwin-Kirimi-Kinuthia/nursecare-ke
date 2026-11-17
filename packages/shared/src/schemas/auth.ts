@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { whatsAppPhoneSchema } from "./notifications";
 
 /**
  * Every role the system knows, for typing responses. NOT what self-signup
@@ -101,6 +102,11 @@ export const registerSchema = z.object({
   phone: phoneSchema.optional(),
   password: passwordSchema,
   role: z.enum(SELF_SIGNUP_ROLES).default("patient"),
+  whatsappNotifications: z.boolean().optional(),
+}).superRefine((data, ctx) => {
+  if (data.whatsappNotifications && !whatsAppPhoneSchema.safeParse(data.phone).success) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ["phone"], message: "Add your WhatsApp phone number to receive notifications" });
+  }
 });
 export type RegisterInput = z.infer<typeof registerSchema>;
 

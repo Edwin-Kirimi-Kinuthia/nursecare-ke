@@ -11,6 +11,7 @@ import {
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
 import { paymentService } from "../payment/payment.service";
+import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 const APPOINTMENT_INCLUDE = {
   slot: true,
@@ -91,6 +92,8 @@ export const appointmentService = {
       }
       throw err;
     }
+    void whatsAppEvents.booked(appointment.id);
+    void whatsAppEvents.invited(appointment);
     void notificationService.providerMeetingScheduled({
       patientEmail: appointment.patient.email,
       patientPhone: appointment.patient.phone,
@@ -178,7 +181,9 @@ export const appointmentService = {
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       const providerName = appointment.provider.user.fullName;
+      void whatsAppEvents.booked(appointment.id);
       if (autoConfirm) {
+        void whatsAppEvents.confirmed(appointment);
         // Already confirmed: tell the patient to pay, not to wait.
         void notificationService.appointmentConfirmed({
           patientEmail: appointment.patient.email,
@@ -311,7 +316,8 @@ export const appointmentService = {
       include: APPOINTMENT_INCLUDE,
     });
 
-    if (input.status === "confirmed") {
+    if (input.status === "confirmed" && appointment.status !== "confirmed") {
+      void whatsAppEvents.confirmed(updated);
       void notificationService.appointmentConfirmed({
         patientEmail: updated.patient.email,
         patientPhone: updated.patient.phone,

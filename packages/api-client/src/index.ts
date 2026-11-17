@@ -41,6 +41,9 @@ import type {
   ProvidersQuery,
   PublicUser,
   RegisterInput,
+  WhatsAppPreferenceInput,
+  WhatsAppPreferences,
+  WhatsAppAdminStatus,
   VerifyEmailInput,
   SetPasswordInput,
   RequestChangePasswordInput,
@@ -390,6 +393,9 @@ export class CareBoraClient {
   }
   getLivekitToken(consultationId: string, displayName?: string) {
     return this.post<LivekitTokenResult>(`/consultations/${consultationId}/token`, { displayName });
+  }
+  providerConnected(consultationId: string) {
+    return this.post<{ notified: boolean }>(`/consultations/${consultationId}/provider-connected`, {});
   }
   listMessages(consultationId: string) {
     return this.request<Message[]>(`/consultations/${consultationId}/messages`);
@@ -839,6 +845,18 @@ export class CareBoraClient {
   }
 
   // ── Notifications ──
+  getWhatsAppPreferences() {
+    return this.request<WhatsAppPreferences>("/notifications/whatsapp/preferences");
+  }
+  setWhatsAppPreferences(input: WhatsAppPreferenceInput) {
+    return this.patch<WhatsAppPreferences>("/notifications/whatsapp/preferences", input);
+  }
+  adminWhatsAppStatus() {
+    return this.request<WhatsAppAdminStatus>("/admin/whatsapp");
+  }
+  adminRetryWhatsApp() {
+    return this.post<{ processed: number }>("/admin/whatsapp", {});
+  }
   listNotifications() {
     return this.request<{ notifications: AppNotification[]; unreadCount: number }>(`/notifications`);
   }

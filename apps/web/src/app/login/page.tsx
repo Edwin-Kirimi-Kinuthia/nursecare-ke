@@ -42,6 +42,7 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [whatsappNotifications, setWhatsappNotifications] = useState(false);
 
   function set(k: keyof typeof form, v: string) { setForm((f) => ({ ...f, [k]: v })); }
 
@@ -58,6 +59,7 @@ function LoginForm() {
         await api.register({
           fullName, email: form.email, password: form.password,
           phone: form.phone || undefined, role: "patient",
+          whatsappNotifications,
         });
         await refresh();
         setStep("verify");
@@ -335,7 +337,13 @@ function LoginForm() {
                   )}
                 </PasswordField>
                 {mode === "register" && (
-                  <PhoneField label="Phone (optional)" value={form.phone} onChange={(v) => set("phone", v)} />
+                  <>
+                    <PhoneField label={whatsappNotifications ? "WhatsApp phone" : "Phone (optional)"} required={whatsappNotifications} value={form.phone} onChange={(v) => set("phone", v)} />
+                    <label className="flex items-start gap-3 text-sm text-slate-600">
+                      <input type="checkbox" checked={whatsappNotifications} onChange={(e) => setWhatsappNotifications(e.target.checked)} className="mt-1 h-4 w-4 accent-teal-600" />
+                      Send me CareBora service updates on WhatsApp when available. Optional; turn off anytime in account settings or reply STOP.
+                    </label>
+                  </>
                 )}
 
                 {error && <Alert tone="error">{error}</Alert>}

@@ -57,6 +57,8 @@ export { orderService } from "./pharmacy/order.service";
 export { homeVisitService } from "./homevisit/homevisit.service";
 export { adminService } from "./admin/admin.service";
 export { notificationService } from "./notifications/notification.service";
+export { whatsAppService, handleWhatsAppWebhook } from "./notifications/whatsapp.service";
+export { validWhatsAppSignature, validWebhookToken } from "./notifications/whatsapp-gateway";
 export { inAppNotifications } from "./notifications/inapp.service";
 export { pushService, isExpoPushToken } from "./notifications/push.service";
 export { reviewService } from "./reviews/review.service";

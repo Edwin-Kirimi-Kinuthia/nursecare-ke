@@ -1905,6 +1905,68 @@
         }
       }
     },
+    "/admin/whatsapp": {
+      "get": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Connection readiness and recent message delivery status.",
+        "description": "Requires role: admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Retry eligible failed and queued alerts (up to ten per batch).",
+        "description": "Requires role: admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/ai/clinical": {
       "post": {
         "tags": [
@@ -3673,6 +3735,9 @@
                       "patient"
                     ],
                     "default": "patient"
+                  },
+                  "whatsappNotifications": {
+                    "type": "boolean"
                   }
                 },
                 "required": [
@@ -4219,6 +4284,51 @@
         }
       }
     },
+    "/consultations/{consultationId}/provider-connected": {
+      "post": {
+        "tags": [
+          "Consultations"
+        ],
+        "summary": "Verify the provider's media connection and notify the client once.",
+        "description": "Requires role: doctor, nurse, physio, pharmacy.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "consultationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
     "/consultations/{consultationId}": {
       "get": {
         "tags": [
@@ -4568,6 +4678,27 @@
           },
           "404": {
             "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/consultations/livekit-webhook": {
+      "post": {
+        "tags": [
+          "Consultations"
+        ],
+        "summary": "Signed LiveKit participant events for browser and app calls.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
           }
         }
       }
@@ -5352,6 +5483,153 @@
           },
           "403": {
             "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/notifications/whatsapp/preferences": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "The caller's WhatsApp opt-in.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Consent to or stop operational WhatsApp alerts.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "enabled": {
+                    "type": "boolean"
+                  },
+                  "phoneNumber": {
+                    "type": "string",
+                    "maxLength": 40
+                  }
+                },
+                "required": [
+                  "enabled"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/notifications/whatsapp/process": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Scheduled retries, protected with CRON_SECRET.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/whatsapp/webhook": {
+      "get": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Meta's subscription verification.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Signed Meta delivery receipts and STOP/START.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
           }
         }
       }

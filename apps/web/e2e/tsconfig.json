@@ -1,9 +1,10 @@
 {
   "extends": "../tsconfig.json",
   "compilerOptions": {
-    "moduleResolution": "node",
-    "module": "commonjs",
-    "types": ["@playwright/test"]
+    "target": "ES2022",
+    "moduleResolution": "bundler",
+    "module": "esnext",
+    "types": ["@playwright/test", "node"]
   },
   "include": ["**/*.ts"],
   "exclude": []

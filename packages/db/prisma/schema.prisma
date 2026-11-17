@@ -200,6 +200,8 @@ model User {
   assignedSupportTickets     SupportTicket[]        @relation("AssignedSupportTickets")
   sentSupportMessages        SupportMessage[]       @relation("SentSupportMessages")
   pushDevices                PushDevice[]
+  whatsAppPreference         WhatsAppPreference?
+  whatsAppMessages           WhatsAppMessage[]
 
   @@index([role])
   @@map("users")
@@ -472,6 +474,7 @@ model Consultation {
   /// nurse cardex, physio assessment) as a { sectionKey: text } map.
   /// clinicalNotes holds a readable plain-text rendering derived from this.
   clinicalRecord Json?              @map("clinical_record")
+  meetingRun     Int                @default(1) @map("meeting_run")
   startedAt      DateTime?          @map("started_at") @db.Timestamptz(6)
   endedAt        DateTime?          @map("ended_at") @db.Timestamptz(6)
   createdAt      DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -1475,4 +1478,48 @@ model PushDevice {
 
   @@index([userId])
   @@map("push_devices")
+}
+
+/// Explicit consent for WhatsApp operational alerts; never inferred from an account phone.
+model WhatsAppPreference {
+  userId      String    @id @map("user_id") @db.Uuid
+  phoneNumber String?   @map("phone_number")
+  enabled     Boolean   @default(false)
+  consentedAt DateTime? @map("consented_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([phoneNumber])
+  @@map("whatsapp_preferences")
+}
+
+/// A STOP sent to the business applies to the number, including admin alerts.
+model WhatsAppOptOut {
+  phoneNumber String   @id @map("phone_number")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("whatsapp_opt_outs")
+}
+
+/// Durable outbox, also used to deduplicate simultaneous webhook/browser events.
+model WhatsAppMessage {
+  id                String    @id @default(uuid()) @db.Uuid
+  eventKey          String    @unique @map("event_key")
+  recipientUserId   String?   @map("recipient_user_id") @db.Uuid
+  toPhone           String    @map("to_phone")
+  templateKey       String    @map("template_key")
+  parameters        Json
+  status            String    @default("pending")
+  attempts          Int       @default(0)
+  availableAt       DateTime  @default(now()) @map("available_at") @db.Timestamptz(6)
+  expiresAt         DateTime  @map("expires_at") @db.Timestamptz(6)
+  providerMessageId String?   @unique @map("provider_message_id")
+  errorCode         String?   @map("error_code")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  recipient         User?     @relation(fields: [recipientUserId], references: [id], onDelete: Cascade)
+
+  @@index([status, availableAt])
+  @@index([recipientUserId])
+  @@map("whatsapp_messages")
 }

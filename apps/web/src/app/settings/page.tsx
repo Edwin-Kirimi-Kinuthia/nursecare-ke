@@ -7,6 +7,7 @@ import { Settings, UserRound } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import DeleteAccountSection from "@/components/DeleteAccountSection";
 import PageHeader from "@/components/PageHeader";
+import WhatsAppPreferences from "@/components/WhatsAppPreferences";
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
@@ -28,6 +29,7 @@ export default function SettingsPage() {
         <p className="mt-2 text-sm text-slate-600">Update your personal details or change your password from your profile.</p>
         <Link href="/profile" className="mt-4 inline-block rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700">Manage profile and password</Link>
       </div>
+      <WhatsAppPreferences />
       <DeleteAccountSection />
     </div>
   );

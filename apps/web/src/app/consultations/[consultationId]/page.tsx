@@ -219,6 +219,15 @@ export default function ConsultationRoom() {
             token={token}
             serverUrl={serverUrl}
             connect
+            onConnected={() => {
+              if (!isDoctor) return;
+              void (async () => {
+                for (let attempt = 0; attempt < 3; attempt++) {
+                  try { if ((await api.providerConnected(consultationId)).notified) return; } catch { /* webhook provides a fallback */ }
+                  await new Promise((resolve) => setTimeout(resolve, 1500));
+                }
+              })();
+            }}
             video
             audio
             data-lk-theme="default"

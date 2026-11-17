@@ -48,6 +48,14 @@ jobs:
       DATABASE_URL: postgresql://carebora:carebora@localhost:5432/carebora?schema=public
       JWT_SECRET: ci-test-secret-not-for-production-0123456789abcdef
       PROVIDER_MEETINGS_E2E: "1"
+      WHATSAPP_E2E: "1"
+      # No access token: integrations exercise durable failure handling without
+      # sending any real WhatsApp messages. Transport tests inject a fake fetch.
+      WHATSAPP_ENABLED: "true"
+      WHATSAPP_ADMIN_TO: "+254700000030"
+      WHATSAPP_PHONE_NUMBER_ID: "123456789"
+      WHATSAPP_APP_SECRET: ci-whatsapp-test-secret
+      WHATSAPP_VERIFY_TOKEN: ci-whatsapp-verify-token
       ACCOUNT_LIFECYCLE_TEST_DATABASE_URL: postgresql://carebora:carebora@localhost:5432/carebora?schema=public
       LIVEKIT_API_KEY: ci-livekit-key
       LIVEKIT_API_SECRET: ci-livekit-secret-for-token-tests-only

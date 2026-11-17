@@ -1,7 +1,8 @@
-import { AccessToken } from "livekit-server-sdk";
+import { AccessToken, RoomServiceClient, WebhookReceiver } from "livekit-server-sdk";
 import { db } from "@carebora/db";
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
+import { whatsAppEvents } from "../notifications/whatsapp.service";
 import {
   ApiError,
   PROVIDER_ROLES,
@@ -83,7 +84,7 @@ export const consultationService = {
         // Retain the room, clinical record, prescriptions and original start.
         return tx.consultation.update({
           where: { id: appointment.consultation.id },
-          data: { status: "active", endedAt: null },
+          data: { status: "active", endedAt: null, meetingRun: { increment: 1 } },
         });
       }
       return tx.consultation.upsert({
@@ -156,6 +157,40 @@ export const consultationService = {
     const c = await getConsultation(consultationId);
     assertParticipant(c, userId);
     return c;
+  },
+
+  /** Confirm media presence on LiveKit before sending a join alert. */
+  async providerConnected(consultationId: string, providerId: string) {
+    const c = await getConsultation(consultationId);
+    if (c.appointment.providerId !== providerId) throw ApiError.forbidden();
+    if (c.status === "ended" || c.appointment.status !== "confirmed") return { notified: false };
+    if (!c.appointment.paymentWaived && c.appointment.feeKes > 0 && !await db.payment.findFirst({
+      where: { subjectType: "appointment", subjectId: c.appointmentId, status: "completed" }, select: { id: true },
+    })) return { notified: false };
+    const { LIVEKIT_URL: url, LIVEKIT_API_KEY: key, LIVEKIT_API_SECRET: secret } = process.env;
+    if (!url || !key || !secret) return { notified: false };
+    try {
+      const serverUrl = url.replace(/^wss:/, "https:").replace(/^ws:/, "http:");
+      const participant = await new RoomServiceClient(serverUrl, key, secret).getParticipant(c.roomName, providerId);
+      // ACTIVE = 2 means ICE connectivity has been established.
+      if (participant.state !== 2) return { notified: false };
+    } catch { return { notified: false }; }
+    const current = await getConsultation(consultationId);
+    if (current.status === "ended" || current.appointment.status !== "confirmed" || current.meetingRun !== c.meetingRun) return { notified: false };
+    await whatsAppEvents.ready(current);
+    return { notified: true };
+  },
+
+  /** Signed LiveKit events cover both browser and native-app consultations. */
+  async livekitWebhook(rawBody: string, authorization: string | null) {
+    const { LIVEKIT_API_KEY: key, LIVEKIT_API_SECRET: secret } = process.env;
+    if (!key || !secret || !authorization) throw ApiError.unauthorized();
+    let event;
+    try { event = await new WebhookReceiver(key, secret).receive(rawBody, authorization); }
+    catch { throw ApiError.unauthorized("Invalid LiveKit webhook signature"); }
+    if (event.event !== "participant_joined" || !event.room?.name || !event.participant?.identity) return;
+    const c = await db.consultation.findUnique({ where: { roomName: event.room.name }, select: { id: true, appointment: { select: { providerId: true } } } });
+    if (c?.appointment.providerId === event.participant.identity) await this.providerConnected(c.id, event.participant.identity);
   },
 
   /**

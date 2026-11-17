@@ -138,6 +138,8 @@ async function removeAccount(userId: string, authorization: DeletionAuthorizatio
     await tx.oAuthAccount.deleteMany({ where: { userId } });
     await tx.notification.deleteMany({ where: { userId } });
     await tx.pushDevice.deleteMany({ where: { userId } });
+    await tx.whatsAppPreference.deleteMany({ where: { userId } });
+    await tx.whatsAppMessage.deleteMany({ where: { recipientUserId: userId } });
     await tx.orgMember.deleteMany({ where: { userId } });
     await tx.verificationDocument.deleteMany({ where: { userId } });
     await tx.recordAccessGrant.deleteMany({ where: { OR: [{ patientId: userId }, { granteeUserId: userId }] } });

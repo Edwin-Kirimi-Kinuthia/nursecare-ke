@@ -2,6 +2,7 @@ import { db } from "@carebora/db";
 import { randomBytes } from "node:crypto";
 import { ApiError, type OAuthProvider, type UserRole } from "@carebora/shared";
 import { issueSession, toPublicUser, type RequestMeta } from "./auth.service";
+import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 /** Minimal identity we need out of any provider, however it gets there. */
 interface OAuthProfile {
@@ -143,6 +144,7 @@ export const oauthService = {
           },
         },
       });
+      void whatsAppEvents.registered(user.id);
     }
 
     const tokens = await issueSession(user.id, user.role as UserRole, meta);

@@ -13,3 +13,4 @@ export * from "./ambulance";
 export * from "./records";
 export * from "./lab";
 export * from "./support";
+export * from "./notifications";

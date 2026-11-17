@@ -10,6 +10,7 @@ import {
 } from "@carebora/shared";
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
+import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 const TICKET_INCLUDE = {
   messages: {
@@ -53,6 +54,7 @@ export const supportService = {
       include: TICKET_INCLUDE,
     });
 
+    void whatsAppEvents.contact(ticket.id);
     void notificationService.supportTicketReceived({
       email: ticket.contactEmail,
       name: ticket.contactName,
@@ -162,6 +164,7 @@ export const supportService = {
     ]);
 
     if (sender.isAdmin) {
+      if (ticket.userId) void whatsAppEvents.supportReply(ticket.userId, message.id);
       void notificationService.supportTicketReplied({
         email: ticket.contactEmail,
         name: ticket.contactName,
@@ -178,6 +181,7 @@ export const supportService = {
         });
       }
     } else {
+      void whatsAppEvents.contact(ticket.id, message.id);
       void notificationService.supportTicketForStaff({
         subject: ticket.subject,
         what: `${describe(ticket)} (client reply)`,

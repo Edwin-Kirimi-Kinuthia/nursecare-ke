@@ -3,6 +3,7 @@ import { randomInt, randomBytes, createHash } from "node:crypto";
 import {
   type PatchMeInput,
   ApiError,
+  normalizeWhatsAppPhone,
   PROVIDER_ROLES,
   type LoginInput,
   type LoginChallengeResult,
@@ -22,6 +23,7 @@ import { generateUniqueOrgSlug } from "../org/org.service";
 import { notificationService } from "../notifications/notification.service";
 import { putFile } from "../storage/storage";
 import { deleteAccount } from "./account-deletion";
+import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
@@ -221,6 +223,9 @@ export const authService = {
           phone: input.phone ?? null,
           role,
           credentials: { create: { passwordHash: hashPassword(input.password) } },
+          ...(input.whatsappNotifications && input.phone ? { whatsAppPreference: { create: {
+            enabled: true, phoneNumber: normalizeWhatsAppPhone(input.phone), consentedAt: new Date(),
+          } } } : {}),
           ...(isProvider
             ? { providerProfile: { create: {} } }
             : { patientProfile: { create: {} } }),
@@ -236,6 +241,7 @@ export const authService = {
       throw err;
     }
 
+    void whatsAppEvents.registered(user.id);
     const tokens = await issueSession(user.id, role, meta);
     // Awaited deliberately: on Vercel's serverless runtime, a fire-and-forget
     // promise isn't guaranteed to run to completion after the response is
