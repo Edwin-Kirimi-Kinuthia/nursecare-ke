@@ -242,10 +242,10 @@ test("service request alerts reach active admins once even with WhatsApp off", a
   process.env.WHATSAPP_ENABLED = "false";
   const reference = randomUUID();
   try {
-    const countBefore = await db.notification.count({ where: { userId: users[0], type: "service_requested" } });
-    await Promise.all([inAppNotifications.serviceRequested("a home visit", reference), inAppNotifications.serviceRequested("a home visit", reference)]);
-    expect(await db.notification.count({ where: { userId: users[0], type: "service_requested" } })).toBe(countBefore + 1);
-    expect(await db.notification.count({ where: { userId: users[2], type: "service_requested" } })).toBe(0);
+    const kind = `a home visit (${reference})`;
+    await Promise.all([inAppNotifications.serviceRequested(kind, reference), inAppNotifications.serviceRequested(kind, reference)]);
+    expect(await db.notification.count({ where: { userId: users[0], type: "service_requested", body: { contains: reference } } })).toBe(1);
+    expect(await db.notification.count({ where: { userId: users[2], type: "service_requested", body: { contains: reference } } })).toBe(0);
     expect(await db.whatsAppMessage.count({ where: { eventKey: { contains: reference } } })).toBe(0);
   } finally { if (before === undefined) delete process.env.WHATSAPP_ENABLED; else process.env.WHATSAPP_ENABLED = before; }
 });

@@ -62,10 +62,11 @@ async function paidMultiVendorOrder(request: APIRequestContext, code: string) {
   const order = (await orderRes.json()).data;
   expect(order.vendorOrders.length).toBe(2);
 
-  await request.post("/api/v1/payments/till/submit", {
+  const submitted = await request.post("/api/v1/payments/till/submit", {
     headers: { Authorization: `Bearer ${patientToken}` },
     data: { gatewayRef: order.payment.gatewayRef, code },
   });
+  expect(submitted.status(), await submitted.text()).toBe(200);
   const approve = await request.post("/api/v1/admin/payments/verifications", {
     headers: { Authorization: `Bearer ${adminToken}` },
     data: { id: order.payment.id, approve: true },
@@ -106,7 +107,7 @@ test.describe("Refunds", () => {
   });
 
   test("a refund reverses the whole split, not just the gross", async ({ request }) => {
-    const { paymentId, amountKes } = await paidMultiVendorOrder(request, `RFA${UNIQUE % 100000}`);
+    const { paymentId, amountKes } = await paidMultiVendorOrder(request, `RFA${String(UNIQUE % 100000).padStart(5, "0")}`);
 
     const settled = await ledgerNet(request, paymentId);
     expect(settled.gross_sale).toBe(amountKes);
@@ -129,7 +130,7 @@ test.describe("Refunds", () => {
   });
 
   test("concurrent refunds settle exactly once", async ({ request }) => {
-    const { paymentId } = await paidMultiVendorOrder(request, `RFB${UNIQUE % 100000}`);
+    const { paymentId } = await paidMultiVendorOrder(request, `RFB${String(UNIQUE % 100000).padStart(5, "0")}`);
 
     const results = await Promise.all(
       Array.from({ length: 5 }, () =>
@@ -152,7 +153,7 @@ test.describe("Refunds", () => {
   });
 
   test("a payment cannot be refunded twice, sequentially", async ({ request }) => {
-    const { paymentId } = await paidMultiVendorOrder(request, `RFC${UNIQUE % 100000}`);
+    const { paymentId } = await paidMultiVendorOrder(request, `RFC${String(UNIQUE % 100000).padStart(5, "0")}`);
 
     const first = await request.post(`/api/v1/payments/${paymentId}/refund`, {
       headers: { Authorization: `Bearer ${adminToken}` },
@@ -168,7 +169,7 @@ test.describe("Refunds", () => {
   });
 
   test("a patient cannot refund their own payment", async ({ request }) => {
-    const { paymentId } = await paidMultiVendorOrder(request, `RFD${UNIQUE % 100000}`);
+    const { paymentId } = await paidMultiVendorOrder(request, `RFD${String(UNIQUE % 100000).padStart(5, "0")}`);
     const res = await request.post(`/api/v1/payments/${paymentId}/refund`, {
       headers: { Authorization: `Bearer ${patientToken}` },
       data: {},

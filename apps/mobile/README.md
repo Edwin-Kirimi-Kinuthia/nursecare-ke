@@ -15,6 +15,26 @@ npm run check          # type-check + lint + expo-doctor (all must pass)
 npx expo start         # dev server (needs a development build, see below)
 ```
 
+## Current distribution setup
+
+- Expo project: [`@kirimiedwins-team/carebora`](https://expo.dev/accounts/kirimiedwins-team/projects/carebora).
+- Android package: `ke.co.carebora.app`; EAS holds the release signing key.
+- Firebase project: `carebora-c8a69` on the no-cost Spark plan. Its FCM v1
+  service-account key is uploaded privately to EAS, not stored in this repository.
+- `GOOGLE_SERVICES_JSON` is an EAS **secret file** variable for preview,
+  development and production. `app.config.js` reads its path during cloud builds.
+- The website's [`/download`](https://app.carebora.co.ke/download) page lists
+  published APKs and desktop installers. Preview APKs install directly without a
+  Play Store listing. Only release an APK after it finishes building and passes
+  device checks; never put an AAB behind an APK download button.
+- Desktop apps and their release workflow are in `../desktop`.
+- Native push permission is requested from Account. Already-permitted devices
+  register again on sign-in, including after changing accounts. Camera-connected
+  callbacks are verified by the server before notifying the patient.
+- Use Node 22.13 or newer for local Expo/EAS commands. `npm run check` includes
+  Expo Doctor; package-directory metadata warnings must be distinguished from
+  actual compile/configuration failures.
+
 ## What is in version 1
 
 | Area | Status |
