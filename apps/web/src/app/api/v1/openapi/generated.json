@@ -4588,11 +4588,6 @@
                     "maxLength": 700000,
                     "pattern": "^data:image\\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$"
                   },
-                  "stampDataUrl": {
-                    "type": "string",
-                    "maxLength": 700000,
-                    "pattern": "^data:image\\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$"
-                  },
                   "confirm": {
                     "type": "boolean",
                     "enum": [

@@ -169,7 +169,7 @@ test("patient downloads the PDF; strangers cannot read or download it; profile e
   expect(document.getAuthor()).toBe("Dr Clinical Provider");
   await test.info().attach("signed-sick-off.pdf", { body: bytes, contentType: "application/pdf" });
   const stored = await db.sickOff.findUniqueOrThrow({ where: { id: certificateId } });
-  expect(stored.advice).toBeNull(); expect(stored.signatureDataUrl).toBe(image); expect(stored.stampDataUrl).toBe(image);
+  expect(stored.advice).toBeNull(); expect(stored.signatureDataUrl).toBe(image); expect(stored.stampDataUrl).toBeNull();
   expect(await db.auditLog.count({ where: { actorId: providerId, action: "sick_off.issued", entityId: certificateId } })).toBe(1);
 });
 

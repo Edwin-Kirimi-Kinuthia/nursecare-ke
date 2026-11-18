@@ -50,7 +50,7 @@ export const sickOffService = {
           consultationId, patientName: a.patient.fullName, providerName: p.user.fullName,
           licenceNumber: p.licenceNumber!.trim(), licenceBody: p.licenceBody!.trim(), assessedAt: c.startedAt!,
           fromDate: new Date(input.fromDate), throughDate: new Date(input.throughDate),
-          advice: input.advice || null, signatureDataUrl: input.signatureDataUrl, stampDataUrl: input.stampDataUrl ?? null,
+          advice: input.advice || null, signatureDataUrl: input.signatureDataUrl, stampDataUrl: null,
         }, select: SUMMARY,
       });
       await tx.auditLog.create({ data: { actorId: userId, action: "sick_off.issued", entityType: "sick_off", entityId: issued.id } });

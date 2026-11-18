@@ -42,14 +42,13 @@ export type CreatePrescriptionInput = z.infer<typeof createPrescriptionSchema>;
 const certificateDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date")
   .refine((value) => Number.isFinite(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value, "Choose a valid date");
 const signingImage = z.string().max(700_000, "Use an image smaller than 500 KB")
-  .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/, "Upload a PNG or JPEG image of your signature or stamp");
+  .regex(/^data:image\/(png|jpeg);base64,[A-Za-z0-9+/]+={0,2}$/, "Upload a PNG or JPEG image of your signature");
 
 export const issueSickOffSchema = z.object({
   fromDate: certificateDate,
   throughDate: certificateDate,
   advice: z.string().trim().max(1000).optional(),
   signatureDataUrl: signingImage,
-  stampDataUrl: signingImage.optional(),
   confirm: z.literal(true, { errorMap: () => ({ message: "Confirm that you assessed the patient and authorize this certificate" }) }),
 }).refine((v) => v.throughDate >= v.fromDate, { path: ["throughDate"], message: "The last day must be on or after the first day" })
   .refine((v) => Date.parse(v.throughDate) - Date.parse(v.fromDate) <= 365 * 86_400_000, { path: ["throughDate"], message: "Choose a period of at most one year" });

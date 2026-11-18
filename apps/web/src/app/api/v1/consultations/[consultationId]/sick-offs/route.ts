@@ -16,7 +16,7 @@ export const POST = route(async (req, { params }: { params: Promise<{ consultati
   const auth = await requireAuth(req, PROVIDER_ROLES);
   const { consultationId } = await params;
   const input = issueSickOffSchema.parse(await req.json());
-  await validateSigningImages(input.signatureDataUrl, input.stampDataUrl);
+  await validateSigningImages(input.signatureDataUrl);
   const certificate = await sickOffService.issue(consultationId, auth.sub, auth.role, input);
   return jsonOk(certificate, 201);
 });

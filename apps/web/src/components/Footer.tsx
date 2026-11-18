@@ -136,10 +136,10 @@ export default function Footer() {
             rel="noopener noreferrer"
             className="font-semibold text-teal-700 hover:underline"
           >
-            Edwin Kirimi Kinuthia
+            Edwin Kirimi
           </a>
-          {" & "}
-          <span className="font-semibold text-teal-700">Dr. Mercy Limo</span>
+          {" and "}
+          <span className="font-semibold text-teal-700">Mercy Limo</span>
         </p>
       </div>
     </footer>

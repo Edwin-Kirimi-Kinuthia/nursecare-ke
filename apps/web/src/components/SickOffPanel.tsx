@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { SickOffCertificate } from "@carebora/api-client";
 import { issueSickOffSchema } from "@carebora/shared";
 import { api } from "@/lib/api";
-import { Signature, readImage } from "@/components/SignatureInput";
+import { Signature } from "@/components/SignatureInput";
 
 export default function SickOffPanel({ consultationId, canIssue }: { consultationId: string; canIssue: boolean }) {
   const [open, setOpen] = useState(false);
@@ -17,7 +17,6 @@ export default function SickOffPanel({ consultationId, canIssue }: { consultatio
   const [throughDate, setThroughDate] = useState("");
   const [advice, setAdvice] = useState("");
   const [signature, setSignature] = useState("");
-  const [stamp, setStamp] = useState("");
   const [confirm, setConfirm] = useState(false);
 
   useEffect(() => {
@@ -40,10 +39,10 @@ export default function SickOffPanel({ consultationId, canIssue }: { consultatio
   async function issue(e: FormEvent) {
     e.preventDefault(); setError(null); setBusy(true);
     try {
-      const result = issueSickOffSchema.safeParse({ fromDate, throughDate, advice, signatureDataUrl: signature, stampDataUrl: stamp || undefined, confirm });
+      const result = issueSickOffSchema.safeParse({ fromDate, throughDate, advice, signatureDataUrl: signature, confirm });
       if (!result.success) throw new Error(result.error.issues[0]?.message ?? "Check the certificate details.");
       const c = await api.issueSickOff(consultationId, result.data);
-      setCertificates((prev) => [c, ...prev]); setIssuing(false); setSignature(""); setStamp(""); setConfirm(false);
+      setCertificates((prev) => [c, ...prev]); setIssuing(false); setSignature(""); setConfirm(false);
     } catch (err) { setError(err instanceof Error ? err.message : "Could not issue the certificate."); }
     finally { setBusy(false); }
   }
@@ -65,10 +64,7 @@ export default function SickOffPanel({ consultationId, canIssue }: { consultatio
           </div>
           <label className="block text-sm font-medium">Additional advice (optional)<textarea value={advice} onChange={(e) => setAdvice(e.target.value)} maxLength={1000} rows={3} className="mt-1 block w-full rounded-lg border border-slate-300 p-2" /><span className="text-xs font-normal text-slate-500">Included on the employer copy. Clinical notes and diagnosis are not copied automatically.</span></label>
           <Signature value={signature} onChange={setSignature} onError={setError} />
-          <label className="block text-sm font-medium">Practice stamp (optional)<input type="file" accept="image/png,image/jpeg" className="mt-1 block w-full text-xs" onChange={async (e) => {
-            const file = e.target.files?.[0];
-            if (file) try { setStamp(await readImage(file)); } catch (err) { setError((err as Error).message); }
-          }} /><span className="text-xs font-normal text-slate-500">A Care Bora electronic issue stamp is always included.</span></label>
+          <p className="text-sm text-slate-500">Stamp the certificate after printing. The PDF leaves space for your physical stamp.</p>
           <label className="flex items-start gap-2 text-sm"><input type="checkbox" required checked={confirm} onChange={(e) => setConfirm(e.target.checked)} className="mt-1" />I assessed this patient in this session and authorize this signed certificate.</label>
           <div className="flex gap-2"><button disabled={busy} type="submit" className="rounded-lg bg-teal-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{busy ? "Issuing…" : "Sign and issue certificate"}</button><button disabled={busy} type="button" onClick={() => setIssuing(false)} className="px-3 text-sm text-slate-600">Cancel</button></div>
         </form>}

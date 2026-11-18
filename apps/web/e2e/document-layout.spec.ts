@@ -3,6 +3,7 @@ import { PDFDocument, PDFRawStream, PDFName, PDFDict, decodePDFRawStream } from 
 import { clinicalDocumentPdf, stampDate } from "../src/server/clinical-document-pdf";
 import { generatePrescriptionPdf } from "../src/server/prescription-pdf";
 import { generateTreatmentSheetPdf } from "../src/server/treatment-sheet-pdf";
+import { generateSickOffPdf } from "../src/server/sick-off-pdf";
 import { TEST_DOCUMENT_SIGNATURE } from "./support/document-signature";
 
 const signer = { providerName: "Dr Example Provider", licenceBody: "Example Council", licenceNumber: "TEST-1234", signatureDataUrl: TEST_DOCUMENT_SIGNATURE };
@@ -19,7 +20,7 @@ test("round stamp uses Nairobi's current date without changing the original issu
   const now = new Date("2026-11-17T22:30:00Z");
   const original = new Date("2026-10-16T10:00:00Z");
   expect(stampDate(now)).toBe("18 NOV 2026");
-  const p = await clinicalDocumentPdf({ title: "Sick Leave", reference: "SAMPLE", issuedAt: original, metadata: [["Issued", "16 October 2026"]], signer, generatedAt: now });
+  const p = await clinicalDocumentPdf({ title: "Medical Document", reference: "SAMPLE", issuedAt: original, metadata: [["Issued", "16 October 2026"]], signer, generatedAt: now });
   p.text("Example certificate body.");
   const document = await PDFDocument.load(await p.finish(), { updateMetadata: false });
   expect(document.getCreationDate()).toEqual(original);
@@ -28,6 +29,25 @@ test("round stamp uses Nairobi's current date without changing the original issu
   for (const value of ["18 NOV 2026", "16 October 2026", "Example Council No. TEST-1234", "CareBora"]) expect(text).toContain(hex(value));
   const images = document.getPage(0).node.Resources()!.lookup(PDFName.of("XObject"), PDFDict);
   expect(images.keys().length).toBeGreaterThanOrEqual(2); // Actual logo and signature, not text placeholders.
+});
+
+test("sick-off PDFs retain signatures and licences but leave stamps for printing, including older certificates", async () => {
+  for (const stampDataUrl of [null, TEST_DOCUMENT_SIGNATURE]) {
+    const issuedAt = new Date("2026-10-16T10:00:00Z");
+    const bytes = await generateSickOffPdf({
+      ...signer, id: "sample-certificate", consultationId: "sample-session", patientName: "Example Patient",
+      assessedAt: issuedAt, issuedAt, fromDate: new Date("2026-10-16"), throughDate: new Date("2026-10-18"),
+      advice: null, stampDataUrl,
+    });
+    const document = await PDFDocument.load(bytes, { updateMetadata: false });
+    const text = textStreams(document);
+    for (const value of ["Sick Leave", "Example Patient", "Example Council No. TEST-1234", "Provider signature", "CareBora"]) expect(text).toContain(hex(value));
+    expect(text).not.toContain(hex(stampDate(new Date())));
+    // Only the letterhead logo and provider signature are painted; neither a
+    // saved practice stamp nor the generated stamp's extra logo is included.
+    expect(text.match(/\bDo\b/g)).toHaveLength(2 * document.getPageCount());
+    expect(document.getCreationDate()).toEqual(issuedAt);
+  }
 });
 
 test("long prescriptions and clinical records paginate with a signature and stamp on every page", async () => {

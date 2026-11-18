@@ -55,10 +55,10 @@ function logo() {
     .catch(() => readFile(path.join(process.cwd(), "apps/web/public/logo-mark.png")));
 }
 
-/** Shared letterhead, actual provider signature, and today's Nairobi stamp. */
+/** Shared letterhead and provider signature; documents can leave space for a physical stamp. */
 export async function clinicalDocumentPdf(opts: {
   title: string; reference: string; issuedAt: Date; metadata: [string, string][];
-  signer: DocumentSigner; generatedAt?: Date;
+  signer: DocumentSigner; generatedAt?: Date; includeStamp?: boolean;
 }) {
   const doc = await PDFDocument.create();
   const generatedAt = opts.generatedAt ?? new Date();
@@ -67,7 +67,8 @@ export async function clinicalDocumentPdf(opts: {
   const regular = await doc.embedFont(StandardFonts.Helvetica), bold = await doc.embedFont(StandardFonts.HelveticaBold);
   const brand = await doc.embedPng(await logo());
   const signature = await signingImage(doc, opts.signer.signatureDataUrl);
-  const practiceStamp = opts.signer.stampDataUrl ? await signingImage(doc, opts.signer.stampDataUrl) : null;
+  const includeStamp = opts.includeStamp !== false;
+  const practiceStamp = includeStamp && opts.signer.stampDataUrl ? await signingImage(doc, opts.signer.stampDataUrl) : null;
   let page = doc.addPage([595, 842]), y = 0;
   const header = () => {
     const mark = brand.scaleToFit(82, 90);
@@ -117,22 +118,24 @@ export async function clinicalDocumentPdf(opts: {
       if (practiceStamp) {
         const s = practiceStamp.scaleToFit(115, 75); p.drawImage(practiceStamp, { x: 235, y: 118, width: s.width, height: s.height });
       }
-      const cx = 458, cy = 158;
-      p.drawCircle({ x: cx, y: cy, size: 76, borderColor: BLUE, borderWidth: 2 });
-      p.drawCircle({ x: cx, y: cy, size: 70, borderColor: BLUE, borderWidth: 1 });
-      const arc = (label: string, radius: number, start: number, end: number, size: number, bottom = false) => {
-        [...label].forEach((character, i) => {
-          const theta = (start + (end - start) * i / Math.max(label.length - 1, 1)) * Math.PI / 180;
-          const rotation = theta * 180 / Math.PI + (bottom ? 90 : -90), w = bold.widthOfTextAtSize(character, size);
-          p.drawText(character, { x: cx + radius * Math.cos(theta) - w / 2 * Math.cos(rotation * Math.PI / 180), y: cy + radius * Math.sin(theta) - w / 2 * Math.sin(rotation * Math.PI / 180), size, font: bold, color: BLUE, rotate: degrees(rotation) });
-        });
-      };
-      arc("CARE BORA", 57, 145, 35, 14);
-      arc("UPPERHILL - MBAGATHI ROAD - NAIROBI", 64, 204, 336, 6.8, true);
-      const mark = brand.scaleToFit(48, 49);
-      p.drawImage(brand, { x: cx - mark.width / 2, y: cy - 13, width: mark.width, height: mark.height });
-      const today = stampDate(generatedAt);
-      p.drawText(today, { x: cx - bold.widthOfTextAtSize(today, 11.5) / 2, y: cy - 34, size: 11.5, font: bold, color: RED });
+      if (includeStamp) {
+        const cx = 458, cy = 158;
+        p.drawCircle({ x: cx, y: cy, size: 76, borderColor: BLUE, borderWidth: 2 });
+        p.drawCircle({ x: cx, y: cy, size: 70, borderColor: BLUE, borderWidth: 1 });
+        const arc = (label: string, radius: number, start: number, end: number, size: number, bottom = false) => {
+          [...label].forEach((character, i) => {
+            const theta = (start + (end - start) * i / Math.max(label.length - 1, 1)) * Math.PI / 180;
+            const rotation = theta * 180 / Math.PI + (bottom ? 90 : -90), w = bold.widthOfTextAtSize(character, size);
+            p.drawText(character, { x: cx + radius * Math.cos(theta) - w / 2 * Math.cos(rotation * Math.PI / 180), y: cy + radius * Math.sin(theta) - w / 2 * Math.sin(rotation * Math.PI / 180), size, font: bold, color: BLUE, rotate: degrees(rotation) });
+          });
+        };
+        arc("CARE BORA", 57, 145, 35, 14);
+        arc("UPPERHILL - MBAGATHI ROAD - NAIROBI", 64, 204, 336, 6.8, true);
+        const mark = brand.scaleToFit(48, 49);
+        p.drawImage(brand, { x: cx - mark.width / 2, y: cy - 13, width: mark.width, height: mark.height });
+        const today = stampDate(generatedAt);
+        p.drawText(today, { x: cx - bold.widthOfTextAtSize(today, 11.5) / 2, y: cy - 34, size: 11.5, font: bold, color: RED });
+      }
       p.drawLine({ start: { x: LEFT, y: 52 }, end: { x: RIGHT, y: 52 }, color: GRAY, thickness: 0.5 });
       p.drawText("Digitally issued by CareBora. Reference: " + opts.reference, { x: LEFT, y: 39, size: 8, font: regular, color: GRAY });
       p.drawText(`Page ${index + 1} of ${pages.length}`, { x: 493, y: 26, size: 8, font: regular, color: GRAY });
