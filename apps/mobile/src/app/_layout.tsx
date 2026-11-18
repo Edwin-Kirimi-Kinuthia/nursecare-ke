@@ -11,7 +11,7 @@ import { APP_VERSION, STORE_URL, isOlderVersion } from "@/lib/config";
 import { Button } from "@/ui/Button";
 import { Text } from "@/ui/Text";
 import { useTheme } from "@/ui/theme";
-import { useNotificationTaps } from "@/lib/push";
+import { useNotificationTaps, usePushPermission } from "@/lib/push";
 import { WhatsAppButton } from "@/features/WhatsAppButton";
 import { AppHeader } from "@/ui/AppHeader";
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold } from "@expo-google-fonts/inter";
@@ -39,6 +39,8 @@ export default function RootLayout() {
 
 function Gate() {
   const { status, retry } = useAuth();
+  // Rebind an already-permitted device on every account sign-in, not only when Account is opened.
+  usePushPermission(status === "signedIn");
   const config = useAppConfig();
   const t = useTheme();
   const [fontsLoaded, fontError] = useFonts({ Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold, Inter_800ExtraBold });

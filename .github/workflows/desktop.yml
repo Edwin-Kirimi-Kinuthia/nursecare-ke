@@ -60,6 +60,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: desktop-*
@@ -79,4 +80,5 @@ jobs:
 
           Review SHA256SUMS before installing. Device installation and consultation checks are required before publishing this draft.
           NOTES
-          gh release create "desktop-v1.0.0-${GITHUB_RUN_NUMBER}" installers/* --draft --target "$GITHUB_SHA" --title "Care Bora desktop 1.0.0" --notes-file /tmp/release-notes.md
+          app_version=$(node -p "require('./apps/desktop/package.json').version")
+          gh release create "desktop-v${app_version}-${GITHUB_RUN_NUMBER}" installers/* --draft --target "$GITHUB_SHA" --title "Care Bora desktop ${app_version}" --notes-file /tmp/release-notes.md

@@ -1,7 +1,7 @@
 {
   "name": "carebora-desktop",
   "productName": "Care Bora",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Care Bora consultations and service notifications for desktop",
   "private": true,
   "author": "Carebora",

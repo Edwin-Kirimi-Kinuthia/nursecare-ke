@@ -51,6 +51,7 @@ export const pushService = {
         body: "Open Care Bora to see the details.",
         sound: "default",
         priority: "high",
+        ttl: 900, // Never deliver an obsolete meeting alert days after a device reconnects.
         channelId: "default",
         data: { link: notification.link ?? null },
       }));
