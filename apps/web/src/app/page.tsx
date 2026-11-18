@@ -188,6 +188,16 @@ export default async function HomePage() {
         </div>
       </section>
 
+      <section className="mx-auto max-w-6xl px-4 pt-8" aria-labelledby="download-apps-heading">
+        <div className="flex flex-col items-start gap-5 rounded-2xl border border-teal-100 bg-teal-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 id="download-apps-heading" className="text-xl font-bold text-slate-900">Take Care Bora with you</h2>
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">Download the app for Android, Windows, macOS or Linux and use your existing Care Bora account.</p>
+          </div>
+          <Link href="/download" className="button-primary shrink-0">Download the apps <ArrowRight className="h-4 w-4" aria-hidden /></Link>
+        </div>
+      </section>
+
       {providers.length > 0 && (
         <section className="mx-auto max-w-6xl px-4 py-16" aria-labelledby="providers-heading">
           <div className="flex flex-wrap items-end justify-between gap-4">

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Ambulance, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare, ShieldCheck, Settings, ChevronDown, ArrowRight,
+  ShoppingCart, CalendarDays, Users, LogOut, LayoutDashboard, Home, Brain, Pill, Ambulance, Building2, FileText, FlaskConical, Menu, X, User as UserIcon, Stethoscope, MessageSquare, ShieldCheck, Settings, ChevronDown, ArrowRight, Download,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
@@ -26,6 +26,7 @@ const PUBLIC_LINKS: NavLink[] = [
   { href: "/pharmacy", label: "Pharmacy", Icon: Pill },
   { href: "/about", label: "About us", Icon: ShieldCheck },
   { href: "/contact", label: "Contact us", Icon: MessageSquare },
+  { href: "/download", label: "Download apps", Icon: Download },
 ];
 
 function careLinksFor(user: PublicUser | null): NavLink[] {
@@ -152,11 +153,12 @@ export default function Nav() {
                 <div id="care-services-menu" className="absolute left-0 top-full mt-3 w-80 rounded-xl border border-slate-200 bg-background p-3 shadow-xl" onClick={event => { if ((event.target as HTMLElement).closest("a")) setServicesOpen(false); }}>
                   <Link href="/providers" className="mb-2 flex min-h-12 items-center justify-between rounded-lg bg-teal-100 px-3 text-sm font-semibold text-teal-900">Find a doctor or nurse <ArrowRight className="h-4 w-4" aria-hidden /></Link>
                   {SERVICE_LINKS.map(link => <DrawerLink key={link.href} link={link} active={isActive(link.href)} />)}
+                  <DrawerLink link={{ href: "/download", label: "Download apps", Icon: Download }} active={isActive("/download")} />
                 </div>
               )}
             </div>
             {PUBLIC_LINKS.filter(link => link.href !== "/providers").map(({ href, label }) => (
-              <Link key={href} href={href} className="nav-link" aria-current={isActive(href) ? "page" : undefined}>{label}</Link>
+              <Link key={href} href={href} className={href === "/download" ? "nav-link max-xl:!hidden" : "nav-link"} aria-current={isActive(href) ? "page" : undefined}>{label}</Link>
             ))}
           </div>
 
