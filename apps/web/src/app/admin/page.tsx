@@ -1756,10 +1756,10 @@ function UserModal({ userId, onClose, onSaved }: { userId: string; onClose: () =
                   <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Uploaded documents</div>
                   <div className="mt-2 flex flex-wrap gap-2">
                     {user.verificationDocuments.map((d) => (
-                      <a key={d.id} href={d.fileUrl} target="_blank" rel="noreferrer"
+                      <UploadedDocumentLink key={d.id} href={d.fileUrl}
                         className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50">
                         <ImageIcon className="h-3.5 w-3.5" /> {d.type.replace(/_/g, " ")}
-                      </a>
+                      </UploadedDocumentLink>
                     ))}
                   </div>
                 </div>
