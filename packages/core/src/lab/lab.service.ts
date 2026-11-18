@@ -1,3 +1,4 @@
+import { inAppNotifications } from "../notifications/inapp.service";
 import { randomUUID } from "node:crypto";
 import { db } from "@carebora/db";
 import {
@@ -116,6 +117,7 @@ export const labService = {
       },
       include: ORDER_INCLUDE,
     });
+    void inAppNotifications.serviceRequested("lab tests", order.id);
     return { ...order, payment: toPaymentSummary(payment) };
   },
 

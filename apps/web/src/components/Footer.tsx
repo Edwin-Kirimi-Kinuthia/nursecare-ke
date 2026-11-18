@@ -72,6 +72,7 @@ export default function Footer() {
         {/* Company — the trust pages, linked from every page */}
         <nav aria-label="About Care Bora" className="space-y-2 text-sm">
           <div className="font-semibold text-slate-700">Care Bora</div>
+          <Link href="/download" className="block text-slate-500 hover:text-teal-700">Download the app</Link>
           <Link href="/about" className="block text-slate-500 hover:text-teal-700">About us</Link>
           <Link href="/how-we-verify-providers" className="block text-slate-500 hover:text-teal-700">How we verify providers</Link>
           <Link href="/providers/apply" className="block text-slate-500 hover:text-teal-700">Join as a provider</Link>

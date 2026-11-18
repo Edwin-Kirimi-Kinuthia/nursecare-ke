@@ -27,6 +27,7 @@ type Entry = {
  * for the whole site, including the pages that really did change.
  */
 const STATIC_ROUTES: Entry[] = [
+  { path: "/download", changeFrequency: "weekly", priority: 0.6, updated: "2026-11-18" },
   { path: "/", changeFrequency: "weekly", priority: 1, updated: "2026-10-21" },
   { path: "/online-doctor-kenya", changeFrequency: "monthly", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
   { path: "/sick-off-sheet-online-kenya", changeFrequency: "monthly", priority: 0.9, updated: SERVICE_PAGES_UPDATED },

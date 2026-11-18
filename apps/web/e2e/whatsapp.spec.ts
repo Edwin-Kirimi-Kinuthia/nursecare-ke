@@ -3,7 +3,7 @@ import { createServer, type Server } from "node:http";
 import { AccessToken } from "livekit-server-sdk";
 import { test, expect } from "@playwright/test";
 import { db } from "@carebora/db";
-import { signAccessToken } from "@carebora/core";
+import { inAppNotifications, signAccessToken } from "@carebora/core";
 import { whatsAppEvents, whatsAppService } from "../../../packages/core/src/notifications/whatsapp.service";
 
 test.describe.configure({ mode: "serial" });
@@ -120,6 +120,7 @@ test("provider invitations are free, and unconnected or unauthorized callers can
   for (const token of [clientToken, otherToken]) expect((await request.post(path, { headers: headers(token) })).status()).toBe(403);
   expect((await (await request.post(path, { headers: headers(providerToken) })).json()).data.notified).toBe(false);
   expect(await row(`ready:${consultationId}`)).toBeNull();
+  expect(await db.notification.count({ where: { userId: clientId, type: "consultation_started" } })).toBe(0);
 });
 
 test("verified provider presence alerts once across callbacks and again after a resumed session", async ({ request }) => {
@@ -133,6 +134,7 @@ test("verified provider presence alerts once across callbacks and again after a 
   token.sha256 = createHash("sha256").update(payload).digest("base64");
   expect((await request.post("/api/v1/consultations/livekit-webhook", { data: payload, headers: { Authorization: await token.toJwt() } })).status()).toBe(200);
   expect(await db.whatsAppMessage.count({ where: { eventKey: { startsWith: `ready:${consultationId}:1:` } } })).toBe(1);
+  expect(await db.notification.count({ where: { userId: clientId, type: "consultation_started" } })).toBe(1);
   expect((await request.post("/api/v1/consultations/livekit-webhook", { data: payload, headers: { Authorization: "forged" } })).status()).toBe(401);
   await request.patch(`/api/v1/consultations/${consultationId}`, { headers: headers(providerToken), data: { status: "ended" } });
   expect((await (await request.post(path, { headers: headers(providerToken) })).json()).data.notified).toBe(false);
@@ -149,6 +151,7 @@ test("verified provider presence alerts once across callbacks and again after a 
   await request.post(`/api/v1/appointments/${c.appointmentId}/consultation`, { headers: headers(providerToken) });
   await request.post(path, { headers: headers(providerToken) });
   expect(await db.whatsAppMessage.count({ where: { eventKey: { startsWith: `ready:${consultationId}:2:` } } })).toBe(1);
+  expect(await db.notification.count({ where: { userId: clientId, type: "consultation_started" } })).toBe(2);
 });
 
 test("website enquiries and client replies alert admin without copying sensitive message text", async ({ request }) => {
@@ -231,4 +234,18 @@ test("account settings save consent and the admin panel clearly shows inactive d
   await page.goto("/admin"); await page.getByRole("button", { name: "WhatsApp", exact: true }).click();
   await expect(page.getByText("WhatsApp delivery is not active", { exact: true })).toBeVisible();
   await context.close();
+});
+
+
+test("service request alerts reach active admins once even with WhatsApp off", async () => {
+  const before = process.env.WHATSAPP_ENABLED;
+  process.env.WHATSAPP_ENABLED = "false";
+  const reference = randomUUID();
+  try {
+    const countBefore = await db.notification.count({ where: { userId: users[0], type: "service_requested" } });
+    await Promise.all([inAppNotifications.serviceRequested("a home visit", reference), inAppNotifications.serviceRequested("a home visit", reference)]);
+    expect(await db.notification.count({ where: { userId: users[0], type: "service_requested" } })).toBe(countBefore + 1);
+    expect(await db.notification.count({ where: { userId: users[2], type: "service_requested" } })).toBe(0);
+    expect(await db.whatsAppMessage.count({ where: { eventKey: { contains: reference } } })).toBe(0);
+  } finally { if (before === undefined) delete process.env.WHATSAPP_ENABLED; else process.env.WHATSAPP_ENABLED = before; }
 });

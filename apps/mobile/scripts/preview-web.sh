@@ -36,7 +36,7 @@ cat > src/lib/push.web.ts <<'TS'
 export const routeForLink = (_l: unknown): string | null => null;
 export const unregisterThisDevice = async () => {};
 export type PushPermission = "undetermined" | "granted" | "denied";
-export const usePushPermission = (_s: boolean) => ({ permission: "granted" as PushPermission, enable: async () => {} });
+export const usePushPermission = (_s: boolean) => ({ permission: "granted" as PushPermission, registrationError: null as string | null, enable: async () => {} });
 export const useNotificationTaps = (_s: boolean) => {};
 TS
 python3 - <<'PY'

@@ -71,6 +71,7 @@ export default function AccountScreen() {
         </Card>
       )}
 
+      {push.registrationError && <Banner tone="warn">{push.registrationError}</Banner>}
       {isProvider && <AvailabilityCard />}
 
       <Card style={{ paddingVertical: 4 }}>
@@ -94,7 +95,7 @@ export default function AccountScreen() {
           onPress={() => router.push("/notifications")}
           trailing={unread > 0 ? <Badge label={String(unread)} tone="danger" /> : undefined}
         />
-        {push.permission !== "granted" && (
+        {(push.permission !== "granted" || push.registrationError) && (
           <>
             <Divider />
             <Row

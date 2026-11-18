@@ -25,10 +25,19 @@ const TOKEN_KEY = "carebora.pushToken";
 /** Map a web path from the server (`/consultations/<id>`) to a screen in this app. */
 export function routeForLink(link: unknown): string | null {
   if (typeof link !== "string") return null;
-  const consult = /^\/consultations\/([0-9a-f-]{36})/i.exec(link);
-  if (consult) return `/consultation/${consult[1]}`; // straight into the call
-  if (link.startsWith("/appointments")) return "/appointments";
-  if (link.startsWith("/contact")) return "/support";
+  if (!link.startsWith("/") || link.startsWith("//")) return null;
+  const [path] = link.split(/[?#]/);
+  const consult = /^\/consultations\/([0-9a-f-]{36})$/i.exec(path);
+  if (consult) return `/consultation/${consult[1]}`;
+  const appointment = /^\/appointments\/([0-9a-f-]{36})$/i.exec(path);
+  if (appointment) return `/appointment/${appointment[1]}`;
+  if (path === "/appointments") return "/appointments";
+  if (path === "/admin" || path.startsWith("/admin/")) return "/admin";
+  if (path === "/vendor" || path.startsWith("/vendor/")) return "/vendor";
+  if (path === "/contact" || path.startsWith("/contact/")) return "/support";
+  if (path === "/home-visits" || /^\/home-visits\/[0-9a-f-]{36}$/i.test(path)) return path;
+  if (path === "/orders" || /^\/orders\/[0-9a-f-]{36}$/i.test(path)) return path;
+  if (["/records", "/labs"].includes(path)) return path;
   return null;
 }
 
@@ -73,6 +82,7 @@ export type PushPermission = "undetermined" | "granted" | "denied";
  * whenever permission is already granted, since tokens can change.
  */
 export function usePushPermission(signedIn: boolean) {
+  const [registrationError, setRegistrationError] = useState<string | null>(null);
   const [permission, setPermission] = useState<PushPermission>("undetermined");
 
   useEffect(() => {
@@ -82,16 +92,18 @@ export function usePushPermission(signedIn: boolean) {
       const p = await Notifications.getPermissionsAsync();
       if (!live) return;
       setPermission(p.granted ? "granted" : p.canAskAgain ? "undetermined" : "denied");
-      if (p.granted) await registerToken();
+      if (p.granted && !await registerToken() && live) setRegistrationError("Notifications could not connect. Try enabling them again when online.");
     })().catch(() => {});
     return () => { live = false; };
   }, [signedIn]);
 
   const enable = useCallback(async () => {
+    setRegistrationError(null);
+    await ensureAndroidChannel();
     const p = await Notifications.requestPermissionsAsync();
     if (p.granted) {
       setPermission("granted");
-      await registerToken();
+      if (!await registerToken()) setRegistrationError("Notifications could not connect. Please try again when online.");
     } else {
       setPermission(p.canAskAgain ? "undetermined" : "denied");
       // Once refused on iOS the system won't ask again; only Settings can change it.
@@ -99,7 +111,7 @@ export function usePushPermission(signedIn: boolean) {
     }
   }, []);
 
-  return { permission, enable };
+  return { permission, enable, registrationError };
 }
 
 /** Open the right screen when a notification is tapped (including the tap that launched the app). */

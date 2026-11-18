@@ -1,6 +1,12 @@
 import { db } from "@carebora/db";
 import { backgrounded } from "../lib/background";
 import { pushService } from "./push.service";
+import { createHash } from "node:crypto";
+
+function eventId(userId: string, eventKey: string) {
+  const h = createHash("sha256").update(`${userId}:${eventKey}`).digest("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-a${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
 
 /**
  * In-app notifications (the bell feed). Creation is best-effort and never throws
@@ -13,16 +19,28 @@ export const inAppNotifications = backgrounded({
    * confirmation, "your doctor has started the call") therefore reaches the
    * mobile app with no change at the call sites.
    */
-  async create(userId: string, input: { type: string; title: string; body?: string; link?: string }) {
+  async create(userId: string, input: { type: string; title: string; body?: string; link?: string; eventKey?: string }) {
     try {
       const created = await db.notification.create({
-        data: { userId, type: input.type, title: input.title, body: input.body ?? null, link: input.link ?? null },
+        data: { ...(input.eventKey ? { id: eventId(userId, input.eventKey) } : {}), userId, type: input.type, title: input.title, body: input.body ?? null, link: input.link ?? null },
       });
       await pushService.sendToUser(userId, { title: input.title, link: input.link });
       return created;
     } catch {
       return null;
     }
+  },
+
+  /** Fan out service requests to active admins, independent of WhatsApp settings. */
+  async serviceRequested(kind: string, reference: string) {
+    try {
+      const admins = await db.user.findMany({ where: { role: "admin", isActive: true, deletedAt: null }, select: { id: true } });
+      await Promise.all(admins.map(({ id }) => inAppNotifications.create(id, {
+        type: "service_requested", title: "New service request",
+        body: `A customer requested ${kind}. Open the admin portal to review it.`,
+        link: "/admin", eventKey: `service:${kind}:${reference}`,
+      })));
+    } catch { console.error("[notifications] Could not notify administrators"); }
   },
 
   async list(userId: string, limit = 30) {

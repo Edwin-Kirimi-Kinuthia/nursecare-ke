@@ -1,3 +1,4 @@
+import { inAppNotifications } from "../notifications/inapp.service";
 import { db } from "@carebora/db";
 import {
   ApiError,
@@ -56,6 +57,7 @@ export const ambulanceService = {
       },
       include: REQUEST_INCLUDE,
     });
+    void inAppNotifications.serviceRequested("an ambulance", request.id);
     await writeEvent(request.id, "requested", null, patientId);
     return attachPayment(request);
   },

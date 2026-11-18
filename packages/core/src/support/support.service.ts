@@ -54,6 +54,7 @@ export const supportService = {
       include: TICKET_INCLUDE,
     });
 
+    void inAppNotifications.serviceRequested("support or a document", ticket.id);
     void whatsAppEvents.contact(ticket.id);
     void notificationService.supportTicketReceived({
       email: ticket.contactEmail,

@@ -1,3 +1,4 @@
+import { inAppNotifications } from "../notifications/inapp.service";
 import { db } from "@carebora/db";
 import {
   ApiError,
@@ -42,7 +43,7 @@ async function attachPayments<T extends { id: string }>(visits: T[]) {
 
 export const homeVisitService = {
   async request(patientId: string, input: CreateHomeVisitInput) {
-    return db.homeVisit.create({
+    const visit = await db.homeVisit.create({
       data: {
         patientId,
         specialty: input.specialty,
@@ -55,6 +56,8 @@ export const homeVisitService = {
       },
       include: VISIT_INCLUDE,
     });
+    void inAppNotifications.serviceRequested("a home visit", visit.id);
+    return visit;
   },
 
   async list(userId: string, role: UserRole, query: HomeVisitsQuery) {

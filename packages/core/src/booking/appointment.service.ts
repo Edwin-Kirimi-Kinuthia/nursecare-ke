@@ -181,6 +181,7 @@ export const appointmentService = {
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
       const providerName = appointment.provider.user.fullName;
+      void inAppNotifications.serviceRequested("an appointment", appointment.id);
       void whatsAppEvents.booked(appointment.id);
       if (autoConfirm) {
         void whatsAppEvents.confirmed(appointment);

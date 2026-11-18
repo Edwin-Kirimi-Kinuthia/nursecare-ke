@@ -94,24 +94,6 @@ export const consultationService = {
       });
     });
 
-    // Notify the patient to join — in-app bell + email/SMS with a join link.
-    const providerName = appointment.provider.user.fullName;
-    const link = `/consultations/${consultation.id}`;
-    const appUrl = process.env.APP_URL || "https://nursecare-ke-five.vercel.app";
-    void inAppNotifications.create(appointment.patient.id, {
-      type: "consultation_started",
-      title: "Your provider is ready — join now",
-      body: `${providerName} has ${resuming ? "resumed" : "started"} your video consultation.${resuming ? " No additional payment is required." : ""}`,
-      link,
-    });
-    void notificationService.consultationStarted({
-      patientEmail: appointment.patient.email,
-      patientPhone: appointment.patient.phone,
-      patientName: appointment.patient.fullName,
-      providerName,
-      joinUrl: `${appUrl}${link}`,
-    });
-
     return consultation;
   },
 
@@ -177,6 +159,22 @@ export const consultationService = {
     } catch { return { notified: false }; }
     const current = await getConsultation(consultationId);
     if (current.status === "ended" || current.appointment.status !== "confirmed" || current.meetingRun !== c.meetingRun) return { notified: false };
+    const alert = await inAppNotifications.create(current.appointment.patientId, {
+      type: "consultation_started", title: "Your provider is ready — join now",
+      body: "Your provider has connected to the consultation. Open your appointment to join.",
+      link: `/consultations/${current.id}`, eventKey: `ready:${current.id}:${current.meetingRun}`,
+    });
+    if (alert) {
+      const [patient, provider] = await Promise.all([
+        db.user.findUniqueOrThrow({ where: { id: current.appointment.patientId }, select: { fullName: true, email: true, phone: true } }),
+        db.user.findUniqueOrThrow({ where: { id: providerId }, select: { fullName: true } }),
+      ]);
+      void notificationService.consultationStarted({
+        patientEmail: patient.email, patientPhone: patient.phone, patientName: patient.fullName,
+        providerName: provider.fullName,
+        joinUrl: `${process.env.APP_URL || "https://app.carebora.co.ke"}/consultations/${current.id}`,
+      });
+    }
     await whatsAppEvents.ready(current);
     return { notified: true };
   },

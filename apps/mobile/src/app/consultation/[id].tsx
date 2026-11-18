@@ -112,6 +112,15 @@ export default function ConsultationScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: "#0B1215", paddingTop: insets.top, paddingBottom: insets.bottom }}>
       <VideoRoom
+        onConnected={() => {
+          if (!joined.isProvider) return;
+          void (async () => {
+            for (let attempt = 0; attempt < 3; attempt++) {
+              if ((await api.providerConnected(id)).notified) return;
+              await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+          })().catch(() => {});
+        }}
         serverUrl={joined.url}
         token={joined.token}
         otherName={joined.otherName}

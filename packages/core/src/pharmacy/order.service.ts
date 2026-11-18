@@ -1,3 +1,4 @@
+import { inAppNotifications } from "../notifications/inapp.service";
 import { randomUUID } from "node:crypto";
 import { HOUSE_ORG_SLUG } from "./house-pharmacy";
 import { db } from "@carebora/db";
@@ -168,6 +169,7 @@ export const orderService = {
       return created;
     }));
 
+    void inAppNotifications.serviceRequested("a pharmacy order", order.id);
     return { ...order, payment: toPaymentSummary(payment), redirect };
   },
 

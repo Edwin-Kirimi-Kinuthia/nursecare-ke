@@ -24,6 +24,7 @@ type Props = {
   onToggleChat: () => void;
   onLeave: () => void;
   onEnd: () => void;
+  onConnected?: () => void;
   children?: React.ReactNode;
 };
 
@@ -31,7 +32,7 @@ type Props = {
  * A two-person video call. The remote person fills the screen and you are the
  * small picture-in-picture. The chat panel (children) sits over the lower half.
  */
-export function VideoRoom({ serverUrl, token, otherName, canEnd, chatOpen, unread, onToggleChat, onLeave, onEnd, children }: Props) {
+export function VideoRoom({ serverUrl, token, otherName, canEnd, chatOpen, unread, onToggleChat, onLeave, onEnd, onConnected, children }: Props) {
   // The audio session has to be running before the room connects, and released
   // on the way out or the phone keeps routing audio as if a call were live.
   useEffect(() => {
@@ -48,6 +49,7 @@ export function VideoRoom({ serverUrl, token, otherName, canEnd, chatOpen, unrea
       video
       options={{ adaptiveStream: { pixelDensity: "screen" } }}
       onDisconnected={onLeave}
+      onConnected={onConnected}
     >
       <Stage otherName={otherName} canEnd={canEnd} chatOpen={chatOpen} unread={unread} onToggleChat={onToggleChat} onLeave={onLeave} onEnd={onEnd}>
         {children}
