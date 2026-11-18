@@ -8,6 +8,7 @@ let seen = new Set();
 const startedAt = Date.now();
 const settingsFile = () => path.join(app.getPath('userData'), 'notifications.json');
 let allowedUsers = new Set();
+const activeAlerts = new Set();
 
 app.setAppUserModelId('ke.co.carebora.desktop');
 if (!app.requestSingleInstanceLock()) app.quit();
@@ -15,6 +16,7 @@ app.on('second-instance', () => show());
 app.on('before-quit', () => { quitting = true; });
 
 function saveSettings() {
+  fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
   fs.writeFileSync(settingsFile(), JSON.stringify([...allowedUsers]), { mode: 0o600 });
 }
 function show(url) {
@@ -41,14 +43,29 @@ async function enableAlerts() {
   const { response } = await dialog.showMessageBox(window, {
     type: 'question', buttons: ['Enable alerts', 'Cancel'], defaultId: 0, cancelId: 1,
     message: 'Enable Care Bora desktop alerts?',
-    detail: 'Receive service requests, appointment requests and provider-joined alerts for this account while Care Bora is running. Clinical details stay inside the portal.',
+    detail: 'Receive device notifications with sound for appointments, messages and service updates while Care Bora is running. Allow notifications and sounds in your system settings. Clinical details stay inside the portal.',
   });
-  if (response === 0) { allowedUsers.add(user.id); saveSettings(); buildMenu(); }
+  if (response === 0) { allowedUsers.add(user.id); saveSettings(); }
+}
+function presentAlert(body, onClick) {
+  if (!Notification.isSupported()) return;
+  const alert = new Notification({ title: 'Care Bora', body, icon: path.join(__dirname, '../assets/icon.png'), silent: false });
+  activeAlerts.add(alert);
+  alert.on('close', () => activeAlerts.delete(alert));
+  alert.on('failed', () => activeAlerts.delete(alert));
+  alert.on('click', onClick);
+  alert.show();
+}
+async function testAlert() {
+  const user = await portalJSON('/auth/me').catch(() => null);
+  if (!user?.id || !allowedUsers.has(user.id)) return enableAlerts();
+  presentAlert('Notification test — sound follows your system notification settings.', () => show());
 }
 function buildMenu() {
   const actions = [
     { label: 'Open Care Bora', click: () => show() },
     { label: 'Enable alerts for this account…', click: () => { void enableAlerts(); } },
+    { label: 'Test sound and notification', click: () => { void testAlert(); } },
     { label: 'Disable desktop alerts', click: () => { allowedUsers.clear(); saveSettings(); } },
     { label: 'Download the latest version', click: () => { void shell.openExternal(`${PORTAL}/download`); } },
     { type: 'separator' }, { role: 'quit', label: 'Quit Care Bora' },
@@ -80,13 +97,10 @@ async function poll() {
       const title = alertTitle(item.type);
       const age = Date.now() - Date.parse(item.createdAt);
       if (!title || item.readAt || Date.parse(item.createdAt) < startedAt || age > 15 * 60_000) continue;
-      if (!Notification.isSupported()) continue;
-      const alert = new Notification({ title: 'Care Bora', body: title, icon: path.join(__dirname, '../assets/icon.png') });
-      alert.on('click', async () => {
+      presentAlert(title, async () => {
         const stillSignedIn = await portalJSON('/auth/me').catch(() => null);
         if (stillSignedIn?.id === user.id) show(notificationURL(item.link));
       });
-      alert.show();
     }
     if (seen.size > 500) seen = new Set([...seen].slice(-100));
   } catch { /* Network interruption: the next poll retries without replaying alerts. */ }
@@ -151,3 +165,4 @@ app.whenReady().then(() => {
   app.on('activate', () => show());
 });
 app.on('window-all-closed', () => app.quit());
+

@@ -13,8 +13,10 @@ the portal and requires consent. Sign in using email and your emailed code;
 third-party identity providers may disallow desktop embedded browsers.
 
 Choose **Care Bora → Enable alerts for this account** after signing in. The app
-checks the authenticated notification feed every 15 seconds and displays only
-fixed service-request, appointment-request and provider-joined alerts. No patient
+checks the authenticated notification feed every 15 seconds and requests system
+banners and sound for all incoming notifications, including confirmations and
+messages. **Care Bora → Test sound and notification** checks system delivery.
+Allow notifications and sound in the operating system's settings. No patient
 name, diagnosis or message body appears on the lock screen. Each account opts in
 separately. Closing the window keeps an opted-in app in the tray; **Quit Care Bora**
 stops alerts. Alerts are best effort and require an internet connection. Existing
@@ -25,6 +27,8 @@ Initial desktop packages are unsigned unless release signing credentials are
 configured. Windows may show SmartScreen and macOS may block opening an unsigned
 download. macOS distribution needs an Apple Developer ID and notarization for a
 normal install experience. Do not disable OS security globally to install builds.
+macOS system notification delivery also requires a signed application; the
+website's browser push notifications can be used while signing is pending.
 Keep Electron patched and distribute updated installers through `/download`.
 
 The workflow uploads installers and SHA-256 checksums as GitHub Actions artifacts.

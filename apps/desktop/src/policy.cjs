@@ -22,8 +22,9 @@ function alertTitle(type) {
     service_requested: 'New service request — check your admin portal',
     appointment_requested: 'Appointment request — check your portal to confirm',
     appointment_booked: 'New appointment — check your portal',
+    appointment_confirmed: 'Appointment confirmed — check your portal',
     consultation_started: 'Your provider has joined — open your consultation',
-  })[type] ?? null;
+  })[type] ?? 'New notification — check your Care Bora portal';
 }
 
 module.exports = { PORTAL, isPortalURL, notificationURL, mayOpenExternally, alertTitle };

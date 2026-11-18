@@ -16,5 +16,6 @@ test('external links exclude local files and command protocols', () => {
 });
 test('notification titles use fixed operational text, not private message content', () => {
   assert.match(alertTitle('consultation_started'), /provider has joined/);
-  assert.equal(alertTitle('clinical_notes'), null);
+  assert.match(alertTitle('appointment_confirmed'), /Appointment confirmed/);
+  assert.equal(alertTitle('clinical_notes'), 'New notification — check your Care Bora portal');
 });

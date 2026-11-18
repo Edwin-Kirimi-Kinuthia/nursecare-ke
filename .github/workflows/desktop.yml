@@ -43,6 +43,9 @@ jobs:
       - name: Camera consent and sandbox smoke test
         if: runner.os == 'Linux'
         run: xvfb-run -a npm run test:media
+      - name: Notification sound and account isolation smoke test
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:alerts
       - run: npm run build
         env:
           # Signing credentials can be added before the public release.
