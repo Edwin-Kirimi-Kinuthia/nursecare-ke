@@ -84,6 +84,8 @@ jobs:
         run: npm run db:deploy
       - name: Seed demo data
         run: npm run db:seed
+      - name: Generate disposable browser push keys
+        run: node -e 'const fs=require("fs"),k=require("web-push").generateVAPIDKeys(); fs.appendFileSync(process.env.GITHUB_ENV,`VAPID_PUBLIC_KEY=${k.publicKey}\nVAPID_PRIVATE_KEY=${k.privateKey}\n`);'
       - name: Build
         run: npm run build
       - name: Install Playwright browser

@@ -61,6 +61,7 @@ export { whatsAppService, handleWhatsAppWebhook } from "./notifications/whatsapp
 export { validWhatsAppSignature, validWebhookToken } from "./notifications/whatsapp-gateway";
 export { inAppNotifications } from "./notifications/inapp.service";
 export { pushService, isExpoPushToken } from "./notifications/push.service";
+export { webPushService, browserSubscriptionSchema } from "./notifications/web-push.service";
 export { reviewService } from "./reviews/review.service";
 export { orgService, resolveMembership } from "./org/org.service";
 export { ambulanceService } from "./ambulance/ambulance.service";

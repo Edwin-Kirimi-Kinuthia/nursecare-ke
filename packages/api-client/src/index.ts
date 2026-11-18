@@ -450,6 +450,17 @@ export class CareBoraClient {
   unregisterPushDevice(input: UnregisterPushDeviceInput) {
     return this.post<{ unregistered: true }>("/push/devices/unregister", input);
   }
+  browserPushConfig() {
+    return this.request<{ publicKey: string | null }>("/push/browser");
+  }
+  registerBrowserPush(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+    return this.post<{ registered: true }>("/push/browser", { userId, subscription });
+  }
+  unregisterBrowserPush(userId: string, subscription: { endpoint: string; keys: { p256dh: string; auth: string } }) {
+    return this.request<{ unregistered: true }>("/push/browser", {
+      method: "DELETE", body: JSON.stringify({ userId, subscription }), signal: AbortSignal.timeout(3000),
+    });
+  }
   /** Permanently delete your own account. Irreversible; needs your password if the account has one. */
   deleteAccount(input: DeleteAccountInput) {
     return this.post<{ deleted: true; appointmentsCancelled: number }>("/auth/delete-account", input);

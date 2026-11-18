@@ -6,6 +6,7 @@ import { Bell, Video, CalendarCheck, BadgeCheck, Bell as BellIcon } from "lucide
 import type { AppNotification } from "@carebora/api-client";
 import { api, when } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { useBrowserAlerts } from "@/lib/browser-alerts";
 
 const ICONS: Record<string, typeof Bell> = {
   consultation_started: Video,
@@ -15,6 +16,7 @@ const ICONS: Record<string, typeof Bell> = {
 
 export default function NotificationBell() {
   const { user } = useAuth();
+  const alerts = useBrowserAlerts(user?.id);
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -93,6 +95,21 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between border-b border-slate-100 px-4 py-2.5">
             <span className="text-sm font-bold text-slate-900">Notifications</span>
             {unread > 0 && <button onClick={markAll} className="text-xs font-medium text-teal-700 hover:underline">Mark all read</button>}
+          </div>
+          <div className="border-b border-slate-100 px-4 py-3 text-xs text-slate-600">
+            {alerts.desktop ? <p>Enable sound and desktop alerts from the Care Bora app menu.</p> : alerts.supported ? (
+              <>
+                <p>Get sound and device notifications for appointments and messages.</p>
+                <div className="mt-2 flex flex-wrap gap-3">
+                  {alerts.enabled ? <>
+                    <button onClick={() => { void alerts.test(); }} className="font-semibold text-teal-700">Test sound and notification</button>
+                    <button onClick={() => { void alerts.disable(); }} className="text-slate-500">Turn off</button>
+                  </> : <button disabled={alerts.pending} onClick={() => { void alerts.enable(); }} className="font-semibold text-teal-700 disabled:opacity-50">{alerts.pending ? "Connecting…" : "Enable sound and device alerts"}</button>}
+                </div>
+                <p className="mt-2 text-[11px]">Sound follows your device settings. On iPhone, add Care Bora to your Home Screen first.</p>
+              </>
+            ) : <p>For device alerts, use a browser with push support. On iPhone, add Care Bora to your Home Screen and open it there.</p>}
+            {alerts.error && <p role="status" className="mt-2 text-rose-700">{alerts.error}</p>}
           </div>
           <div className="max-h-96 overflow-y-auto">
             {items.length === 0 ? (

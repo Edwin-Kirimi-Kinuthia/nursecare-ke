@@ -1,6 +1,7 @@
 import { db } from "@carebora/db";
 import { backgrounded } from "../lib/background";
 import { pushService } from "./push.service";
+import { webPushService } from "./web-push.service";
 import { createHash } from "node:crypto";
 
 function eventId(userId: string, eventKey: string) {
@@ -24,7 +25,10 @@ export const inAppNotifications = backgrounded({
       const created = await db.notification.create({
         data: { ...(input.eventKey ? { id: eventId(userId, input.eventKey) } : {}), userId, type: input.type, title: input.title, body: input.body ?? null, link: input.link ?? null },
       });
-      await pushService.sendToUser(userId, { title: input.title, link: input.link });
+      await Promise.all([
+        pushService.sendToUser(userId, { title: input.title, link: input.link }),
+        webPushService.sendToUser(userId, { id: created.id, link: input.link }),
+      ]);
       return created;
     } catch {
       return null;

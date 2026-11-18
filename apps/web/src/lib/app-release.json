@@ -38,5 +38,15 @@
     "name": "SHA256SUMS-win32.txt",
     "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/SHA256SUMS-win32.txt",
     "size": 93
+  },
+  {
+    "name": "CareBora-1.0.1-android.apk",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/mobile-v1.0.1/CareBora-1.0.1-android.apk",
+    "size": 165857630
+  },
+  {
+    "name": "SHA256SUMS-android.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/mobile-v1.0.1/SHA256SUMS-android.txt",
+    "size": 93
   }
 ]

@@ -42,7 +42,7 @@ export const pushService = {
 
   async sendToUser(userId: string, notification: { title: string; link?: string | null }) {
     try {
-      const devices = await db.pushDevice.findMany({ where: { userId }, select: { token: true } });
+      const devices = await db.pushDevice.findMany({ where: { userId, platform: { in: ["ios", "android"] } }, select: { token: true } });
       if (devices.length === 0) return;
 
       const messages = devices.map((d) => ({

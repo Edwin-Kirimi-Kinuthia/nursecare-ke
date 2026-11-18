@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { PublicUser } from "@carebora/shared";
 import { api } from "@/lib/api";
+import { unregisterBrowserAlerts } from "@/lib/browser-alerts";
 
 interface AuthState {
   user: PublicUser | null;
@@ -34,13 +35,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    if (user) await unregisterBrowserAlerts(user.id);
     try {
       await api.logout();
     } catch {
       /* ignore */
     }
     setUser(null);
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     let active = true;
