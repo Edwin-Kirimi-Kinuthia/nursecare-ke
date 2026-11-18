@@ -1,13 +1,15 @@
+import verifiedRelease from "./app-release.json";
+
 const REPO = "Edwin-Kirimi-Kinuthia/nursecare-ke";
 export type AppDownload = { name: string; url: string; size: number };
 
-/** Only expose assets in published, non-prerelease GitHub releases. Never invent download links. */
+/** Published release assets only. The checked-in, verified release also works during GitHub outages or rate limits. */
 export async function appDownloads(): Promise<AppDownload[]> {
   try {
     const response = await fetch(`https://api.github.com/repos/${REPO}/releases?per_page=20`, {
       headers: { Accept: "application/vnd.github+json" }, next: { revalidate: 300 }, signal: AbortSignal.timeout(5000),
     });
-    if (!response.ok) return [];
+    if (!response.ok) return verifiedRelease;
     const releases = await response.json() as { draft: boolean; prerelease: boolean; assets: { name: string; browser_download_url: string; size: number; state: string }[] }[];
     const selected = new Map<string, AppDownload>();
     for (const release of releases) {
@@ -21,6 +23,6 @@ export async function appDownloads(): Promise<AppDownload[]> {
         if (!selected.has(key)) selected.set(key, { name: asset.name, url: asset.browser_download_url, size: asset.size });
       }
     }
-    return [...selected.values()];
-  } catch { return []; }
+    return selected.size ? [...selected.values()] : verifiedRelease;
+  } catch { return verifiedRelease; }
 }

@@ -1,0 +1,42 @@
+[
+  {
+    "name": "CareBora-1.0.0-linux-amd64.deb",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/CareBora-1.0.0-linux-amd64.deb",
+    "size": 101754680
+  },
+  {
+    "name": "CareBora-1.0.0-linux-x86_64.AppImage",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/CareBora-1.0.0-linux-x86_64.AppImage",
+    "size": 125987524
+  },
+  {
+    "name": "CareBora-1.0.0-mac-arm64.dmg",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/CareBora-1.0.0-mac-arm64.dmg",
+    "size": 121538119
+  },
+  {
+    "name": "CareBora-1.0.0-mac-x64.dmg",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/CareBora-1.0.0-mac-x64.dmg",
+    "size": 125625500
+  },
+  {
+    "name": "CareBora-1.0.0-win-x64.exe",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/CareBora-1.0.0-win-x64.exe",
+    "size": 121525428
+  },
+  {
+    "name": "SHA256SUMS-darwin.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/SHA256SUMS-darwin.txt",
+    "size": 188
+  },
+  {
+    "name": "SHA256SUMS-linux.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/SHA256SUMS-linux.txt",
+    "size": 200
+  },
+  {
+    "name": "SHA256SUMS-win32.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.0-2/SHA256SUMS-win32.txt",
+    "size": 93
+  }
+]
