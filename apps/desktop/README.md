@@ -29,4 +29,7 @@ Keep Electron patched and distribute updated installers through `/download`.
 
 The workflow uploads installers and SHA-256 checksums as GitHub Actions artifacts.
 Its optional publish input creates a **draft** GitHub release for review; publishing
-that release makes verified assets visible on the website's download page.
+that release makes its files publicly downloadable. After checking the installers
+and checksums, update `apps/web/src/lib/app-release.json` with the published asset
+URLs and sizes and deploy the website. The download page uses this verified
+catalog, so GitHub API failures cannot hide available files.

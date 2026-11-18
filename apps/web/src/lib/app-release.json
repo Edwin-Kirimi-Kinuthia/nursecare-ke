@@ -1,5 +1,15 @@
 [
   {
+    "name": "CareBora-1.0.0-android.apk",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/mobile-v1.0.0/CareBora-1.0.0-android.apk",
+    "size": 165857486
+  },
+  {
+    "name": "SHA256SUMS-android.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/mobile-v1.0.0/SHA256SUMS-android.txt",
+    "size": 93
+  },
+  {
     "name": "CareBora-1.0.1-linux-amd64.deb",
     "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-linux-amd64.deb",
     "size": 101900852
