@@ -138,9 +138,12 @@ of the API locally with only Postgres.
 `npm run db:deploy` uses `DIRECT_URL`, `DATABASE_URL_UNPOOLED`, or
 `POSTGRES_URL_NON_POOLING` when configured. Otherwise it derives the direct Neon
 endpoint from `DATABASE_URL` by removing `-pooler` from its hostname. The web app
-continues to use the pooled URL. Migration lock timeouts are retried up to three
+continues to use the pooled URL. A successful `prisma migrate status` check skips
+migration deployment when the migration history is already current. Pending
+migrations still require the advisory lock. Lock timeouts are retried up to three
 times; other migration failures stop the build immediately. Advisory locking stays
-enabled to serialize concurrent deployments.
+enabled to serialize concurrent deployments. Failed deployments print read-only
+diagnostics of sessions holding the migration lock; they never terminate sessions.
 
 Import the repo and set **Root Directory = `apps/web`**. Vercel detects Next.js and
 installs the npm workspace from the repo root automatically. Add the env vars from

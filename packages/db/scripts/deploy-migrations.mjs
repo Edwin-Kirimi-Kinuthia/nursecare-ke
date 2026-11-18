@@ -34,13 +34,23 @@ export async function deployWithRetry(run, wait = sleep, log = console.warn) {
   }
 }
 
+export async function deployIfPending(run, wait = sleep, log = console.warn) {
+  const status = await run("status");
+  if (status.code === 0) {
+    log("Database migrations are current; no migration lock is needed.");
+    return 0;
+  }
+  return deployWithRetry(() => run("deploy"), wait, log);
+}
+
 async function main() {
   const packageRoot = fileURLToPath(new URL("../", import.meta.url));
   dotenv.config({ path: [resolve(packageRoot, ".env"), resolve(packageRoot, "../../.env")] });
   const env = { ...process.env, DATABASE_URL: migrationUrl(process.env) };
-  const prismaCli = createRequire(import.meta.url).resolve("prisma/build/index.js");
-  const run = () => new Promise((resolveRun, reject) => {
-    const child = spawn(process.execPath, [prismaCli, "migrate", "deploy"], {
+  const require = createRequire(import.meta.url);
+  const prismaCli = require.resolve("prisma/build/index.js");
+  const run = (command) => new Promise((resolveRun, reject) => {
+    const child = spawn(process.execPath, [prismaCli, "migrate", command], {
       cwd: packageRoot, env, stdio: ["inherit", "pipe", "pipe"],
     });
     let output = "";
@@ -53,7 +63,24 @@ async function main() {
     child.on("error", reject);
     child.on("close", (code) => resolveRun({ code: code ?? 1, output }));
   });
-  process.exitCode = await deployWithRetry(run);
+  process.exitCode = await deployIfPending(run);
+  if (process.exitCode !== 0) {
+    // Read-only diagnostics: never terminate sessions or bypass advisory locking.
+    const { PrismaClient } = require("@prisma/client");
+    const db = new PrismaClient({ datasources: { db: { url: env.DATABASE_URL } } });
+    try {
+      const locks = await db.$queryRaw`
+        SELECT a.pid, a.state, a.application_name, a.backend_start, a.xact_start,
+               a.state_change, a.wait_event_type, a.wait_event,
+               a.query LIKE '%pg_advisory_lock(72707369)%' AS last_query_is_migration_lock
+        FROM pg_locks l JOIN pg_stat_activity a ON a.pid = l.pid
+        WHERE l.locktype = 'advisory' AND l.classid = 0
+          AND l.objid = 72707369 AND l.objsubid = 1 AND l.granted`;
+      console.error("Migration lock holders (read-only inspection):", JSON.stringify(locks));
+    } catch {
+      console.error("Could not inspect migration lock holders.");
+    } finally { await db.$disconnect(); }
+  }
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

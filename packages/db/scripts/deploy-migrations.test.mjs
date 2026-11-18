@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { migrationUrl, deployWithRetry } from "./deploy-migrations.mjs";
+import { migrationUrl, deployWithRetry, deployIfPending } from "./deploy-migrations.mjs";
 
 const pooled = "postgresql://user:p%40ss@ep-example-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require&pgbouncer=true&schema=public";
 
@@ -65,4 +65,30 @@ test("SQL and migration errors fail immediately without retrying", async () => {
   }, async () => assert.fail("must not wait"));
   assert.equal(code, 2);
   assert.equal(attempts, 1);
+});
+
+test("current migration history skips deploy without acquiring a migration lock", async () => {
+  const commands = [];
+  const code = await deployIfPending(async (command) => {
+    commands.push(command);
+    return { code: 0, output: "Database schema is up to date!" };
+  }, async () => assert.fail("must not wait"), () => {});
+  assert.equal(code, 0);
+  assert.deepEqual(commands, ["status"]);
+});
+
+test("pending migrations still run deploy with advisory locking", async () => {
+  const commands = [];
+  const code = await deployIfPending(async (command) => {
+    commands.push(command);
+    return { code: command === "status" ? 1 : 0, output: "" };
+  }, async () => {}, () => {});
+  assert.equal(code, 0);
+  assert.deepEqual(commands, ["status", "deploy"]);
+});
+
+test("a failed status check cannot turn a failed deployment into success", async () => {
+  const code = await deployIfPending(async () => ({ code: 1, output: "P1001: database unavailable" }),
+    async () => assert.fail("must not retry"), () => {});
+  assert.equal(code, 1);
 });
