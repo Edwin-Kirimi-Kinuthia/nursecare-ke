@@ -43,6 +43,7 @@ export default async function DownloadPage() {
       <section className="mt-8 rounded-2xl bg-slate-50 p-6">
         <h2 className="text-xl font-semibold">Enable your alerts</h2>
         <p className="mt-2 text-slate-600">In the mobile app, open Account → Enable notifications. In the desktop app, choose Care Bora → Enable alerts for this account. Admins receive service requests, providers receive appointment requests, and clients are alerted when their provider joins the consultation.</p>
+        <p className="mt-3 text-sm text-slate-600">For desktop sign-in, use your email and the verification code sent to your inbox.</p>
         <p className="mt-3 text-sm text-slate-600">Desktop alerts require the app to keep running and your account to stay signed in. Closing the window keeps an opted-in app in the system tray; Quit stops alerts. On mobile, allow notifications in your device settings. Delivery depends on internet access and device settings.</p>
         <p className="mt-3 text-sm text-slate-600">Initial desktop builds may be unsigned. Windows can show a publisher warning, and macOS may block installation until signing and notarization are complete. Keep using the website if your device blocks an installer.</p>
       </section>
