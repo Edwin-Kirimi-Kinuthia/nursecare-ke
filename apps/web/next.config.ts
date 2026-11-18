@@ -4,7 +4,8 @@ const CSP = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline' 'unsafe-eval'", // 'unsafe-eval' required by Next.js dev
   "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: https:",
+  "img-src 'self' data: blob: https:",
+  "object-src 'self' blob:",          // uploaded PDF licences in the browser's viewer
   "font-src 'self'",
   "connect-src 'self' wss: https:",  // wss: for LiveKit signaling + TURN
   "media-src 'self' blob:",           // blob: for LiveKit tracks

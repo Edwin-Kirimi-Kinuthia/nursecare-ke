@@ -26,6 +26,7 @@ import { fileToDataUrl } from "@/lib/files";
 import { PhoneField } from "@/components/PhoneField";
 import { NameFields, EMPTY_NAME, composeFullName, splitFullName, type NameParts } from "@/components/NameFields";
 import WhatsAppStatus from "@/components/admin/WhatsAppStatus";
+import UploadedDocumentLink from "@/components/UploadedDocumentLink";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify" | "whatsapp";
 
@@ -571,9 +572,9 @@ function VerificationsTab() {
                   <div className="text-sm text-teal-700">{v.specialty ?? "Clinician"}</div>
                   <div className="mt-1 text-xs text-slate-400">{v.user.email} · Licence {v.licenceNumber ?? "—"}</div>
                   {licenceDoc && (
-                    <a href={licenceDoc.fileUrl} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs font-semibold text-teal-700 hover:underline">
+                    <UploadedDocumentLink href={licenceDoc.fileUrl} className="mt-1 inline-block text-xs font-semibold text-teal-700 hover:underline">
                       View licence document →
-                    </a>
+                    </UploadedDocumentLink>
                   )}
                 </div>
               </div>
