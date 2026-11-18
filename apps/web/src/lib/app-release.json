@@ -1,42 +1,42 @@
 [
   {
-    "name": "CareBora-1.0.1-linux-amd64.deb",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-linux-amd64.deb",
-    "size": 101900852
+    "name": "CareBora-1.0.2-linux-amd64.deb",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/CareBora-1.0.2-linux-amd64.deb",
+    "size": 101755792
   },
   {
-    "name": "CareBora-1.0.1-linux-x86_64.AppImage",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-linux-x86_64.AppImage",
-    "size": 125987589
+    "name": "CareBora-1.0.2-linux-x86_64.AppImage",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/CareBora-1.0.2-linux-x86_64.AppImage",
+    "size": 125987566
   },
   {
-    "name": "CareBora-1.0.1-mac-arm64.dmg",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-mac-arm64.dmg",
-    "size": 121537882
+    "name": "CareBora-1.0.2-mac-arm64.dmg",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/CareBora-1.0.2-mac-arm64.dmg",
+    "size": 121538335
   },
   {
-    "name": "CareBora-1.0.1-mac-x64.dmg",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-mac-x64.dmg",
-    "size": 125625396
+    "name": "CareBora-1.0.2-mac-x64.dmg",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/CareBora-1.0.2-mac-x64.dmg",
+    "size": 125625658
   },
   {
-    "name": "CareBora-1.0.1-win-x64.exe",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/CareBora-1.0.1-win-x64.exe",
-    "size": 121525361
+    "name": "CareBora-1.0.2-win-x64.exe",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/CareBora-1.0.2-win-x64.exe",
+    "size": 121525447
   },
   {
     "name": "SHA256SUMS-darwin.txt",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/SHA256SUMS-darwin.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/SHA256SUMS-darwin.txt",
     "size": 188
   },
   {
     "name": "SHA256SUMS-linux.txt",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/SHA256SUMS-linux.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/SHA256SUMS-linux.txt",
     "size": 200
   },
   {
     "name": "SHA256SUMS-win32.txt",
-    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.1-6/SHA256SUMS-win32.txt",
+    "url": "https://github.com/Edwin-Kirimi-Kinuthia/nursecare-ke/releases/download/desktop-v1.0.2/SHA256SUMS-win32.txt",
     "size": 93
   },
   {
