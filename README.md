@@ -135,6 +135,13 @@ of the API locally with only Postgres.
 
 ### Deploying to Vercel
 
+`npm run db:deploy` uses `DIRECT_URL`, `DATABASE_URL_UNPOOLED`, or
+`POSTGRES_URL_NON_POOLING` when configured. Otherwise it derives the direct Neon
+endpoint from `DATABASE_URL` by removing `-pooler` from its hostname. The web app
+continues to use the pooled URL. Migration lock timeouts are retried up to three
+times; other migration failures stop the build immediately. Advisory locking stays
+enabled to serialize concurrent deployments.
+
 Import the repo and set **Root Directory = `apps/web`**. Vercel detects Next.js and
 installs the npm workspace from the repo root automatically. Add the env vars from
 `.env.example` in the project settings.
