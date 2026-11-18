@@ -12,11 +12,13 @@
     "build": "electron-builder --publish never",
     "build:linux": "electron-builder --linux --publish never",
     "build:windows": "electron-builder --win --publish never",
-    "build:mac": "electron-builder --mac --publish never"
+    "build:mac": "electron-builder --mac --publish never",
+    "test:media": "node test/media-smoke.cjs"
   },
   "devDependencies": {
     "electron": "45.3.4",
-    "electron-builder": "26.18.0"
+    "electron-builder": "26.18.0",
+    "playwright": "1.61.0"
   },
   "build": {
     "appId": "ke.co.carebora.desktop",

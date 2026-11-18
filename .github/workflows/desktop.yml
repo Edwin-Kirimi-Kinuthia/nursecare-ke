@@ -13,6 +13,10 @@ on:
   pull_request:
     paths: ["apps/desktop/**", ".github/workflows/desktop.yml"]
 
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
 
@@ -36,6 +40,9 @@ jobs:
           cache-dependency-path: apps/desktop/package-lock.json
       - run: npm ci
       - run: npm test
+      - name: Camera consent and sandbox smoke test
+        if: runner.os == 'Linux'
+        run: xvfb-run -a npm run test:media
       - run: npm run build
         env:
           # Signing credentials can be added before the public release.

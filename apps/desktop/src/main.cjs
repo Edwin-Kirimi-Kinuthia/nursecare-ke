@@ -96,15 +96,14 @@ async function poll() {
 app.whenReady().then(() => {
   try { allowedUsers = new Set(JSON.parse(fs.readFileSync(settingsFile(), 'utf8'))); } catch { /* first launch */ }
   const portalSession = session.fromPartition('persist:carebora');
-  const mediaGrants = new Set();
-  portalSession.setPermissionCheckHandler((_contents, permission, origin) => isPortalURL(origin) && (permission === 'clipboard-sanitized-write' || (permission === 'media' && mediaGrants.has(new URL(origin).origin))));
+  // Chromium's media preflight must pass for our consent request handler to run.
+  portalSession.setPermissionCheckHandler((_contents, permission, origin) => isPortalURL(origin) && ['media', 'clipboard-sanitized-write'].includes(permission));
   portalSession.setPermissionRequestHandler(async (contents, permission, callback, details) => {
     if (!isPortalURL(contents.getURL()) || !isPortalURL(details.requestingUrl || contents.getURL()) || permission !== 'media') return callback(false);
     const { response } = await dialog.showMessageBox(window, {
       type: 'question', message: 'Allow camera and microphone for your consultation?',
       buttons: ['Allow', 'Cancel'], defaultId: 1, cancelId: 1,
     });
-    if (response === 0) mediaGrants.add(PORTAL);
     callback(response === 0);
   });
   window = new BrowserWindow({
