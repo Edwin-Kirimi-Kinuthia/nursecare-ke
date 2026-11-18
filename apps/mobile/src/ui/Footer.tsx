@@ -89,7 +89,7 @@ export function Footer() {
         <Text style={{ textAlign: "center", fontSize: 12, color: t.textFaint }}>© {new Date().getFullYear()} Care Bora Kenya. All rights reserved.</Text>
         <Text style={{ textAlign: "center", fontSize: 12, color: t.textFaint }}>
           Developed by{" "}
-          <Text style={{ fontSize: 12, color: "#0F766E", fontFamily: "Inter_600SemiBold" }}>Dr. Mercy Chebet Limo</Text>
+          <Text style={{ fontSize: 12, color: "#0F766E", fontFamily: "Inter_600SemiBold" }}>Edwin Kirimi and Mercy Limo</Text>
         </Text>
       </View>
     </View>
