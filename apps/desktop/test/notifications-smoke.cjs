@@ -14,6 +14,9 @@ const { tmpdir } = require('node:os');
       globalThis.fixtureUser = 'account-a';
       globalThis.fixtureItems = [];
       globalThis.alerts = [];
+      // CI has no notification daemon. Exercise our native options and account
+      // handling with a supported OS fixture, without sending real alerts.
+      Notification.isSupported = () => true;
       dialog.showMessageBox = async () => ({ response: 0 });
       Notification.prototype.show = function () { globalThis.alerts.push({ title: this.title, body: this.body, silent: this.silent }); };
       BrowserWindow.getAllWindows()[0].webContents.session.fetch = async url => ({
@@ -30,7 +33,9 @@ const { tmpdir } = require('node:os');
         { id: 'old', type: 'appointment_confirmed', createdAt: new Date(Date.now() - 3600000).toISOString() },
       ];
     });
-    await page.reload(); await page.waitForTimeout(200);
+    await page.reload();
+    const deadline = Date.now() + 25000;
+    while ((await app.evaluate(() => globalThis.alerts)).length < 2 && Date.now() < deadline) await page.waitForTimeout(100);
     let alerts = await app.evaluate(() => globalThis.alerts);
     assert.equal(alerts.length, 2);
     assert.ok(alerts.every(alert => alert.silent === false));
