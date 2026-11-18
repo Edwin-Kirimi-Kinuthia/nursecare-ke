@@ -35,6 +35,19 @@ npx expo start         # dev server (needs a development build, see below)
   Expo Doctor; package-directory metadata warnings must be distinguished from
   actual compile/configuration failures.
 
+### Android release startup
+
+Version 1.0.0 was withdrawn after a native startup crash. R8 removed
+`livekit.org.jni_zero.JniInit`, which WebRTC loads by name during initialization.
+The `expo-build-properties` plugin in `app.json` preserves the prefixed JNI
+package while keeping release optimization enabled. Keep this rule until the
+WebRTC dependency supplies equivalent consumer rules.
+
+Test the **release APK**, including a cold launch, before publishing: a browser
+preview or development build cannot catch release-only native stripping.
+Preview builds increment the remote Android version code so a corrected APK can
+update an existing installation using the same signing key.
+
 ## What is in version 1
 
 | Area | Status |

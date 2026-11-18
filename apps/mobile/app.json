@@ -3,7 +3,7 @@
     "name": "Care Bora",
     "slug": "carebora",
     "scheme": "carebora",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "userInterfaceStyle": "light",
@@ -70,6 +70,14 @@
         }
       ],
       "@livekit/react-native-expo-plugin",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "extraProguardRules": "# LiveKit's native WebRTC loader resolves these classes by name.\n# Its bundled rules currently preserve org.jni_zero but omit the livekit prefix.\n-keep class livekit.org.jni_zero.** { *; }"
+          }
+        }
+      ],
       "@react-native-community/datetimepicker",
       "expo-sharing",
       [
