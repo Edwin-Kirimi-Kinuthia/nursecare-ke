@@ -48,6 +48,16 @@ preview or development build cannot catch release-only native stripping.
 Preview builds increment the remote Android version code so a corrected APK can
 update an existing installation using the same signing key.
 
+On a disposable, fully booted Android emulator, run:
+
+```bash
+python3 scripts/check-android-startup.py /path/to/CareBora.apk --serial emulator-5554
+```
+
+The check installs the release APK, clears only its emulator data, requires the
+native home screen to render, and checks that the process stays alive. It saves
+startup logs and a screenshot for review and refuses physical devices.
+
 ## What is in version 1
 
 | Area | Status |
