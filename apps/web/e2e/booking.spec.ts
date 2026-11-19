@@ -80,7 +80,7 @@ test.describe("Booking flow", () => {
     });
     expect(res.status()).toBe(201);
     const { data } = await res.json();
-    expect(data.status).toBe("confirmed");
+    expect(data.status).toBe("awaiting_payment");
     expect(data.slotId).toBe(slotId);
   });
 

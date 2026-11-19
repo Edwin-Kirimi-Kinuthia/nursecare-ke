@@ -12,7 +12,7 @@ export const GET = route(async (req) => {
   return jsonOk(result);
 });
 
-/** POST /api/v1/appointments — book a slot (patients only). */
+/** POST /api/v1/appointments — begin checkout; teleconsult bookings are placed only after payment. */
 export const POST = route(async (req) => {
   const auth = await requirePatient(req);
   const input = createAppointmentSchema.parse(await req.json());

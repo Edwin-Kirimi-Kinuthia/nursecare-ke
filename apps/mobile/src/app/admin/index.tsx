@@ -72,7 +72,7 @@ function FilterChips<T extends string>({ value, options, onChange }: { value: T;
   );
 }
 
-const APPT_STATUS = ["all", "requested", "confirmed", "completed", "cancelled", "no_show"] as const;
+const APPT_STATUS = ["all", "awaiting_payment", "requested", "confirmed", "completed", "cancelled", "no_show"] as const;
 function Appointments() {
   const list = useAsync(() => api.adminListAppointments({ limit: 50 } as never).then((r) => r.appointments), []);
   const [filter, setFilter] = useState<(typeof APPT_STATUS)[number]>("all");

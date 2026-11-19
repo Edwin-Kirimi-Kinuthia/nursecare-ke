@@ -105,10 +105,10 @@ export const whatsAppEvents = backgrounded({
   contact(ticketId: string, messageId?: string) {
     return bestEffort(() => admin(`contact:${messageId ?? ticketId}`, messageId ? "Client replied on website" : "New website enquiry", ticketId));
   },
-  confirmed(appointment: { id: string; patientId: string; feeKes: number; paymentWaived: boolean; slot: { startsAt: Date } }) {
+  confirmed(appointment: { id: string; patientId: string; feeKes: number; paymentWaived: boolean; paid?: boolean; slot: { startsAt: Date } }) {
     return bestEffort(() => client(appointment.patientId, {
       eventKey: `confirmed:${appointment.id}`, templateKey: "appointment_confirmed",
-      parameters: [slotTime(appointment.slot.startsAt), appointment.paymentWaived ? "No payment is required for this provider invitation." : `Pay KES ${appointment.feeKes.toLocaleString("en-KE")} in your account before joining.`, `${base()}/appointments`],
+      parameters: [slotTime(appointment.slot.startsAt), appointment.paid ? "Your payment has been received." : appointment.paymentWaived ? "No payment is required for this provider invitation." : `Pay KES ${appointment.feeKes.toLocaleString("en-KE")} in your account before joining.`, `${base()}/appointments`],
     }));
   },
   invited(appointment: { id: string; patientId: string; slot: { startsAt: Date } }) {

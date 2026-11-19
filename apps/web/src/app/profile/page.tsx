@@ -442,8 +442,8 @@ function ProviderSection() {
             </span>
             <span className="mt-1 block text-sm text-slate-600">
               {p.isAvailable
-                ? "New bookings are confirmed instantly, so patients can pay and be ready for their slot without waiting on you."
-                : "Patients can still book you, but each booking waits for your confirmation first. Switch back to Available when you're free."}
+                ? "After payment, new bookings are confirmed instantly."
+                : "Patients pay to place a booking, then wait for your confirmation. Switch back to Available when you're free."}
             </span>
           </span>
           {/* Applies the moment it's flipped — a live status, not a form field. */}

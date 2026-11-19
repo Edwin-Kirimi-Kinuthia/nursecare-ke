@@ -41,7 +41,7 @@ export default function AppointmentScreen() {
   const isProvider = a.providerId === user.id;
   const other = isProvider ? a.patient : a.provider.user;
   const status = describeAppointment(a, user.id);
-  const paid = a.payment?.status === "completed" || a.paymentWaived || a.feeKes <= 0;
+  const paid = a.payment?.status === "completed" || a.paymentWaived || (a.appointmentType !== "teleconsult" && a.feeKes <= 0);
   const consultation = a.consultation && a.consultation.status !== "ended" ? a.consultation : null;
 
   async function run(fn: () => Promise<void>) {
@@ -87,17 +87,19 @@ export default function AppointmentScreen() {
 
       {error && <Banner tone="danger">{error}</Banner>}
 
+      {!isProvider && a.status === "awaiting_payment" && <Banner tone="warn">Not booked yet. Complete payment to place your booking.</Banner>}
+
       {/* ── patient ─────────────────────────────────────────────── */}
       {!isProvider && a.status === "requested" && (
-        <Banner tone="warn">Waiting for {a.provider.user.fullName} to confirm. You&apos;ll be notified, and can pay once they do.</Banner>
+        <Banner tone="warn">Waiting for {a.provider.user.fullName} to confirm. Your payment is received; we&apos;ll notify you when they confirm.</Banner>
       )}
-      {!isProvider && a.status === "confirmed" && !paid && (
+      {!isProvider && ["awaiting_payment", "confirmed"].includes(a.status) && !paid && (
         <MpesaPay appointmentId={a.id} amountKes={a.feeKes} defaultPhone={user.phone} onPaid={() => void appt.reload()} />
       )}
       {!isProvider && a.status === "confirmed" && paid && !consultation && (
         <Banner tone="ok">You&apos;re all set. {a.provider.user.fullName} will start your consultation at your time, and we&apos;ll notify you.</Banner>
       )}
-      {!isProvider && consultation && (
+      {!isProvider && a.status === "confirmed" && paid && consultation && (
         <Button title="Join video consultation" onPress={startOrJoin} loading={busy} />
       )}
       {!isProvider && a.status === "completed" && (
@@ -111,7 +113,7 @@ export default function AppointmentScreen() {
           <ReviewForm appointmentId={a.id} providerName={a.provider.user.fullName} onDone={() => void appt.reload()} />
         )
       )}
-      {!isProvider && ["requested", "confirmed"].includes(a.status) && !paid && !consultation && (
+      {!isProvider && ["awaiting_payment", "requested", "confirmed"].includes(a.status) && !paid && !consultation && (
         <Button title="Cancel appointment" variant="ghost" onPress={cancel} disabled={busy} />
       )}
       {!isProvider && a.payment?.status === "completed" && a.feeKes > 0 && ["confirmed"].includes(a.status) && (
@@ -124,13 +126,13 @@ export default function AppointmentScreen() {
       {isProvider && a.status === "requested" && (
         <Button title="Confirm this appointment" onPress={confirm} loading={busy} />
       )}
-      {isProvider && a.status === "confirmed" && !paid && (
+      {isProvider && ["awaiting_payment", "confirmed"].includes(a.status) && !paid && (
         <Banner tone="warn">Waiting for the patient to pay. You can start once the fee has been paid.</Banner>
       )}
       {isProvider && a.status === "confirmed" && paid && (
         <Button title={consultation ? "Rejoin consultation" : "Start consultation"} onPress={startOrJoin} loading={busy} />
       )}
-      {isProvider && a.appointmentType === "teleconsult" && a.status === "completed" && (
+      {isProvider && a.appointmentType === "teleconsult" && a.consultation && a.status === "completed" && (
         <Button title="Resume consultation" onPress={startOrJoin} loading={busy} />
       )}
       {isProvider && (

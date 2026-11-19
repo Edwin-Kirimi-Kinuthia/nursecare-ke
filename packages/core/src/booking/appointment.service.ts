@@ -11,6 +11,7 @@ import {
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
 import { paymentService } from "../payment/payment.service";
+import { notifyAppointmentBooked } from "./appointment-notifications";
 import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 const APPOINTMENT_INCLUDE = {
@@ -149,12 +150,9 @@ export const appointmentService = {
       throw ApiError.badRequest("A contact phone number is required for a home visit");
     }
 
-    // The provider's switch decides what a booking means. Available: it is
-    // confirmed on the spot, so the patient can pay straight away and be seen
-    // at their slot. Busy (with another client, say): the booking still goes
-    // through, but as a request the provider confirms first — and the patient
-    // pays only once it is, so nobody is charged for a time that gets declined.
-    const autoConfirm = provider.isAvailable && slot.appointmentType === "teleconsult";
+    // Teleconsultations start as unpaid checkouts, not placed bookings.
+    // Settlement alone promotes them to requested/confirmed and notifies staff.
+    const teleconsult = slot.appointmentType === "teleconsult";
 
     try {
       const appointment = await db.$transaction(async (tx) => {
@@ -170,7 +168,7 @@ export const appointmentService = {
             providerId: slot.providerId,
             slotId: slot.id,
             appointmentType: slot.appointmentType,
-            status: autoConfirm ? "confirmed" : "requested",
+            status: teleconsult ? "awaiting_payment" : "requested",
             feeKes,
             patientNotes: input.patientNotes ?? null,
             contactPhone: input.contactPhone ?? null,
@@ -180,44 +178,7 @@ export const appointmentService = {
         await tx.slot.update({ where: { id: slot.id }, data: { isBooked: true } });
         return created;
       }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-      const providerName = appointment.provider.user.fullName;
-      void inAppNotifications.serviceRequested("an appointment", appointment.id);
-      void whatsAppEvents.booked(appointment.id);
-      if (autoConfirm) {
-        void whatsAppEvents.confirmed(appointment);
-        // Already confirmed: tell the patient to pay, not to wait.
-        void notificationService.appointmentConfirmed({
-          patientEmail: appointment.patient.email,
-          patientPhone: appointment.patient.phone,
-          patientName: appointment.patient.fullName,
-          providerName,
-          slotTime: slot.startsAt,
-          feeKes: appointment.feeKes,
-        });
-        void inAppNotifications.create(appointment.providerId, {
-          type: "appointment_booked",
-          title: "New booking",
-          body: `${appointment.patient.fullName} booked a teleconsultation. You can start it once they've paid.`,
-          link: "/appointments",
-        });
-      } else {
-        void notificationService.appointmentBooked({
-          patientEmail: appointment.patient.email,
-          patientPhone: appointment.patient.phone,
-          patientName: appointment.patient.fullName,
-          providerName,
-          specialty: appointment.provider.specialty,
-          slotTime: slot.startsAt,
-          feeKes: appointment.feeKes,
-        });
-        // Notify the provider in-app that a new request needs their action.
-        void inAppNotifications.create(appointment.providerId, {
-          type: "appointment_requested",
-          title: "New appointment request",
-          body: `${appointment.patient.fullName} requested a ${appointment.appointmentType === "teleconsult" ? "teleconsultation" : "home visit"}. Confirm it to let them pay.`,
-          link: "/appointments",
-        });
-      }
+      if (!teleconsult) void notifyAppointmentBooked(appointment.id);
       return attachPayment(appointment);
     } catch (err) {
       if (
@@ -237,7 +198,7 @@ export const appointmentService = {
     // filtering on providerId alone hid their own bookings from them entirely.
     // For a patient-only account the providerId arm simply never matches.
     const where = {
-      OR: [{ patientId: userId }, { providerId: userId }],
+      OR: [{ patientId: userId }, { providerId: userId, status: { not: "awaiting_payment" as const } }],
       ...(query.status ? { status: query.status } : {}),
     };
     const [appointments, total] = await Promise.all([
@@ -264,7 +225,7 @@ export const appointmentService = {
     // Either side may read it. Keyed off the appointment, not the account's
     // role, so a provider can open a consultation they booked for themselves.
     const owns = appointment.providerId === userId || appointment.patientId === userId;
-    if (!owns) throw ApiError.forbidden();
+    if (!owns || (appointment.status === "awaiting_payment" && appointment.patientId !== userId)) throw ApiError.forbidden();
 
     return attachPayment(appointment);
   },
@@ -303,6 +264,18 @@ export const appointmentService = {
       }
     }
 
+    if (appointment.status === "cancelled" && input.status && input.status !== "cancelled") {
+      throw ApiError.badRequest("Cancelled appointments cannot be reopened");
+    }
+    if (appointment.appointmentType === "teleconsult" && input.status && input.status !== "cancelled"
+        && !appointment.paymentWaived) {
+      const paid = await db.payment.findFirst({
+        where: { subjectType: "appointment", subjectId: appointment.id, status: "completed", amountKes: { gte: appointment.feeKes } },
+        select: { id: true },
+      });
+      if (!paid) throw ApiError.badRequest("Payment is required before placing this booking");
+    }
+
     // Free the slot if the appointment is cancelled
     if (input.status === "cancelled" && appointment.status !== "cancelled") {
       await db.slot.update({ where: { id: appointment.slotId }, data: { isBooked: false } });
@@ -318,7 +291,7 @@ export const appointmentService = {
     });
 
     if (input.status === "confirmed" && appointment.status !== "confirmed") {
-      void whatsAppEvents.confirmed(updated);
+      void whatsAppEvents.confirmed({ ...updated, paid: updated.appointmentType === "teleconsult" && !updated.paymentWaived });
       void notificationService.appointmentConfirmed({
         patientEmail: updated.patient.email,
         patientPhone: updated.patient.phone,
@@ -327,6 +300,7 @@ export const appointmentService = {
         slotTime: updated.slot.startsAt,
         feeKes: updated.feeKes,
         paymentWaived: updated.paymentWaived,
+        paid: updated.appointmentType === "teleconsult" && !updated.paymentWaived,
       });
       void inAppNotifications.create(updated.patientId, {
         type: "appointment_confirmed",

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { oauthService } from "@carebora/core";
 import { OAUTH_PROVIDERS, type OAuthProvider } from "@carebora/shared";
 import { setAuthCookies, requestMeta, readCookie } from "@/server/auth";
-import { OAUTH_STATE_COOKIE } from "../start/route";
+import { OAUTH_STATE_COOKIE } from "@/server/oauth";
 
 function appUrl(req: Request): string {
   return process.env.NEXT_PUBLIC_APP_URL ?? new URL(req.url).origin;

@@ -54,17 +54,20 @@ export const consultationService = {
     if (appointment.status !== "confirmed" && appointment.status !== "completed") {
       throw ApiError.badRequest("Appointment must be confirmed or completed before starting a consultation");
     }
-    const resuming = appointment.status === "completed" || appointment.consultation?.status === "ended";
+    if (appointment.status === "completed" && !appointment.consultation) {
+      throw ApiError.badRequest("There is no previous consultation to resume");
+    }
+    const resuming = !!appointment.consultation && (appointment.status === "completed" || appointment.consultation.status === "ended");
 
     // Paid before seen. Confirmation alone used to be enough, so a patient
     // could be taken into a consultation without ever paying for it — and
     // nothing afterwards chases the money. Checked here, at the one place a
     // consultation begins, so it holds regardless of which screen or client
-    // asks. A free appointment (no fee) has nothing to pay and passes.
+    // asks. Only provider-authorised waivers bypass payment.
     // Reopening is a provider request and never charges the client again.
-    if (!resuming && !appointment.paymentWaived && appointment.feeKes > 0) {
+    if (!resuming && !appointment.paymentWaived) {
       const paid = await db.payment.findFirst({
-        where: { subjectType: "appointment", subjectId: appointmentId, status: "completed" },
+        where: { subjectType: "appointment", subjectId: appointmentId, patientId: appointment.patientId, amountKes: { gte: appointment.feeKes }, status: "completed" },
         select: { id: true },
       });
       if (!paid) {
@@ -146,8 +149,8 @@ export const consultationService = {
     const c = await getConsultation(consultationId);
     if (c.appointment.providerId !== providerId) throw ApiError.forbidden();
     if (c.status === "ended" || c.appointment.status !== "confirmed") return { notified: false };
-    if (!c.appointment.paymentWaived && c.appointment.feeKes > 0 && !await db.payment.findFirst({
-      where: { subjectType: "appointment", subjectId: c.appointmentId, status: "completed" }, select: { id: true },
+    if (!c.appointment.paymentWaived && !await db.payment.findFirst({
+      where: { subjectType: "appointment", subjectId: c.appointmentId, patientId: c.appointment.patientId, amountKes: { gte: c.appointment.feeKes }, status: "completed" }, select: { id: true },
     })) return { notified: false };
     const { LIVEKIT_URL: url, LIVEKIT_API_KEY: key, LIVEKIT_API_SECRET: secret } = process.env;
     if (!url || !key || !secret) return { notified: false };
@@ -286,9 +289,9 @@ export const consultationService = {
     if (c.status === "ended" || c.appointment.status !== "confirmed") {
       throw ApiError.badRequest("The provider must start or resume this consultation before you can join");
     }
-    if (!c.appointment.paymentWaived && c.appointment.feeKes > 0) {
+    if (!c.appointment.paymentWaived) {
       const paid = await db.payment.findFirst({
-        where: { subjectType: "appointment", subjectId: c.appointmentId, status: "completed" }, select: { id: true },
+        where: { subjectType: "appointment", subjectId: c.appointmentId, patientId: c.appointment.patientId, amountKes: { gte: c.appointment.feeKes }, status: "completed" }, select: { id: true },
       });
       if (!paid) throw ApiError.badRequest("Payment is required before joining this consultation");
     }

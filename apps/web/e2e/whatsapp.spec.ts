@@ -1,3 +1,4 @@
+import { payAppointment } from "./support/payments";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { createServer, type Server } from "node:http";
 import { AccessToken } from "livekit-server-sdk";
@@ -60,6 +61,7 @@ test.afterAll(async () => {
   const ids = [...users, ...references];
   await db.whatsAppMessage.deleteMany({ where: { OR: ids.map((id) => ({ eventKey: { contains: id } })) } });
   await db.whatsAppOptOut.deleteMany({ where: { phoneNumber: phone } });
+  await db.payment.deleteMany({ where: { patientId: { in: users } } });
   await db.consultation.deleteMany({ where: { appointment: { providerId } } });
   await db.appointment.deleteMany({ where: { providerId } });
   await db.slot.deleteMany({ where: { providerId } });
@@ -96,15 +98,17 @@ test("booking alerts admin, and only confirmation alerts the opted-in client", a
   const booking = await request.post("/api/v1/appointments", { headers: headers(clientToken), data: { slotId: slot.id } });
   expect(booking.status()).toBe(201);
   const a = (await booking.json()).data; references.push(a.id);
-  expect(a.status).toBe("requested");
+  expect(a.status).toBe("awaiting_payment");
+  expect(await row(`booked:${a.id}`)).toBeNull();
+  await payAppointment(request, a.id, clientToken, adminToken);
   await expect.poll(async () => !!await row(`booked:${a.id}`)).toBe(true);
   expect(await row(`confirmed:${a.id}`)).toBeNull();
   for (let i = 0; i < 2; i++) expect((await request.patch(`/api/v1/appointments/${a.id}`, { headers: headers(providerToken), data: { status: "confirmed" } })).status()).toBe(200);
   await expect.poll(async () => (await row(`confirmed:${a.id}`))?.status).toBe("failed");
   const confirmations = await db.whatsAppMessage.findMany({ where: { eventKey: { startsWith: `confirmed:${a.id}` } } });
   expect(confirmations).toHaveLength(1);
-  expect(JSON.stringify(confirmations[0].parameters)).toContain("Pay KES 1,700");
-  expect((await request.post(`/api/v1/appointments/${a.id}/consultation`, { headers: headers(providerToken) })).status()).toBe(400);
+  expect(JSON.stringify(confirmations[0].parameters)).toContain("payment has been received");
+  expect((await request.post(`/api/v1/appointments/${a.id}/consultation`, { headers: headers(providerToken) })).status()).toBe(201);
 });
 
 test("provider invitations are free, and unconnected or unauthorized callers cannot send join alerts", async ({ request }) => {

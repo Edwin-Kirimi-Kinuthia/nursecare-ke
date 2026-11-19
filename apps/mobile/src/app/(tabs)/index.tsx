@@ -48,7 +48,7 @@ export default function HomeScreen() {
     const { appointments } = await api.listAppointments({ limit: 20 });
     const now = Date.now();
     return appointments
-      .filter((a) => ["requested", "confirmed"].includes(a.status) && new Date(a.slot.endsAt).getTime() > now)
+      .filter((a) => ["awaiting_payment", "requested", "confirmed"].includes(a.status) && new Date(a.slot.endsAt).getTime() > now)
       .sort((a, b) => +new Date(a.slot.startsAt) - +new Date(b.slot.startsAt))[0] ?? null;
   }, [user?.id]);
 

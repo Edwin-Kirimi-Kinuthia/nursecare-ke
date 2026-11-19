@@ -5,7 +5,7 @@ import { paymentService } from "@carebora/core";
 
 /**
  * POST /api/v1/payments/mpesa/stk
- * Initiate an M-Pesa STK push for a confirmed appointment.
+ * Initiate an M-Pesa STK push to place a teleconsult booking.
  * Body: { appointmentId, phoneNumber }
  */
 export const POST = route(async (req) => {

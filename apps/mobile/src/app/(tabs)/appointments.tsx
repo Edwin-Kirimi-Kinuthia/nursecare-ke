@@ -23,7 +23,7 @@ export default function AppointmentsScreen() {
     if (!user) return { upcoming: [] as Appointment[], past: [] as Appointment[] };
     const { appointments } = await api.listAppointments({ limit: 50 });
     const now = Date.now();
-    const isUpcoming = (a: Appointment) => ["requested", "confirmed"].includes(a.status) && new Date(a.slot.endsAt).getTime() > now;
+    const isUpcoming = (a: Appointment) => ["awaiting_payment", "requested", "confirmed"].includes(a.status) && new Date(a.slot.endsAt).getTime() > now;
     return {
       upcoming: appointments.filter(isUpcoming).sort((a, b) => +new Date(a.slot.startsAt) - +new Date(b.slot.startsAt)),
       past: appointments.filter((a) => !isUpcoming(a)).sort((a, b) => +new Date(b.slot.startsAt) - +new Date(a.slot.startsAt)),

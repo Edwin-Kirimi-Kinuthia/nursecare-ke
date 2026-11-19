@@ -20,6 +20,7 @@ import ScheduleMeetingModal from "@/components/ScheduleMeetingModal";
 import SickOffPanel from "@/components/SickOffPanel";
 
 const STATUS: Record<string, { label: string; cls: string }> = {
+  awaiting_payment: { label: "Checkout · payment required", cls: "bg-amber-100 text-amber-700" },
   requested: { label: "Requested", cls: "bg-amber-100 text-amber-700" },
   confirmed: { label: "Confirmed", cls: "bg-emerald-100 text-emerald-700" },
   completed: { label: "Completed", cls: "bg-slate-200 text-slate-600" },
@@ -82,7 +83,7 @@ export default function AppointmentsPage() {
       if (!payId) return;
       window.history.replaceState(null, "", window.location.pathname);
       const target = list.find((a) => a.id === payId);
-      if (target && target.status === "confirmed" && target.feeKes > 0 && !target.paymentWaived
+      if (target && ["awaiting_payment", "confirmed"].includes(target.status) && target.feeKes > 0 && !target.paymentWaived
           && target.payment?.status !== "completed" && target.providerId !== user.id) {
         setPayAppt(target); setPayMsg(null); setSimCheckoutId(null);
         setPendingPaymentId(null); setPayPhone(user.phone ?? "");
@@ -181,7 +182,7 @@ export default function AppointmentsPage() {
           {appts.map((a) => {
             const st = STATUS[a.status] ?? { label: a.status, cls: "bg-slate-100 text-slate-600" };
             const isProvider = actingAsProvider(a);
-            const noPayment = a.paymentWaived || a.feeKes <= 0;
+            const noPayment = a.paymentWaived || (a.appointmentType !== "teleconsult" && a.feeKes <= 0);
             const otherName = isProvider ? a.patient.fullName : a.provider?.user?.fullName;
             return (
               <div key={a.id} className="card-lift flex flex-wrap items-center gap-4 rounded-2xl border border-slate-200 bg-white p-5">
@@ -206,7 +207,7 @@ export default function AppointmentsPage() {
                 {isProvider && (
                   <div className="flex w-full flex-wrap items-center justify-end gap-2 border-t border-slate-100 pt-3">
                     <button onClick={() => setScheduleEmail(a.patient.email ?? "")} className="rounded-xl border border-teal-200 px-4 py-2 text-sm font-semibold text-teal-700 hover:bg-teal-50">Schedule new meeting</button>
-                    {a.appointmentType === "teleconsult" && a.status === "completed" && (
+                    {a.appointmentType === "teleconsult" && a.consultation && a.status === "completed" && (
                       <button onClick={() => startConsult(a)} disabled={busyId === a.id} className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
                         <Video className="h-4 w-4" /> {busyId === a.id ? "Resuming…" : "Resume consultation"}
                       </button>
@@ -247,8 +248,9 @@ export default function AppointmentsPage() {
                   </div>
                 )}
 
-                {a.appointmentType === "teleconsult" && (a.status === "requested" || a.status === "confirmed") && (
+                {a.appointmentType === "teleconsult" && (["awaiting_payment", "requested", "confirmed"].includes(a.status)) && (
                   <div className="flex w-full items-center justify-end gap-2 border-t border-slate-100 pt-3">
+                    {!isProvider && a.status === "awaiting_payment" && <span className="mr-auto text-xs text-slate-500">Not booked yet. Complete payment to place this booking.</span>}
                     {/* Doctor confirms a requested teleconsult */}
                     {isProvider && a.status === "requested" && (
                       <button
@@ -266,7 +268,7 @@ export default function AppointmentsPage() {
                         <Clock className="h-3.5 w-3.5" /> Waiting for the patient to pay
                       </span>
                     )}
-                    {isProvider && a.status === "confirmed" && (noPayment || a.payment?.status === "completed" || !!a.consultation) && (
+                    {isProvider && a.status === "confirmed" && (noPayment || a.payment?.status === "completed") && (
                       <button
                         onClick={() => startConsult(a)}
                         disabled={busyId === a.id}
@@ -276,7 +278,7 @@ export default function AppointmentsPage() {
                       </button>
                     )}
                     {/* Patient pays for a confirmed teleconsult */}
-                    {!isProvider && a.status === "confirmed" && (
+                    {!isProvider && ["awaiting_payment", "confirmed"].includes(a.status) && (
                       a.payment?.status === "completed" ? (
                         <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Paid
@@ -297,7 +299,7 @@ export default function AppointmentsPage() {
                       )
                     )}
                     {/* Patient joins once the doctor has started */}
-                    {!isProvider && a.consultation && a.consultation.status !== "ended" && (
+                    {!isProvider && a.status === "confirmed" && (noPayment || a.payment?.status === "completed") && a.consultation && a.consultation.status !== "ended" && (
                       <button
                         onClick={() => joinConsult(a)}
                         className="inline-flex items-center gap-1.5 rounded-xl bg-teal-600 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-700"
@@ -307,7 +309,7 @@ export default function AppointmentsPage() {
                     )}
                     {!isProvider && a.status === "requested" && (
                       <span className="text-xs text-slate-500">
-                        Waiting for {a.provider?.user?.fullName ?? "the provider"} to confirm — you&apos;ll pay once they do.
+                        Waiting for {a.provider?.user?.fullName ?? "the provider"} to confirm your paid booking.
                       </span>
                     )}
                     {/* Only once paid — before that the next step is paying, not waiting. */}
@@ -358,7 +360,7 @@ export default function AppointmentsPage() {
       {payAppt && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setPayAppt(null)}>
           <div className="w-full max-w-md rounded-2xl bg-white max-h-[90dvh] overflow-y-auto p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <h2 className="text-lg font-bold text-slate-900">Pay for your consultation</h2>
+            <h2 className="text-lg font-bold text-slate-900">Pay to place your booking</h2>
             <p className="mt-1 text-sm text-slate-500">
               {payAppt.provider?.user?.fullName} · <span className="font-semibold text-slate-700">{kes(payAppt.feeKes)}</span>
             </p>

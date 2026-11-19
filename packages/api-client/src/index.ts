@@ -925,7 +925,7 @@ export interface ProviderProfile {
 }
 
 export type AppointmentType = "teleconsult" | "home_visit";
-export type AppointmentStatus = "requested" | "confirmed" | "completed" | "cancelled" | "no_show";
+export type AppointmentStatus = "awaiting_payment" | "requested" | "confirmed" | "completed" | "cancelled" | "no_show";
 export type VerificationStatus = "unverified" | "pending" | "in_review" | "verified" | "rejected";
 
 export interface ProviderPublicProfile extends ProviderProfile {

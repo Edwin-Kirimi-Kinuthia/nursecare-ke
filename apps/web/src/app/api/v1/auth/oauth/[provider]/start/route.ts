@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthorizeUrl, generateOAuthState } from "@carebora/core";
 import { OAUTH_PROVIDERS, type OAuthProvider } from "@carebora/shared";
 
-export const OAUTH_STATE_COOKIE = "cb_oauth_state";
+import { OAUTH_STATE_COOKIE } from "@/server/oauth";
 const IS_PROD = process.env.NODE_ENV === "production";
 
 /** GET /api/v1/auth/oauth/:provider/start — redirect to the provider's consent screen. */

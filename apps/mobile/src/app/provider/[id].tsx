@@ -46,9 +46,8 @@ export default function ProviderScreen() {
     setError(null);
     try {
       const appt = await api.createAppointment({ slotId: chosen.id });
-      // Confirmed on the spot (the doctor is available): the fee is what lets
-      // the patient be seen, so go straight to paying it.
-      if (appt.status === "confirmed" && appt.feeKes > 0) {
+      // Continue to checkout; only verified payment places the booking.
+      if (appt.status === "awaiting_payment" || (appt.status === "confirmed" && appt.feeKes > 0)) {
         router.replace({ pathname: "/appointment/[id]", params: { id: appt.id, pay: "1" } });
         return;
       }
@@ -107,13 +106,13 @@ export default function ProviderScreen() {
         <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 22 }}>Book a teleconsultation</Text>
         <Text tone="muted">
           {p.isAvailable
-            ? `Pick a time and pay the ${kes(p.consultationFeeKes)} fee with M-Pesa to confirm. You'll be seen at your slot.`
-            : `${p.user.fullName} is with another patient right now. You can still pick a time: they confirm it, then you pay the ${kes(p.consultationFeeKes)} fee and are seen at your slot.`}
+            ? `Pick a time and pay the ${kes(p.consultationFeeKes)} fee with M-Pesa to place and confirm your booking.`
+            : `Pay the ${kes(p.consultationFeeKes)} fee to place your booking. ${p.user.fullName} will then confirm your requested time.`}
         </Text>
       </View>
 
       {error && <Banner tone="danger">{error}</Banner>}
-      {requested && <Banner tone="ok">Request sent. We&apos;ll notify you when the doctor confirms, and you can pay then.</Banner>}
+      {requested && <Banner tone="ok">Booking placed. We&apos;ll notify you when the doctor confirms.</Banner>}
       {isSelf && <Banner tone="info">This is your own profile, so you can&apos;t book yourself.</Banner>}
 
       {slots.loading && !slots.data ? (
@@ -134,8 +133,8 @@ export default function ProviderScreen() {
       {chosen && (
         <Card>
           <Text variant="subheading">{dayLabel(chosen.startsAt)}, {timeOnly(chosen.startsAt)}</Text>
-          <Text tone="muted">{p.isAvailable ? `Fee ${kes(p.consultationFeeKes)}, paid next.` : "The doctor confirms first; you pay after that."}</Text>
-          <Button title={user ? (p.isAvailable ? "Book and pay" : "Request this time") : "Sign in to book"} onPress={book} loading={booking} />
+          <Text tone="muted">{`Pay ${kes(p.consultationFeeKes)} to place your booking.`}</Text>
+          <Button title={user ? "Continue to payment" : "Sign in to book"} onPress={book} loading={booking} />
         </Card>
       )}
 

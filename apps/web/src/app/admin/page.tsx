@@ -1054,7 +1054,7 @@ function LaunchResetPanel() {
 }
 
 // ── Appointments oversight ───────────────────────────────────────────────────────
-const APPT_STATUS = ["all", "requested", "confirmed", "completed", "cancelled", "no_show"] as const;
+const APPT_STATUS = ["all", "awaiting_payment", "requested", "confirmed", "completed", "cancelled", "no_show"] as const;
 const APPT_STATUS_CLS: Record<string, string> = {
   requested: "bg-amber-100 text-amber-700", confirmed: "bg-emerald-100 text-emerald-700",
   completed: "bg-slate-200 text-slate-600", cancelled: "bg-rose-100 text-rose-700", no_show: "bg-rose-100 text-rose-700",

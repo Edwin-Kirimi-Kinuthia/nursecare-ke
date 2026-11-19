@@ -65,10 +65,8 @@ export default function ProviderProfile({
     try {
       const appt = await api.createAppointment({ slotId: slot.id });
       setSlots((prev) => prev.filter((s) => s.id !== slot.id));
-      if (appt.status === "confirmed" && appt.feeKes > 0) {
-        // Confirmed on the spot (the provider is available), so the next step
-        // is paying the consultation fee — that is what lets them be seen.
-        // The appointments page opens the payment prompt for it.
+      if (appt.status === "awaiting_payment" || (appt.status === "confirmed" && appt.feeKes > 0)) {
+        // Checkout must be paid before the booking is placed.
         router.push(`/appointments?pay=${appt.id}`);
         return;
       }
@@ -76,7 +74,7 @@ export default function ProviderProfile({
         kind: "ok",
         text: appt.status === "confirmed"
           ? "Booked! Find it under My appointments."
-          : `Request sent. ${provider?.user.fullName ?? "The provider"} will confirm it, and we'll email you so you can pay and be seen.`,
+          : `Request sent. ${provider?.user.fullName ?? "The provider"} will confirm it, and we'll notify you.`,
       });
     } catch (err) {
       setMsg({ kind: "err", text: err instanceof ApiError ? err.message : "Booking failed" });
@@ -173,8 +171,8 @@ export default function ProviderProfile({
             a time: instant and pay-now, or a request that needs a yes first. */}
         <p className="mt-2 text-sm text-slate-500">
           {provider.isAvailable
-            ? `Pick a time and pay the ${kes(provider.consultationFeeKes)} consultation fee to confirm — you'll be seen at your slot.`
-            : `${provider.user.fullName} is with another patient right now. You can still pick a time; they'll confirm it, then you pay the ${kes(provider.consultationFeeKes)} fee and are seen at your slot.`}
+            ? `Pick a time and pay the ${kes(provider.consultationFeeKes)} consultation fee to place and confirm your booking.`
+            : `Pay the ${kes(provider.consultationFeeKes)} fee to place your booking. ${provider.user.fullName} will then confirm your requested time.`}
         </p>
 
         {msg && (

@@ -202,6 +202,7 @@ export const notificationService = backgrounded({
     slotTime: Date;
     feeKes: number;
     paymentWaived?: boolean;
+    paid?: boolean;
   }) {
     const slot = nairobi(opts.slotTime);
     const free = opts.paymentWaived || opts.feeKes <= 0;
@@ -211,10 +212,10 @@ export const notificationService = backgrounded({
       body:
         p(`Hi ${firstName(opts.patientName)}, ${esc(opts.providerName)} has confirmed your appointment.`)
         + rows([["Provider", esc(opts.providerName)], ["When", slot], ["Fee", money(opts.feeKes)]])
-        + panel(free ? "No payment is required. You'll be notified when your provider is ready." : "Pay with M-Pesa in the app to complete your booking. You'll get an M-Pesa prompt on your phone."),
-      button: { label: free ? "View your appointment" : "Pay for your appointment", url: `${appBase()}/appointments` },
+        + panel(opts.paid ? "Your payment has been received. You'll be notified when your provider is ready." : free ? "No payment is required. You'll be notified when your provider is ready." : "Pay with M-Pesa in the app to complete your booking. You'll get an M-Pesa prompt on your phone."),
+      button: { label: free || opts.paid ? "View your appointment" : "Pay for your appointment", url: `${appBase()}/appointments` },
     }));
-    void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. ${free ? "No payment required." : `Please pay KES ${opts.feeKes} on the app.`}`);
+    void sendSms(opts.patientPhone, `CareBora: Appointment CONFIRMED with ${opts.providerName} on ${slot}. ${opts.paid ? "Payment received." : free ? "No payment required." : `Please pay KES ${opts.feeKes} on the app.`}`);
   },
 
   async consultationStarted(opts: {

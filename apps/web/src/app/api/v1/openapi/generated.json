@@ -21,6 +21,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "awaiting_payment",
                 "requested",
                 "confirmed",
                 "completed",
@@ -2956,6 +2957,7 @@
             "schema": {
               "type": "string",
               "enum": [
+                "awaiting_payment",
                 "requested",
                 "confirmed",
                 "completed",
@@ -3012,7 +3014,7 @@
         "tags": [
           "Appointments"
         ],
-        "summary": "Book a slot (patients only).",
+        "summary": "Begin checkout; teleconsult bookings are placed only after payment.",
         "security": [
           {
             "bearerAuth": []
@@ -6315,8 +6317,8 @@
         "tags": [
           "Payments"
         ],
-        "summary": "POST /api/v1/payments/mpesa/stk Initiate an M-Pesa STK push for a confirmed appointment.",
-        "description": "POST /api/v1/payments/mpesa/stk Initiate an M-Pesa STK push for a confirmed appointment. Body: { appointmentId, phoneNumber }",
+        "summary": "POST /api/v1/payments/mpesa/stk Initiate an M-Pesa STK push to place a teleconsult booking.",
+        "description": "POST /api/v1/payments/mpesa/stk Initiate an M-Pesa STK push to place a teleconsult booking. Body: { appointmentId, phoneNumber }",
         "security": [
           {
             "bearerAuth": []

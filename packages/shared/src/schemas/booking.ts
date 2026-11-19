@@ -88,7 +88,7 @@ export type PatchAppointmentInput = z.infer<typeof patchAppointmentSchema>;
 
 export const appointmentsQuerySchema = z.object({
   status: z
-    .enum(["requested", "confirmed", "completed", "cancelled", "no_show"])
+    .enum(["awaiting_payment", "requested", "confirmed", "completed", "cancelled", "no_show"])
     .optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),

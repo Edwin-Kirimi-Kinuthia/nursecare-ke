@@ -107,11 +107,11 @@ test("only the owning provider can resume, and patients cannot reopen through st
   expect(patch.status()).toBe(403);
 });
 
-test("completed appointments without a room can resume without changing the original fee", async ({ request }) => {
+test("completed appointments without a previous room cannot bypass initial payment", async ({ request }) => {
   const slot = await db.slot.create({ data: { providerId, appointmentType: "teleconsult", startsAt: future(10), endsAt: future(10.1), isBooked: true } });
   const a = await db.appointment.create({ data: { providerId, patientId: clientId, slotId: slot.id, appointmentType: "teleconsult", status: "completed", feeKes: 2500 } });
-  expect((await start(request, a.id)).status()).toBe(201);
-  expect(await db.appointment.findUniqueOrThrow({ where: { id: a.id } })).toMatchObject({ status: "confirmed", feeKes: 2500, paymentWaived: true });
+  expect((await start(request, a.id)).status()).toBe(400);
+  expect(await db.appointment.findUniqueOrThrow({ where: { id: a.id } })).toMatchObject({ status: "completed", feeKes: 2500, paymentWaived: false });
 });
 
 test("regular client bookings still require payment, and clients cannot set a waiver", async ({ request }) => {
@@ -119,7 +119,7 @@ test("regular client bookings still require payment, and clients cannot set a wa
   const booked = await request.post("/api/v1/appointments", { headers: auth(clientToken), data: { slotId: slot.id, feeKes: 0, paymentWaived: true } });
   expect(booked.status()).toBe(201);
   const a = (await booked.json()).data;
-  expect(a).toMatchObject({ feeKes: 2500, paymentWaived: false, status: "requested" });
+  expect(a).toMatchObject({ feeKes: 2500, paymentWaived: false, status: "awaiting_payment" });
   await request.patch(`/api/v1/appointments/${a.id}`, { headers: auth(providerToken), data: { status: "confirmed" } });
   expect((await start(request, a.id)).status()).toBe(400);
 });

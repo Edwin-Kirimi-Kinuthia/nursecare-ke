@@ -190,11 +190,11 @@ test.describe("Records surface the clinician's treatment sheet", () => {
     expect(apptRes.status()).toBe(201);
     const appointmentId = (await apptRes.json()).data.id;
 
+    await payAppointment(request, appointmentId, patientToken, (await seededSession("admin@carebora.ke")).accessToken);
     await request.patch(`/api/v1/appointments/${appointmentId}`, {
       headers: { Authorization: `Bearer ${doctorToken}` },
       data: { status: "confirmed" },
     });
-    await payAppointment(request, appointmentId, patientToken, (await seededSession("admin@carebora.ke")).accessToken);
     const consultRes = await request.post(`/api/v1/appointments/${appointmentId}/consultation`, {
       headers: { Authorization: `Bearer ${doctorToken}` },
     });

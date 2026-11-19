@@ -1,5 +1,6 @@
 import { db, Prisma, type Payment, type PaymentSubject } from "@carebora/db";
 import { ApiError, PROVIDER_ROLES, type MpesaStkInput, type PaymentsQuery, type UserRole } from "@carebora/shared";
+import { notifyAppointmentBooked } from "../booking/appointment-notifications";
 import { getEnv } from "../config/env";
 import { initiatePayment, type InitiatePaymentResult } from "./gateway";
 
@@ -53,13 +54,13 @@ export function toPaymentSummary(p: Payment): PaymentSummary {
 }
 
 export const paymentService = {
-  /** Patient initiates payment for a confirmed appointment. */
+  /** Patient pays an unpaid teleconsult checkout or a legacy confirmed appointment. */
   async initiateMpesa(patientId: string, input: MpesaStkInput) {
     const appointment = await db.appointment.findUnique({ where: { id: input.appointmentId } });
     if (!appointment) throw ApiError.notFound("Appointment not found");
     if (appointment.patientId !== patientId) throw ApiError.forbidden();
-    if (appointment.status !== "confirmed") {
-      throw ApiError.badRequest("Only confirmed appointments can be paid for");
+    if (appointment.status !== "confirmed" && appointment.status !== "awaiting_payment") {
+      throw ApiError.badRequest("Only an unpaid checkout or confirmed appointment can be paid for");
     }
     if (appointment.paymentWaived || appointment.feeKes <= 0) {
       throw ApiError.badRequest("No payment is required for this appointment");
@@ -142,13 +143,14 @@ export const paymentService = {
   ): Promise<Payment | null> {
     const payment = await db.payment.findUnique({ where: { gatewayRef } });
     if (!payment) return null;
-    if (payment.status === "completed") return payment; // already settled — ignore replay
+    if (payment.status === "completed" || payment.status === "refunded") return payment; // ignore replay
 
     if (!outcome.success) {
-      return db.payment.update({
-        where: { id: payment.id },
+      await db.payment.updateMany({
+        where: { id: payment.id, status: { notIn: ["completed", "refunded"] } },
         data: { status: "failed", failureReason: outcome.failureReason ?? "Payment failed" },
       });
+      return db.payment.findUniqueOrThrow({ where: { id: payment.id } });
     }
 
     const gross = payment.amountKes;
@@ -157,46 +159,63 @@ export const paymentService = {
     const payoutType = payment.orgId ? "vendor_payout" : "provider_payout";
     const hasPayee = Boolean(payment.orgId || payment.providerId);
 
-    const [updated] = await db.$transaction([
-      db.payment.update({
-        where: { id: payment.id },
-        data: {
-          status: "completed",
-          receiptNumber: outcome.receiptNumber ?? payment.receiptNumber,
-          gatewayTxnRef: outcome.gatewayTxnRef ?? payment.gatewayTxnRef,
-          paidAt: new Date(),
-        },
-      }),
-      db.ledgerEntry.create({
-        data: { paymentId: payment.id, type: "gross_sale", amountKes: gross, description: "Gross sale" },
-      }),
-      ...(hasPayee
-        ? [
-            db.ledgerEntry.create({
-              data: {
-                paymentId: payment.id,
-                type: "platform_fee",
-                orgId: payment.orgId,
-                providerId: payment.providerId,
-                amountKes: platformFee,
-                description: `${payment.commissionPercentSnapshot}% platform commission`,
-              },
-            }),
-            db.ledgerEntry.create({
-              data: {
-                paymentId: payment.id,
-                type: payoutType,
-                orgId: payment.orgId,
-                providerId: payment.providerId,
-                amountKes: net,
-                description: payment.orgId ? "Vendor net payout" : "Provider net payout",
-              },
-            }),
-          ]
-        : []),
-    ]);
+    // Claim settlement once. Gateway retries must never duplicate the booking,
+    // ledger or notifications; the payment and booking transition commit together.
+    const result = await db.$transaction(async (tx) => {
+      const claim = await tx.payment.updateMany({
+        where: { id: payment.id, status: { notIn: ["completed", "refunded"] } },
+        data: { status: "completed", receiptNumber: outcome.receiptNumber ?? payment.receiptNumber,
+          gatewayTxnRef: outcome.gatewayTxnRef ?? payment.gatewayTxnRef, paidAt: new Date() },
+      });
+      if (!claim.count) return { payment: await tx.payment.findUniqueOrThrow({ where: { id: payment.id } }), booked: false };
+      let booked = false;
+      if (payment.subjectType === "appointment") {
+        const a = await tx.appointment.findUnique({ where: { id: payment.subjectId }, include: { provider: true } });
+        if (a?.status === "awaiting_payment") {
+          if (payment.patientId !== a.patientId || payment.amountKes < a.feeKes) {
+            throw ApiError.badRequest("Payment does not cover this consultation");
+          }
+          const placed = await tx.appointment.updateMany({
+            where: { id: a.id, status: "awaiting_payment" },
+            data: { status: a.provider.isAvailable ? "confirmed" : "requested" },
+          });
+          booked = placed.count > 0;
+        }
+      }
+      await Promise.all([
+        tx.ledgerEntry.create({
+          data: { paymentId: payment.id, type: "gross_sale", amountKes: gross, description: "Gross sale" },
+        }),
+        ...(hasPayee
+          ? [
+              tx.ledgerEntry.create({
+                data: {
+                  paymentId: payment.id,
+                  type: "platform_fee",
+                  orgId: payment.orgId,
+                  providerId: payment.providerId,
+                  amountKes: platformFee,
+                  description: `${payment.commissionPercentSnapshot}% platform commission`,
+                },
+              }),
+              tx.ledgerEntry.create({
+                data: {
+                  paymentId: payment.id,
+                  type: payoutType,
+                  orgId: payment.orgId,
+                  providerId: payment.providerId,
+                  amountKes: net,
+                  description: payment.orgId ? "Vendor net payout" : "Provider net payout",
+                },
+              }),
+            ]
+          : []),
+      ]);
+      return { payment: await tx.payment.findUniqueOrThrow({ where: { id: payment.id } }), booked };
+    });
+    if (result.booked) void notifyAppointmentBooked(payment.subjectId);
 
-    return updated;
+    return result.payment;
   },
 
   /** Till mode: patient reports the M-Pesa code → payment awaits admin verification. */

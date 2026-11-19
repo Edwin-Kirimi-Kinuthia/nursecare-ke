@@ -151,7 +151,7 @@ function AvailabilityCard() {
         <View style={{ flex: 1, gap: 2 }}>
           <Text variant="subheading">{available ? "Available" : "Busy"}</Text>
           <Text variant="caption" tone="muted">
-            {available ? "New bookings are confirmed instantly." : "Patients can still book, but you confirm each one first."}
+            {available ? "Paid bookings are confirmed instantly." : "Patients pay to book, then you confirm their time."}
           </Text>
         </View>
         <Switch value={available} onValueChange={toggle} accessibilityLabel="Available for instant bookings" />
