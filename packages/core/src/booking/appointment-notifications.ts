@@ -1,10 +1,19 @@
 import { db } from "@carebora/db";
+import { runInBackground } from "../lib/background";
 import { notificationService } from "../notifications/notification.service";
 import { inAppNotifications } from "../notifications/inapp.service";
 import { whatsAppEvents } from "../notifications/whatsapp.service";
 
 /** Called only after a booking is placed (after verified teleconsult payment). */
-export async function notifyAppointmentBooked(id: string) {
+export function notifyAppointmentBooked(id: string) {
+  const work = deliverBookingNotifications(id).catch(() => {
+    console.error("[notifications] Could not deliver booking notifications");
+  });
+  runInBackground(work);
+  return work;
+}
+
+async function deliverBookingNotifications(id: string) {
   const a = await db.appointment.findUniqueOrThrow({ where: { id }, include: {
     slot: true, patient: true, provider: { include: { user: true } },
   } });
