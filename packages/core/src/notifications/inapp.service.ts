@@ -47,6 +47,21 @@ export const inAppNotifications = backgrounded({
     } catch { console.error("[notifications] Could not notify administrators"); }
   },
 
+  /** Let each pharmacy's active team know a new order is in their queue. */
+  async pharmacyOrderRequested(orgId: string, reference: string) {
+    try {
+      const members = await db.orgMember.findMany({
+        where: { orgId, isActive: true, user: { role: "vendor", isActive: true, deletedAt: null } },
+        select: { userId: true },
+      });
+      await Promise.all(members.map(({ userId }) => inAppNotifications.create(userId, {
+        type: "pharmacy_order_requested", title: "New pharmacy order",
+        body: "A customer placed an order with your pharmacy. Open Orders in your vendor portal to review it.",
+        link: "/vendor", eventKey: `pharmacy:${orgId}:${reference}`,
+      })));
+    } catch { console.error("[notifications] Could not notify pharmacy team"); }
+  },
+
   async list(userId: string, limit = 30) {
     const [notifications, unreadCount] = await Promise.all([
       db.notification.findMany({ where: { userId }, orderBy: { createdAt: "desc" }, take: limit }),

@@ -1370,7 +1370,7 @@ export interface VendorOrder {
   items: OrderItem[];
   organization: { id: string; name: string; type: string };
   /** Present only on vendor-side listings (GET /vendor/orders), not nested Order fetches. */
-  order?: { id: string; deliveryAddress: string; phoneNumber: string; patient: { fullName: string } };
+  order?: { id: string; deliveryAddress: string; deliveryNotes: string | null; phoneNumber: string; patient: { fullName: string }; payment: Pick<PaymentSummary, "status" | "paidAt"> | null };
 }
 
 export interface VendorOrderListResult {

@@ -97,6 +97,7 @@ test.describe("Multi-vendor cart split", () => {
         ],
         phoneNumber: "0712345678",
         deliveryAddress: "Test Address, Nairobi",
+        deliveryNotes: "Ring the front door bell",
       },
     });
     expect(res.status()).toBe(201);
@@ -128,6 +129,52 @@ test.describe("Multi-vendor cart split", () => {
     const ids = data.vendorOrders.map((vo: { id: string }) => vo.id);
     expect(ids).toContain(vendorOrderAId);
     expect(ids).not.toContain(vendorOrderBId);
+  });
+
+  test("vendor and admin APIs expose purchased contents without leaking another vendor's items", async ({ request }) => {
+    const vendor = await request.get("/api/v1/vendor/orders", { headers: { Authorization: `Bearer ${vendorAToken}` } });
+    const a = (await vendor.json()).data.vendorOrders.find((o: { id: string }) => o.id === vendorOrderAId);
+    expect(a.items).toHaveLength(1);
+    expect(a.items[0]).toMatchObject({ drugName: `E2E Marketplace Drug A ${UNIQUE}`, qty: 2, unitPriceKes: 120 });
+    expect(a.order).toMatchObject({ phoneNumber: "0712345678", deliveryNotes: "Ring the front door bell", payment: { status: "pending" } });
+    expect(JSON.stringify(a)).not.toContain(`E2E Marketplace Drug B ${UNIQUE}`);
+    expect(a.order.payment.amountKes).toBeUndefined();
+    for (const token of [vendorAToken, vendorBToken]) {
+      await expect.poll(async () => {
+        const res = await request.get("/api/v1/notifications", { headers: { Authorization: `Bearer ${token}` } });
+        return (await res.json()).data.notifications.filter((n: { type: string }) => n.type === "pharmacy_order_requested").length;
+      }).toBe(1);
+    }
+    const admin = await request.get("/api/v1/admin/orders", { headers: { Authorization: `Bearer ${adminToken}` } });
+    const order = (await admin.json()).data.orders.find((o: { id: string }) => o.id === orderId);
+    expect(order.vendorOrders.flatMap((vo: { items: object[] }) => vo.items)).toHaveLength(2);
+  });
+
+  test("pharmacy and admin dashboards show medicines, quantities, prices and delivery instructions", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    for (const [token, route, names] of [
+      [vendorAToken, "/vendor", [`E2E Marketplace Drug A ${UNIQUE}`]],
+      [vendorBToken, "/vendor", [`E2E Marketplace Drug B ${UNIQUE}`]],
+      [adminToken, "/admin", [`E2E Marketplace Drug A ${UNIQUE}`, `E2E Marketplace Drug B ${UNIQUE}`]],
+    ] as const) {
+      await page.context().clearCookies();
+      await page.context().addCookies([{ name: "cb_access", value: token, url: test.info().project.use.baseURL! }]);
+      await page.goto(route);
+      await page.getByRole("button", { name: "Orders", exact: true }).click();
+      const reference = route === "/admin" ? orderId : token === vendorAToken ? vendorOrderAId : vendorOrderBId;
+      const card = page.getByRole("article", { name: `Pharmacy order ${reference.slice(0, 8).toUpperCase()}`, exact: true });
+      for (const name of names) await expect(card.getByText(name, { exact: true })).toBeVisible();
+      await expect(card.getByText("Delivery notes: Ring the front door bell", { exact: true })).toBeVisible();
+      await expect(card.getByText("Contact: 0712345678", { exact: true })).toBeVisible();
+      if (token !== vendorBToken) await expect(card.getByText(/Quantity: 2.*120.*each/)).toBeVisible();
+      await expect(page.getByRole("button", { name: "Refresh orders", exact: true })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Mark processing", exact: true })).toHaveCount(0);
+      if (route === "/vendor") {
+        const hidden = token === vendorAToken ? "B" : "A";
+        await expect(page.getByText(`E2E Marketplace Drug ${hidden} ${UNIQUE}`, { exact: true })).toHaveCount(0);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
   });
 
   test("vendor A cannot patch vendor B's slice of the order", async ({ request }) => {

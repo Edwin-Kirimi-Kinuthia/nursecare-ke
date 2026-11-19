@@ -1,5 +1,7 @@
 "use client";
 
+import OrderItems from "@/components/OrderItems";
+
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -508,6 +510,7 @@ function VendorOrdersTab() {
   const fetcher = useCallback(() => api.listVendorOrders({ limit: 50 }).then((r) => r.vendorOrders), []);
   const { data, loading, error, reload } = useSection(fetcher);
   const orders = data ?? [];
+  useEffect(() => { const timer = setInterval(() => void reload(), 15_000); return () => clearInterval(timer); }, [reload]);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   async function advance(vo: VendorOrder) {
@@ -524,15 +527,19 @@ function VendorOrdersTab() {
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+      <button onClick={() => void reload()} className="mb-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh orders</button>
       <div className="space-y-3">
         {orders.map((vo) => (
-          <div key={vo.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+          <article key={vo.id} aria-label={`Pharmacy order ${vo.id.slice(0, 8).toUpperCase()}`} className="rounded-2xl border border-slate-200 bg-white p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <div className="font-semibold text-slate-900">Order #{vo.id.slice(0, 8).toUpperCase()}</div>
                 <div className="mt-0.5 text-xs text-slate-400">{vo.order?.patient.fullName} · {when(vo.createdAt)}</div>
                 <div className="mt-1 text-sm text-slate-600">{vo.items.length} item(s) · <span className="font-semibold text-slate-800">{kes(vo.subtotalKes)}</span></div>
                 <div className="mt-0.5 text-xs text-slate-400">{vo.order?.deliveryAddress}</div>
+                <div className="mt-1 text-sm text-slate-600">Contact: {vo.order?.phoneNumber}</div>
+                {vo.order?.deliveryNotes && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">Delivery notes: {vo.order.deliveryNotes}</p>}
+                <p className="mt-1 text-xs text-slate-500">Payment: {vo.order?.payment?.status.replaceAll("_", " ") ?? "unpaid"}</p>
               </div>
               <div className="flex items-center gap-2">
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${VENDOR_ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100 text-slate-600"}`}>{vo.status.replace("_", " ")}</span>
@@ -544,7 +551,8 @@ function VendorOrdersTab() {
                 )}
               </div>
             </div>
-          </div>
+            <OrderItems items={vo.items} />
+          </article>
         ))}
       </div>
     </SectionShell>

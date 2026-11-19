@@ -1,3 +1,4 @@
+import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
@@ -246,10 +247,14 @@ function Orders() {
   const list = useAsync(() => api.listVendorOrders({ limit: 50 } as never).then((r) => r.vendorOrders), []);
   const { busy, err, run } = useAct();
   const orders = list.data ?? [];
+  const reloadOrders = list.reload;
+  useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
+  if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
   if (list.loading && !list.data) return <Loading />;
   if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
   return (
     <>
+      <Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
       {err && <Banner tone="danger">{err}</Banner>}
       {orders.map((vo: VendorOrder) => {
         const next = NEXT_ORDER[vo.status as keyof typeof NEXT_ORDER];
@@ -262,6 +267,10 @@ function Orders() {
             <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta>
             <Text>{vo.items.length} item(s) · <Text style={{ fontFamily: "Inter_700Bold" }}>{kes(vo.subtotalKes)}</Text></Text>
             <Meta>{vo.order?.deliveryAddress}</Meta>
+            <Text variant="caption" tone="muted">Contact: {vo.order?.phoneNumber}</Text>
+            {vo.order?.deliveryNotes ? <Text tone="muted">Delivery notes: {vo.order.deliveryNotes}</Text> : null}
+            <Text variant="caption" tone="muted">Payment: {vo.order?.payment?.status.replaceAll("_", " ") ?? "unpaid"}</Text>
+            <OrderItems items={vo.items} />
             {next && <Button title={`Mark ${next}`} size="sm" loading={busy === vo.id} onPress={() => run(vo.id, () => api.patchVendorOrder(vo.id, { status: next }), list.reload)} />}
           </Card>
         );

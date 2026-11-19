@@ -1,3 +1,4 @@
+import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
@@ -303,10 +304,14 @@ function Organizations() {
 function Orders() {
   const list = useAsync(() => api.adminListOrders({ limit: 50 } as never).then((r) => r.orders), []);
   const orders = list.data ?? [];
+  const reloadOrders = list.reload;
+  useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
+  if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
   if (list.loading && !list.data) return <Loading />;
   if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
   return (
     <>
+      <Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
       {orders.map((o: Order) => {
         const n = o.vendorOrders.reduce((a, vo) => a + vo.items.reduce((m, i) => m + i.qty, 0), 0);
         return (
@@ -318,10 +323,15 @@ function Orders() {
             <Meta>{o.patient.fullName} · {dayTime(o.createdAt)}</Meta>
             <Text>{n} item(s) across {o.vendorOrders.length} vendor(s) · <Text style={{ fontFamily: "Inter_700Bold" }}>{kes(o.totalKes)}</Text></Text>
             <Meta>{o.deliveryAddress}</Meta>
+            <Text variant="caption" tone="muted">Contact: {o.phoneNumber}</Text>
+            {o.deliveryNotes ? <Text tone="muted">Delivery notes: {o.deliveryNotes}</Text> : null}
             {o.vendorOrders.map((vo) => (
-              <View key={vo.id} style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+              <View key={vo.id} style={{ gap: 10, paddingVertical: 8 }}>
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <Text variant="caption" tone="muted" style={{ flex: 1 }}>{vo.organization.name} · {vo.items.reduce((a, i) => a + i.qty, 0)} item(s)</Text>
                 <Badge label={vo.status.replace("_", " ")} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
+                </View>
+                <OrderItems items={vo.items} />
               </View>
             ))}
           </Card>

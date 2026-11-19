@@ -1,5 +1,7 @@
 "use client";
 
+import OrderItems from "@/components/OrderItems";
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -1353,20 +1355,24 @@ function OrdersTab() {
   const fetcher = useCallback(() => api.adminListOrders({ limit: 50 }).then((r) => r.orders), []);
   const { data, loading, error, reload } = useSection(fetcher);
   const orders = data ?? [];
+  useEffect(() => { const timer = setInterval(() => void reload(), 15_000); return () => clearInterval(timer); }, [reload]);
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+      <button onClick={() => void reload()} className="mb-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh orders</button>
       <div className="space-y-3">
         {orders.map((o: Order) => {
           const itemCount = o.vendorOrders.reduce((n, vo) => n + vo.items.reduce((m, i) => m + i.qty, 0), 0);
           return (
-            <div key={o.id} className="rounded-2xl border border-slate-200 bg-white p-5">
+            <article key={o.id} aria-label={`Pharmacy order ${o.id.slice(0, 8).toUpperCase()}`} className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="font-semibold text-slate-900">Order #{o.id.slice(0, 8).toUpperCase()}</div>
                   <div className="mt-0.5 text-xs text-slate-400">{o.patient.fullName} · {when(o.createdAt)}</div>
                   <div className="mt-1 text-sm text-slate-600">{itemCount} item(s) across {o.vendorOrders.length} vendor(s) · <span className="font-semibold text-slate-800">{kes(o.totalKes)}</span></div>
                   <div className="mt-0.5 text-xs text-slate-400">{o.deliveryAddress}</div>
+                  <p className="mt-1 text-sm text-slate-600">Contact: {o.phoneNumber}</p>
+                  {o.deliveryNotes && <p className="mt-1 whitespace-pre-wrap text-sm text-slate-600">Delivery notes: {o.deliveryNotes}</p>}
                 </div>
                 <span className={`rounded-full px-2.5 py-1 text-xs font-semibold capitalize ${o.payment?.status === "completed" ? "bg-emerald-100 text-emerald-700" : "bg-slate-100 text-slate-500"}`}>
                   {o.payment?.status ?? "unpaid"}
@@ -1374,13 +1380,16 @@ function OrdersTab() {
               </div>
               <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
                 {o.vendorOrders.map((vo) => (
-                  <div key={vo.id} className="flex items-center justify-between text-sm">
+                  <div key={vo.id} className="py-2">
+                    <div className="flex items-center justify-between gap-3 text-sm">
                     <span className="text-slate-600">{vo.organization.name} · {vo.items.reduce((n, i) => n + i.qty, 0)} item(s)</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100 text-slate-600"}`}>{vo.status.replace("_", " ")}</span>
+                    </div>
+                    <OrderItems items={vo.items} />
                   </div>
                 ))}
               </div>
-            </div>
+            </article>
           );
         })}
       </div>

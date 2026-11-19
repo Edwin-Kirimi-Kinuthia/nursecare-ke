@@ -170,6 +170,7 @@ export const orderService = {
     }));
 
     void inAppNotifications.serviceRequested("a pharmacy order", order.id);
+    for (const orgId of byOrg.keys()) void inAppNotifications.pharmacyOrderRequested(orgId, order.id);
     return { ...order, payment: toPaymentSummary(payment), redirect };
   },
 
@@ -287,7 +288,7 @@ export const orderService = {
         where,
         include: {
           ...VENDOR_ORDER_INCLUDE,
-          order: { select: { id: true, deliveryAddress: true, phoneNumber: true, patient: { select: { fullName: true } } } },
+          order: { select: { id: true, deliveryAddress: true, deliveryNotes: true, phoneNumber: true, patient: { select: { fullName: true } } } },
         },
         orderBy: { createdAt: "desc" },
         skip: query.offset,
@@ -295,7 +296,11 @@ export const orderService = {
       }),
       db.vendorOrder.count({ where }),
     ]);
-    return { vendorOrders, total, limit: query.limit, offset: query.offset };
+    const payments = await paymentService.getForSubjects("order", vendorOrders.map((vo) => vo.orderId));
+    return { vendorOrders: vendorOrders.map((vo) => {
+      const payment = payments.get(vo.orderId);
+      return { ...vo, order: { ...vo.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
+    }), total, limit: query.limit, offset: query.offset };
   },
 
   async patchVendorOrder(orgId: string, vendorOrderId: string, input: PatchVendorOrderInput) {
