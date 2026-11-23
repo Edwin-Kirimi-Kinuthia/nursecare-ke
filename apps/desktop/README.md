@@ -37,3 +37,10 @@ that release makes its files publicly downloadable. After checking the installer
 and checksums, update `apps/web/src/lib/app-release.json` with the published asset
 URLs and sizes and deploy the website. The download page uses this verified
 catalog, so GitHub API failures cannot hide available files.
+
+For a public release, the **Verify and publish app** workflow accepts the successful
+desktop build run ID, source commit and version. It verifies all five installers
+against the three checksum files before publishing. Download its small
+`verified-release-catalog` artifact to update the website download catalog. The
+same workflow validates an EAS Android APK in a disposable emulator before
+publishing a mobile release. It only runs when manually dispatched.

@@ -1,0 +1,212 @@
+name: Verify and publish app
+
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: App to publish
+        type: choice
+        options: [android, desktop]
+        required: true
+      version:
+        description: Version already set in the source package
+        required: true
+      source_sha:
+        description: Full source commit used to build the app
+        required: true
+      desktop_run_id:
+        description: Successful Desktop apps workflow run (desktop only)
+        required: false
+      apk_url:
+        description: Expo APK artifact HTTPS URL (Android only)
+        required: false
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      RELEASE_PLATFORM: ${{ inputs.platform }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+      DESKTOP_RUN_ID: ${{ inputs.desktop_run_id }}
+      APK_URL: ${{ inputs.apk_url }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.source_sha }}
+      - name: Check source and release inputs
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json, os, re, subprocess
+          from pathlib import Path
+          platform = os.environ['RELEASE_PLATFORM']
+          version = os.environ['RELEASE_VERSION']
+          sha = os.environ['SOURCE_SHA']
+          assert platform in ('android', 'desktop')
+          assert re.fullmatch(r'\d+\.\d+\.\d+', version)
+          assert re.fullmatch(r'[a-f0-9]{40}', sha)
+          assert subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip() == sha
+          app = 'mobile' if platform == 'android' else 'desktop'
+          assert json.loads(Path(f'apps/{app}/package.json').read_text())['version'] == version
+          Path('installers').mkdir()
+          PY
+      - name: Wait for and verify desktop build provenance
+        if: inputs.platform == 'desktop'
+        shell: bash
+        run: |
+          [[ "$DESKTOP_RUN_ID" =~ ^[0-9]+$ ]]
+          gh run watch "$DESKTOP_RUN_ID" --exit-status --interval 30
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$DESKTOP_RUN_ID" > /tmp/desktop-run.json
+          python3 - <<'PY'
+          import json, os
+          r=json.load(open('/tmp/desktop-run.json'))
+          assert r['head_sha']==os.environ['SOURCE_SHA']
+          assert r['conclusion']=='success'
+          assert r['path']=='.github/workflows/desktop.yml'
+          PY
+      - uses: actions/download-artifact@v4
+        if: inputs.platform == 'desktop'
+        with:
+          run-id: ${{ inputs.desktop_run_id }}
+          github-token: ${{ github.token }}
+          pattern: desktop-*
+          merge-multiple: true
+          path: installers
+      - name: Verify all desktop installers and checksums
+        if: inputs.platform == 'desktop'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import hashlib, os
+          from pathlib import Path
+          folder=Path('installers')
+          version=os.environ['RELEASE_VERSION']
+          checks=list(folder.glob('SHA256SUMS-*.txt'))
+          assert len(checks)==3, 'Expected checksum files for all desktop platforms'
+          verified=[]
+          for file in checks:
+              for line in file.read_text().splitlines():
+                  digest,name=line.split(maxsplit=1)
+                  name=name.lstrip('*')
+                  assert Path(name).name==name
+                  p=folder/name
+                  assert p.is_file() and p.stat().st_size>1_000_000
+                  assert f'CareBora-{version}-' in name
+                  assert hashlib.file_digest(p.open('rb'),'sha256').hexdigest()==digest
+                  verified.append(name)
+          assert len(verified)==5 and len(set(verified))==5
+          assert sum(n.endswith('.dmg') for n in verified)==2
+          assert sum(n.endswith('.exe') for n in verified)==1
+          assert sum(n.endswith('.deb') for n in verified)==1
+          assert sum(n.endswith('.AppImage') for n in verified)==1
+          assert {p.name for p in folder.iterdir()}==set(verified+[p.name for p in checks])
+          print('All five desktop installers match their published checksums.')
+          PY
+      - name: Download the built Android APK
+        if: inputs.platform == 'android'
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os, urllib.parse, urllib.request
+          from pathlib import Path
+          u=urllib.parse.urlparse(os.environ['APK_URL'])
+          assert u.scheme=='https' and u.hostname in ('expo.dev','artifacts.expo.dev','d1ahtucjixef4r.cloudfront.net')
+          assert u.path.endswith('.apk') and not u.username and not u.password
+          p=Path('installers')/f"CareBora-{os.environ['RELEASE_VERSION']}-android.apk"
+          urllib.request.urlretrieve(os.environ['APK_URL'],p)
+          assert p.stat().st_size>10_000_000
+          PY
+      - name: Check Android package identity and version
+        if: inputs.platform == 'android'
+        shell: bash
+        run: |
+          AAPT=$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -1)
+          "$AAPT" dump badging "installers/CareBora-$RELEASE_VERSION-android.apk" > /tmp/apk-badging.txt
+          python3 - <<'PY'
+          import os
+          first=open('/tmp/apk-badging.txt').readline()
+          assert "name='ke.co.carebora.app'" in first
+          assert f"versionName='{os.environ['RELEASE_VERSION']}'" in first
+          print(first.strip())
+          PY
+      - name: Enable emulator acceleration
+        if: inputs.platform == 'android'
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check fresh native Android startup
+        if: inputs.platform == 'android'
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d
+        with:
+          api-level: 34
+          target: default
+          arch: x86_64
+          profile: pixel_7
+          ram-size: 2048M
+          disable-animations: true
+          script: python3 apps/mobile/scripts/check-android-startup.py "installers/CareBora-$RELEASE_VERSION-android.apk" --serial emulator-5554 --output startup-evidence
+      - name: Generate Android checksum
+        if: inputs.platform == 'android'
+        working-directory: installers
+        run: sha256sum "CareBora-$RELEASE_VERSION-android.apk" > SHA256SUMS-android.txt
+      - uses: actions/upload-artifact@v4
+        if: always() && inputs.platform == 'android'
+        with:
+          name: android-startup-evidence
+          path: startup-evidence/
+          if-no-files-found: ignore
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-installers
+          path: installers/*
+          if-no-files-found: error
+
+  publish:
+    needs: verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      RELEASE_PLATFORM: ${{ inputs.platform }}
+      RELEASE_VERSION: ${{ inputs.version }}
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: verified-installers
+          path: installers
+      - name: Publish verified installers
+        shell: bash
+        run: |
+          if [[ "$RELEASE_PLATFORM" == android ]]; then
+            tag="mobile-v$RELEASE_VERSION"
+            title="Care Bora Android $RELEASE_VERSION"
+            notes="Service carousel, navigation assistant and provider/vendor earnings with M-Pesa withdrawal requests. The release APK passed a fresh native startup check. Automated B2C remains disabled pending Safaricom approval."
+          else
+            tag="desktop-v$RELEASE_VERSION"
+            title="Care Bora desktop $RELEASE_VERSION"
+            notes="Back, Forward and Home navigation with keyboard shortcuts. Uses the redesigned live Care Bora service homepage and earnings accounts. Installers passed platform smoke tests and checksum verification. Packages are unsigned; operating systems may display publisher warnings."
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "Release $tag already exists; refusing to overwrite published assets."
+            exit 1
+          fi
+          printf '%s\n' "$notes" > /tmp/app-release-notes.txt
+          gh release create "$tag" installers/* --draft --target "$SOURCE_SHA" --title "$title" --notes-file /tmp/app-release-notes.txt
+          gh release edit "$tag" --draft=false --latest=false
+          gh release view "$tag" --json assets --jq '[.assets[] | {name, url, size}]' > verified-assets.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: verified-release-catalog
+          path: verified-assets.json
