@@ -1,16 +1,19 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { Bot, Send, X } from "lucide-react";
 import { NAVIGATION_SERVICES, type NavigationReply } from "@carebora/shared";
 import { api } from "@/lib/api";
 
+const subscribe = () => () => {};
+
 export default function NavigationAssistant() {
   const pathname = usePathname();
   return <Assistant key={pathname} />;
 }
 function Assistant() {
+  const hydrated = useSyncExternalStore(subscribe, () => true, () => false);
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [nudge, setNudge] = useState(false);
@@ -43,6 +46,6 @@ function Assistant() {
       <div className="my-4 flex flex-wrap gap-2">{NAVIGATION_SERVICES.filter(s => reply.serviceIds.includes(s.id)).map(s => <Link key={s.id} href={s.web} onClick={close} className="rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800">{s.title} ↗</Link>)}</div>
       <form onSubmit={ask} className="flex gap-2"><input ref={input} aria-label="Ask for help navigating" maxLength={500} value={question} onChange={e => setQuestion(e.target.value)} placeholder="How do I book a doctor?" className="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm" /><button type="submit" disabled={busy || !question.trim()} aria-label="Send question" className="rounded-lg bg-teal-800 p-3 text-white disabled:opacity-50"><Send size={16} /></button></form>
     </section>}
-    <button ref={trigger} aria-label={open ? "Close navigation assistant" : "Open navigation assistant"} aria-expanded={open} onAnimationEnd={() => setNudge(false)} onClick={() => { setOpen(!open); setNudge(false); }} className={`ml-auto flex items-center gap-2 rounded-full bg-teal-800 px-4 py-3 text-sm font-semibold text-white shadow-lg ${nudge ? "assistant-nudge" : ""}`}><Bot size={22} />Need help?</button>
+    <button ref={trigger} disabled={!hydrated} aria-label={open ? "Close navigation assistant" : "Open navigation assistant"} aria-expanded={open} onAnimationEnd={() => setNudge(false)} onClick={() => { setOpen(!open); setNudge(false); }} className={`ml-auto flex items-center gap-2 rounded-full bg-teal-800 px-4 py-3 text-sm font-semibold text-white shadow-lg ${nudge ? "assistant-nudge" : ""}`}><Bot size={22} />Need help?</button>
   </div>;
 }
