@@ -204,7 +204,11 @@ jobs:
           fi
           printf '%s\n' "$notes" > /tmp/app-release-notes.txt
           gh release create "$tag" installers/* --draft --target "$SOURCE_SHA" --title "$title" --notes-file /tmp/app-release-notes.txt
-          gh release edit "$tag" --draft=false --latest=false
+          if [[ "$RELEASE_PLATFORM" == android ]]; then
+            gh release edit "$tag" --draft=false --latest
+          else
+            gh release edit "$tag" --draft=false --latest=false
+          fi
           gh release view "$tag" --json assets --jq '[.assets[] | {name, url, size}]' > verified-assets.json
       - uses: actions/upload-artifact@v4
         with:
