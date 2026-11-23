@@ -14,6 +14,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * be the sharper tool; until then these stay deliberately generous.
  */
 const RATE_RULES: Record<string, { max: number; windowMs: number; method?: string }> = {
+  "/api/v1/ai/navigate": { max: 40, windowMs: 60_000, method: "POST" },
   "/api/v1/auth/login":           { max: 60,  windowMs: 60_000, method: "POST" },
   "/api/v1/auth/register":        { max: 40,  windowMs: 60_000, method: "POST" },
   "/api/v1/payments/mpesa/stk":   { max: 60,  windowMs: 60_000, method: "POST" },

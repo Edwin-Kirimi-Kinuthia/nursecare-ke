@@ -164,7 +164,29 @@ function validationMessage(e?: { code?: string; message?: string; details?: unkn
   return unique.length ? unique.slice(0, 3).join(". ") : null;
 }
 
+export interface Withdrawal {
+  id: string; orgId: string | null; providerId: string | null; amountKes: number;
+  phoneNumber: string | null; status: string; gateway: string | null; failureReason: string | null; reference: string | null; createdAt: string;
+}
+export interface EarningsSummary { withdrawalMode: "manual" | "mpesa_b2c"; minimumWithdrawalKes: number; earnedKes: number; availableKes: number; paidKes: number; pendingKes: number; withdrawals: Withdrawal[] }
 export class CareBoraClient {
+  sendWithdrawal(id: string) { return this.request<Withdrawal>(`/admin/withdrawals/${id}/send`, { method: "POST" }); }
+  reconcileWithdrawal(id: string, input: { outcome: "paid" | "failed"; reference?: string; note: string }) {
+    return this.request<Withdrawal>(`/admin/withdrawals/${id}/reconcile`, { method: "POST", body: JSON.stringify(input) });
+  }
+  getEarnings() { return this.request<EarningsSummary>("/earnings"); }
+  requestWithdrawal(input: { amountKes: number; phoneNumber: string; requestKey: string }) {
+    return this.request<Withdrawal>("/earnings/withdrawals", { method: "POST", body: JSON.stringify(input) });
+  }
+  adminWithdrawals() { return this.request<Withdrawal[]>("/admin/withdrawals"); }
+  processWithdrawal(id: string, input: { status: "processing" | "paid" | "failed"; reference?: string }) {
+    return this.request<Withdrawal>(`/admin/withdrawals/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+  }
+
+  navigateAssistant(message: string) {
+    return this.request<import("@carebora/shared").NavigationReply>("/ai/navigate", { method: "POST", body: JSON.stringify({ message }) });
+  }
+
   constructor(private readonly opts: ClientOptions) {}
 
   /** One refresh in flight at a time; every request that fails meanwhile waits on it. */

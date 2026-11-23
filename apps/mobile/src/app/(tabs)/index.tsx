@@ -1,13 +1,14 @@
-import { Pressable, View } from "react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { ArrowRight, Ambulance, FileText, Home as HomeIcon, Pill, ShieldCheck, Siren, Smartphone, Stamp, Users, Video, type LucideIcon } from "lucide-react-native";
+import { FlaskConical, Ambulance, Home as HomeIcon, Pill, Stamp, Video, type LucideIcon } from "lucide-react-native";
 import type { Appointment } from "@carebora/api-client";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { useAsync } from "@/lib/useAsync";
 import { useContacts } from "@/lib/appConfig";
-import { callNumber, openSite } from "@/lib/links";
+import { callNumber } from "@/lib/links";
 import { usePushPermission } from "@/lib/push";
 import { dayTime } from "@/lib/format";
 import { Screen, Card } from "@/ui/Screen";
@@ -17,28 +18,21 @@ import { Avatar, Badge } from "@/ui/parts";
 import { Footer } from "@/ui/Footer";
 import { gradients, useTheme } from "@/ui/theme";
 
-const FEATURES: { Icon: LucideIcon; title: string; desc: string; site?: string; to?: string }[] = [
-  { Icon: Video, title: "Teleconsultations", desc: "Secure video + chat with verified doctors and nurses.", to: "/doctors" },
-  { Icon: Siren, title: "Emergency ambulance", desc: "Call our ambulance line directly, or send a request and follow its status.", to: "/ambulance" },
-  { Icon: Stamp, title: "Medical forms & reports", desc: "Request a sick-off sheet, medical report or school, employment or insurance form — a licensed clinician reviews and signs it.", to: "/support/new" },
-  { Icon: FileText, title: "Treatment with sick-off sheet", desc: "Get treated online and receive a signed sick-off sheet (medical certificate) for work or school.", to: "/doctors" },
-  { Icon: Pill, title: "Pharmacy delivery", desc: "Order medication from the pharmacy nearest you, delivered to your door.", to: "/pharmacy" },
-  { Icon: HomeIcon, title: "Home-based care", desc: "Request a nurse or physio to visit you at home.", to: "/home-visits" },
-  { Icon: Users, title: "Licence-checked providers", desc: "Every clinician submits their practice licence for review before they appear.", site: "/how-we-verify-providers" },
-  { Icon: Smartphone, title: "M-Pesa payments", desc: "Pay for care instantly — no cards, no friction.", to: "/doctors" },
-  { Icon: ShieldCheck, title: "Private & secure", desc: "Clinical records protected with strict access controls.", site: "/privacy" },
-];
-const STEPS = [
-  { n: "01", title: "Create an account", desc: "Sign up in seconds as a patient." },
-  { n: "02", title: "Find your provider", desc: "Browse licence-checked clinicians and pick an open time." },
-  { n: "03", title: "Pay, then see your doctor", desc: "Pay the fee with M-Pesa, then join a private video call at your time." },
-];
-const STATS = [
-  ["Licensed", "Every provider checked"], ["Nationwide", "Video consultations"], ["24/7", "Ambulance dispatch"], ["M-Pesa", "Instant payment"],
+const FEATURES: { Icon: LucideIcon; title: string; desc: string; to: string }[] = [
+  { Icon: Video, title: "Consultations", desc: "Choose a clinician and book a private video appointment.", to: "/doctors" },
+  { Icon: Pill, title: "Pharmacy", desc: "Find your medicines and arrange delivery.", to: "/pharmacy" },
+  { Icon: HomeIcon, title: "Home care", desc: "Arrange a nurse, doctor or physiotherapist visit.", to: "/home-visits" },
+  { Icon: Ambulance, title: "Ambulance", desc: "Call for assistance or track an ambulance request.", to: "/ambulance" },
+  { Icon: FlaskConical, title: "Laboratory tests", desc: "Find a lab and view results in your account.", to: "/labs" },
+  { Icon: Stamp, title: "Medical documents", desc: "Request reports, sick-off sheets and medical forms.", to: "/support/new" },
 ];
 
 export default function HomeScreen() {
   const t = useTheme();
+  const { width } = useWindowDimensions();
+  const cardWidth = Math.min(width - 64, 380);
+  const [slide, setSlide] = useState(0);
+  const carousel = useRef<ComponentRef<typeof ScrollView>>(null);
   const { user } = useAuth();
   const { ambulancePhone } = useContacts();
   const push = usePushPermission(!!user);
@@ -52,34 +46,28 @@ export default function HomeScreen() {
       .sort((a, b) => +new Date(a.slot.startsAt) - +new Date(b.slot.startsAt))[0] ?? null;
   }, [user?.id]);
 
-  const openFeature = (f: (typeof FEATURES)[number]) => (f.site ? void openSite(f.site) : router.navigate(f.to as never));
+  const openFeature = (f: (typeof FEATURES)[number]) => router.navigate(f.to as never);
 
   return (
     <Screen onRefresh={next.reload} refreshing={next.refreshing} gap={0} contentContainerStyle={{ padding: 0, paddingBottom: 72 }}>
-      <LinearGradient colors={gradients.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ paddingHorizontal: 16, paddingVertical: 48, alignItems: "center", gap: 20 }}>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8, borderWidth: 1, borderColor: "rgba(94,234,212,0.3)", backgroundColor: "rgba(255,255,255,0.08)", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 999 }}>
-          <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: "#2DD4BF" }} />
-          <Text style={{ color: "#CCFBF1", fontFamily: "Inter_500Medium", fontSize: 14 }}>Kenya&apos;s telehealth platform</Text>
-        </View>
-        <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 40, lineHeight: 42, letterSpacing: -1, textAlign: "center" }}>
-          Quality care,{" "}<Text style={{ color: "#99F6E4", fontFamily: "Inter_800ExtraBold", fontSize: 40, lineHeight: 42, letterSpacing: -1 }}>made accessible.</Text>
-        </Text>
-        <Text style={{ color: "rgba(204,251,241,0.9)", fontSize: 17, lineHeight: 28, textAlign: "center" }}>
-          Consult verified doctors and nurses, book home visits, and order from the pharmacy — all paid for with M-Pesa, all in one place.
-        </Text>
-        <View style={{ alignSelf: "stretch", gap: 12, paddingHorizontal: 24 }}>
-          <Button variant="light" title="Find a provider" icon={<ArrowRight size={18} color="#0F766E" />} onPress={() => router.navigate("/doctors")} />
-          <Button variant="outlineLight" title="Browse pharmacy" onPress={() => router.navigate("/pharmacy")} />
-        </View>
-        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, marginTop: 16 }}>
-          {STATS.map(([k, v]) => (
-            <View key={k} style={{ flexBasis: "47%", flexGrow: 1, borderWidth: 1, borderColor: "rgba(255,255,255,0.15)", backgroundColor: "rgba(255,255,255,0.08)", borderRadius: 20, padding: 18, alignItems: "center", gap: 4 }}>
-              <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 22 }}>{k}</Text>
-              <Text style={{ color: "rgba(153,246,228,0.9)", fontSize: 13, textAlign: "center" }}>{v}</Text>
-            </View>
-          ))}
-        </View>
+      <LinearGradient colors={gradients.hero} style={{ padding: 24, gap: 12 }}>
+        <Text style={{ color: "#99F6E4", fontFamily: "Inter_600SemiBold", fontSize: 13 }}>CARE BORA · HERE FOR YOU</Text>
+        <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 32, lineHeight: 39 }}>The care you need.
+One place to find it.</Text>
+        <Text style={{ color: "#CCFBF1", fontSize: 16, lineHeight: 24 }}>Choose a service below. We&apos;ll help you take the next step.</Text>
       </LinearGradient>
+      <View style={{ paddingTop: 24, gap: 12 }}>
+        <View style={{ paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between" }}><Text variant="subheading">Our services</Text><Text tone="muted">{slide + 1} / {FEATURES.length}</Text></View>
+        <ScrollView ref={carousel} horizontal showsHorizontalScrollIndicator={false} snapToInterval={cardWidth + 12} decelerationRate="fast" contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }} onMomentumScrollEnd={e => setSlide(Math.min(FEATURES.length - 1, Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12))))}>
+          {FEATURES.map(f => <Pressable key={f.title} accessibilityRole="button" accessibilityLabel={`Open ${f.title}`} onPress={() => openFeature(f)} style={{ width: cardWidth, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface, borderRadius: 24, padding: 24, gap: 12 }}>
+            <View style={{ backgroundColor: "#CCFBF1", borderRadius: 16, width: 48, height: 48, justifyContent: "center", alignItems: "center" }}><f.Icon size={24} color="#115E59" /></View>
+            <Text variant="subheading">{f.title}</Text><Text tone="muted" style={{ minHeight: 48 }}>{f.desc}</Text>
+            <Text style={{ color: "#0F766E", fontFamily: "Inter_700Bold" }}>Get started →</Text>
+          </Pressable>)}
+        </ScrollView>
+        <View style={{ flexDirection: "row", justifyContent: "center", gap: 8 }}>{FEATURES.map((f, i) => <Pressable key={f.title} accessibilityRole="button" accessibilityLabel={`Show ${f.title}`} accessibilityState={{ selected: slide === i }} hitSlop={10} onPress={() => { carousel.current?.scrollTo({ x: i * (cardWidth + 12), animated: true }); setSlide(i); }} style={{ width: slide === i ? 24 : 8, height: 8, borderRadius: 4, backgroundColor: slide === i ? "#0F766E" : "#CBD5E1" }} />)}</View>
+        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, paddingHorizontal: 16 }}>{FEATURES.map(f => <Pressable key={f.title} onPress={() => openFeature(f)} accessibilityRole="button" style={{ padding: 10, borderRadius: 12, borderWidth: 1, borderColor: t.border }}><Text variant="caption">{f.title} ↗</Text></Pressable>)}</View>
+      </View>
 
       <View style={{ padding: 16, gap: 16 }}>
         {user && push.permission === "undetermined" && (
@@ -113,43 +101,11 @@ export default function HomeScreen() {
             <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: "#E11D48", alignItems: "center", justifyContent: "center" }}>
               <Ambulance size={22} color="#fff" />
             </View>
-            <Text style={{ flex: 1, fontFamily: "Inter_700Bold", fontSize: 16, lineHeight: 22, color: "#881337" }}>Medical emergency? An ambulance is ready.</Text>
+            <Text style={{ flex: 1, fontFamily: "Inter_700Bold", fontSize: 16, lineHeight: 22, color: "#881337" }}>Need an ambulance?</Text>
           </View>
           <Text style={{ color: "#BE123C", fontSize: 14, lineHeight: 20 }}>Don&apos;t book a consultation. Call the ambulance line now.</Text>
           <Button variant="danger" title={`Call ${ambulancePhone}`} icon={<Ambulance size={18} color="#fff" />} onPress={() => callNumber(ambulancePhone)} />
         </View>
-
-        <View style={{ gap: 6, marginTop: 24, alignItems: "center" }}>
-          <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 28, letterSpacing: -0.5, textAlign: "center" }}>Everything your family needs</Text>
-          <Text tone="muted" style={{ textAlign: "center", fontSize: 16 }}>One platform for consultations, care, and medication.</Text>
-        </View>
-        {FEATURES.map((f) => (
-          <Pressable key={f.title} onPress={() => openFeature(f)} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
-            <View style={{ backgroundColor: "#fff", borderWidth: 1, borderColor: t.border, borderRadius: 16, padding: 24, gap: 4 }}>
-              <LinearGradient colors={gradients.button} style={{ width: 48, height: 48, borderRadius: 14, alignItems: "center", justifyContent: "center", marginBottom: 10 }}>
-                <f.Icon size={22} color="#fff" />
-              </LinearGradient>
-              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 16 }}>{f.title}</Text>
-              <Text tone="muted" style={{ fontSize: 14, lineHeight: 21 }}>{f.desc}</Text>
-            </View>
-          </Pressable>
-        ))}
-
-        <View style={{ backgroundColor: "#fff", marginHorizontal: -16, paddingVertical: 40, paddingHorizontal: 16, gap: 16, marginTop: 24, borderTopWidth: 1, borderBottomWidth: 1, borderColor: t.border }}>
-          <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 28, letterSpacing: -0.5, textAlign: "center", marginBottom: 8 }}>Care in three steps</Text>
-          {STEPS.map((s) => (
-            <View key={s.n} style={{ gap: 4 }}>
-              <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 36, color: "#99F6E4" }}>{s.n}</Text>
-              <Text style={{ fontFamily: "Inter_700Bold", fontSize: 18 }}>{s.title}</Text>
-              <Text tone="muted" style={{ fontSize: 14, lineHeight: 21 }}>{s.desc}</Text>
-            </View>
-          ))}
-        </View>
-
-        <LinearGradient colors={gradients.banner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 24, padding: 32, alignItems: "center", gap: 12, marginTop: 8 }}>
-          <Text style={{ color: "#fff", fontFamily: "Inter_800ExtraBold", fontSize: 28, textAlign: "center" }}>Ready to see a doctor?</Text>
-          <Button variant="light" title="Find a provider" icon={<ArrowRight size={18} color="#0F766E" />} onPress={() => router.navigate("/doctors")} style={{ alignSelf: "stretch" }} />
-        </LinearGradient>
 
         <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>
           Care Bora doesn&apos;t replace emergency care or an in-person examination when you need one.

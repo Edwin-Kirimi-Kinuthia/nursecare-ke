@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import OrderItems from "@/components/OrderItems";
 
 import { useCallback, useEffect, useState } from "react";
@@ -78,6 +79,7 @@ export default function VendorDashboardPage() {
           <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">
             <Building2 className="h-4 w-4" /> Vendor dashboard
           </div>
+          <Link href="/earnings" className="button-primary my-3">Earnings & M-Pesa withdrawals</Link>
           {org && (
             <div className="mt-1 flex flex-wrap items-center gap-3">
               <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">{org.name}</h1>

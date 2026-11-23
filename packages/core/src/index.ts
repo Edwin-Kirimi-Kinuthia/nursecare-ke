@@ -73,3 +73,5 @@ export { getEnv, type Env } from "./config/env";
 export { putFile, STORAGE_LIMITS, type StorageKind, type StoredFile } from "./storage/storage";
 export { aiService } from "./ai/ai.service";
 export type { SymptomCheckResult, ProviderMatchResult, FactCheckResult, PharmacySuggestion } from "./ai/ai.service";
+export { earningsService } from "./payment/earnings.service";
+export { b2cService } from "./payment/b2c.service";

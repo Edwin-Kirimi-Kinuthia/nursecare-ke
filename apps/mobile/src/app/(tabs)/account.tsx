@@ -73,6 +73,7 @@ export default function AccountScreen() {
 
       {push.registrationError && <Banner tone="warn">{push.registrationError}</Banner>}
       {isProvider && <AvailabilityCard />}
+      {(isProvider || user.role === "vendor") && <Card><Button title="Earnings & M-Pesa withdrawals" onPress={() => router.push("/earnings")} /></Card>}
 
       <Card style={{ paddingVertical: 4 }}>
         <Row icon="create-outline" title="Edit profile" subtitle="Name, phone and photo" onPress={() => router.push("/edit-profile")} />

@@ -137,8 +137,6 @@ h1, h2, h3 { font-family: var(--font-display) }
 .nav-link:hover, .nav-link[aria-current="page"] { background: #e3ebda; color: #16361d }
 .icon-button { display: inline-grid; min-width: 44px; min-height: 44px; place-items: center; border-radius: .55rem; color: #304638; transition: background-color .18s ease }
 .icon-button:hover { background: #e3ebda }
-.nav-mobile { display: inline-grid }
-@media (min-width: 1024px) { .nav-mobile { display: none } }
 @media (max-width: 359px) { .site-wordmark { display: none } }
 .care-hero { background: #607966; color: #fff }
 .care-hero__photo { position: relative; aspect-ratio: 1 / 1.05; overflow: hidden; border-radius: 1.1rem 1.1rem 0 0; background: #e8e8e2 }
@@ -274,3 +272,13 @@ h1, h2, h3 { font-family: var(--font-display) }
 }
 .hero-glass { background: rgba(214,230,216,.82); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px) }
 @media (prefers-reduced-motion: reduce) { .hero-cloud { animation: none } }
+
+@keyframes assistant-nudge {
+  0%, 100% { transform: rotate(0); }
+  20%, 60% { transform: rotate(-8deg); }
+  40%, 80% { transform: rotate(8deg); }
+}
+.assistant-nudge { animation: assistant-nudge .65s ease-in-out 2; }
+@media (prefers-reduced-motion: reduce) {
+  .assistant-nudge { animation: none; }
+}

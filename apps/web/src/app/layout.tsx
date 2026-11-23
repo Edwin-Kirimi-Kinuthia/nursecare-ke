@@ -8,6 +8,8 @@ import { LocationProvider } from "@/components/LocationProvider";
 import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
 import CartDrawer from "@/components/CartDrawer";
+import NavigationAssistant from "@/components/NavigationAssistant";
+import BackNavigation from "@/components/BackNavigation";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import EmailVerifyBanner from "@/components/EmailVerifyBanner";
 import { SITE_NAME, SITE_URL } from "@/lib/seo";
@@ -78,11 +80,13 @@ export default function RootLayout({
           <LocationProvider>
             <CartProvider>
               <Nav />
+              <BackNavigation />
               <EmailVerifyBanner />
               <main className="min-h-[calc(100vh-4rem)]">{children}</main>
               <Footer />
               <CartDrawer />
               <WhatsAppButton />
+              <NavigationAssistant />
             </CartProvider>
           </LocationProvider>
         </AuthProvider>

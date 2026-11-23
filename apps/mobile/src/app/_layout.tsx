@@ -1,3 +1,4 @@
+import { NavigationAssistant } from "@/features/NavigationAssistant";
 import { useEffect } from "react";
 import { Linking, View } from "react-native";
 import { Stack } from "expo-router";
@@ -115,6 +116,7 @@ function Gate() {
           <Stack.Screen name="appointment/new" options={{ title: "Schedule a meeting" }} />
           <Stack.Screen name="consultation/[id]" options={{ headerShown: false, gestureEnabled: false }} />
           <Stack.Screen name="notifications" options={{ title: "Notifications" }} />
+          <Stack.Screen name="earnings" options={{ title: "Earnings & withdrawals" }} />
           <Stack.Screen name="edit-profile" options={{ title: "Edit profile" }} />
           <Stack.Screen name="edit-details" options={{ title: "" }} />
           <Stack.Screen name="edit-professional" options={{ title: "" }} />
@@ -132,6 +134,7 @@ function Gate() {
         </Stack.Protected>
       </Stack>
       <WhatsAppButton />
+      <NavigationAssistant />
     </View>
   );
 }

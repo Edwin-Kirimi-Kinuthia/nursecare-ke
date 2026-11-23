@@ -10,7 +10,7 @@ import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
 import NotificationBell from "@/components/NotificationBell";
 import type { PublicUser } from "@carebora/shared";
-import { nameInitial } from "@carebora/shared";
+import { PROVIDER_ROLES, nameInitial } from "@carebora/shared";
 
 interface NavLink {
   href: string;
@@ -42,6 +42,7 @@ function careLinksFor(user: PublicUser | null): NavLink[] {
     { href: "/records", label: "My records", Icon: FileText },
     { href: "/ai", label: "Symptom checker", Icon: Brain, tone: "violet" },
   ];
+  if ((PROVIDER_ROLES.includes(user.role) || user.role === "vendor")) links.push({ href: "/earnings", label: "Earnings & withdrawals", Icon: Building2 });
   // Role still decides the extra powers an account has.
   if (user.role === "vendor") links.push({ href: "/vendor", label: "Vendor dashboard", Icon: Building2 });
   if (user.role === "admin") links.push({ href: "/admin", label: "Admin dashboard", Icon: LayoutDashboard });
@@ -69,12 +70,16 @@ export default function Nav() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
   const servicesRef = useRef<HTMLDivElement>(null);
+  const accountRef = useRef<HTMLDivElement>(null);
   const drawerRef = useRef<HTMLElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
 
   function showDrawer(event: React.MouseEvent<HTMLButtonElement>) {
     openerRef.current = event.currentTarget;
+    setAccountOpen(false);
+    setServicesOpen(false);
     setOpen(true);
   }
   function closeDrawer() {
@@ -88,7 +93,23 @@ export default function Nav() {
   // Close on navigation, so tapping a link in the drawer doesn't leave it hanging
   // open. Deferred to a microtask so the write lands after the effect rather
   // than synchronously inside it, which cascades a second render.
-  useEffect(() => { queueMicrotask(() => { setOpen(false); setServicesOpen(false); }); }, [pathname]);
+  useEffect(() => { queueMicrotask(() => { setOpen(false); setServicesOpen(false); setAccountOpen(false); }); }, [pathname]);
+
+  useEffect(() => {
+    if (!accountOpen) return;
+    const onPointer = (event: PointerEvent) => {
+      if (!accountRef.current?.contains(event.target as Node)) setAccountOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setAccountOpen(false);
+        accountRef.current?.querySelector("button")?.focus();
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => { document.removeEventListener("pointerdown", onPointer); document.removeEventListener("keydown", onKey); };
+  }, [accountOpen]);
 
   useEffect(() => {
     if (!servicesOpen) return;
@@ -126,6 +147,7 @@ export default function Nav() {
 
   async function handleLogout() {
     setOpen(false);
+    setAccountOpen(false);
     await logout();
     router.push("/");
     router.refresh();
@@ -135,7 +157,7 @@ export default function Nav() {
     <>
       <header className="site-header sticky top-0 z-50 border-b backdrop-blur-xl">
         <nav aria-label="Main navigation" className="mx-auto flex h-16 max-w-6xl items-center gap-2 px-4 sm:gap-3">
-          <button onClick={showDrawer} aria-label="Open menu" aria-expanded={open} aria-controls="site-menu" className="icon-button nav-mobile -ml-2 shrink-0">
+          <button onClick={showDrawer} aria-label="Open menu" aria-expanded={open} aria-controls="site-menu" className="icon-button -ml-2 shrink-0">
             <Menu className="h-5 w-5" />
           </button>
           <Link href="/" className="flex shrink-0 items-center gap-1.5 font-semibold tracking-tight text-slate-900 sm:gap-2">
@@ -168,18 +190,27 @@ export default function Nav() {
               <ShoppingCart className="h-5 w-5" />
               {count > 0 && <span className="absolute right-0 top-0 grid h-4 min-w-4 place-items-center rounded-full bg-teal-700 px-1 text-[10px] font-semibold text-white">{count}</span>}
             </button>
+            <Link href="/providers" className="button-primary nav-booking !min-h-11 !px-4">Find a provider</Link>
             {loading ? <div className="h-9 w-9 rounded-full skeleton" /> : user ? (
-              <button onClick={showDrawer} aria-label="Open account menu" aria-expanded={open} aria-controls="site-menu" className="flex min-h-11 items-center gap-2 rounded-lg px-2 text-sm font-medium text-slate-700 hover:bg-slate-100">
-                <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-teal-700 text-xs font-semibold text-white">
+              <div ref={accountRef} className="relative" onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) setAccountOpen(false); }}>
+              <button onClick={() => setAccountOpen(value => !value)} aria-label="Open account menu" aria-expanded={accountOpen} aria-controls="account-menu" className="icon-button" title="Your account">
+                <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-teal-100 text-teal-900">
                   {user.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={user.avatarUrl} alt="" className="h-full w-full object-cover" />
-                    : nameInitial(user.fullName)}
+                    : <UserIcon className="h-5 w-5" aria-hidden />}
                 </span>
-                <span className="hidden max-w-24 truncate sm:block">{user.fullName.split(" ")[0]}</span><ChevronDown className="hidden h-3.5 w-3.5 sm:block" aria-hidden />
               </button>
+              {accountOpen && (
+                <div id="account-menu" role="region" aria-label="Account menu" className="absolute right-0 top-full mt-3 w-64 rounded-xl border border-slate-200 bg-background p-2 shadow-xl" onClick={event => { if ((event.target as HTMLElement).closest("a")) setAccountOpen(false); }}>
+                  <p className="truncate border-b border-slate-200 px-3 py-3 text-sm font-semibold text-slate-900">{user.fullName}</p>
+                  <DrawerLink link={{ href: "/profile", label: "My profile", Icon: UserIcon }} active={isActive("/profile")} />
+                  <DrawerLink link={{ href: "/settings", label: "Settings", Icon: Settings }} active={isActive("/settings")} />
+                  <button onClick={handleLogout} className="flex min-h-11 w-full items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium text-slate-600 hover:bg-slate-100"><LogOut className="h-4.5 w-4.5" aria-hidden /> Log out</button>
+                </div>
+              )}
+              </div>
             ) : <Link href="/login" className="nav-link px-2 sm:px-3">Log in</Link>}
-            <Link href="/providers" className="button-primary nav-booking !min-h-11 !px-4">Find a provider</Link>
           </div>
         </nav>
       </header>

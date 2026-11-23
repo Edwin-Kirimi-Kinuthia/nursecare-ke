@@ -154,3 +154,55 @@ installs the npm workspace from the repo root automatically. Add the env vars fr
 TypeScript · Next.js 16 (App Router) · React 19 · Tailwind 4 · Prisma ORM ·
 PostgreSQL (Docker/Podman locally, Neon in prod) · Zod · `jose` JWT + scrypt ·
 LiveKit · M-Pesa Daraja · pdf-lib · Turborepo · Playwright. Deployed on Vercel.
+
+## Service navigation and earnings
+
+The web homepage and native app home show consultations, pharmacy, home care,
+ambulance, laboratory tests and medical documents with direct service links. On
+phones, service cards swipe horizontally and shortcuts expose all destinations.
+The navigation assistant offers service links, shakes briefly after 30 seconds,
+and respects reduced motion. It uses the existing Claude/Hugging Face integration
+when configured, with a service guide fallback when no AI provider is available.
+It stays hidden during consultations. Desktop pages include a Back button; the
+Electron app also has a Navigate menu and Alt+Left/Alt+Right shortcuts.
+
+Providers and business owners open **Earnings & withdrawals** from their account
+navigation or vendor dashboard. `/earnings` shows net ledger earnings, available
+balance, reserved requests and withdrawal history. Vendor financial access is
+restricted to the organization owner. Apply the new payout migration with
+`npm run db:deploy` before deploying these screens.
+
+M-Pesa withdrawals support two server-side modes:
+
+- `PAYOUTS_MODE=manual` (default): the owner/provider reserves earnings, an admin
+  claims the request, sends the transfer outside the app and records its receipt.
+- `PAYOUTS_MODE=mpesa_b2c`: the withdrawal endpoint reserves earnings and submits
+  a Daraja B2C BusinessPayment. Only an authenticated, matching result callback
+  marks it paid. The API acknowledgement alone is never treated as payment.
+
+B2C requires a Safaricom-approved B2C account/product and the server-only
+`MPESA_B2C_*` settings in `.env.example`. Collection/STK credentials and a
+transacting till do not automatically grant disbursement access. Configure
+`MPESA_B2C_CALLBACK_BASE_URL` as your public HTTPS origin followed by
+`/api/v1/payouts/b2c`. The server adds the result/timeout path, withdrawal ID and a
+random per-withdrawal callback token; only its hash is stored in the database.
+Do not expose credentials or callback tokens in clients or logs.
+
+Test with a separate sandbox database first. Production must use production B2C
+credentials and a funded disbursement account. Apply migrations and deploy the
+callback handlers before enabling B2C. Do not enable sandbox payouts against a
+production earnings ledger.
+
+A submitted transfer is never automatically resent. Connection loss, uncertain
+responses and queue timeouts keep the balance reserved for reconciliation.
+Admins use `/admin/withdrawals` to check unresolved requests against the M-Pesa
+statement and record the confirmed outcome. An unsubmitted request can be
+retried after an authorization outage or cancelled. Do not release an uncertain
+transfer's reservation until its outcome has been verified. Every change is
+audited; M-Pesa receipts cannot be reused.
+
+Run `earnings.spec.ts` and `service-navigation.spec.ts` in `apps/web/e2e` against a
+disposable local database. `npm run test:b2c -w @carebora/core` uses a disposable
+local database with mocked external requests to test duplicate submission,
+callback authentication, timeouts, failures and reconciliation without moving
+real money.

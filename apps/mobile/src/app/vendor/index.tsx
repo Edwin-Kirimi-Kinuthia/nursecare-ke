@@ -47,6 +47,7 @@ export default function VendorDashboard() {
       <PageHeader eyebrow="Vendor dashboard" Icon={Building2} title={o?.name ?? "Your business"} />
       {o && <View style={{ flexDirection: "row", gap: 6 }}><Badge label={o.status.replace("_", " ")} tone={ORG_TONE[o.status as keyof typeof ORG_TONE] ?? "neutral"} /><Badge label={o.type} /></View>}
       {o?.status === "pending" && <Banner tone="warn">Your business is awaiting admin review. You can still set up branches and team while you wait.</Banner>}
+      <Button title="Earnings & M-Pesa withdrawals" onPress={() => router.push("/earnings")} />
       <TabBar value={tab} tabs={tabs} onChange={setTab} />
       {org.error && <Banner tone="danger">{org.error}</Banner>}
       {org.loading && !o ? <Loading /> : o ? (

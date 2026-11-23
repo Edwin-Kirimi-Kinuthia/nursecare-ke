@@ -76,7 +76,7 @@ function docFor(src: string, method: string): { summary: string; description?: s
 function auth(slice: string): { security: unknown[]; roles?: string[] } {
   const roles = /requireAuth\(\s*req\s*,\s*\[([^\]]*)\]/.exec(slice);
   if (roles) return { security: [{ bearerAuth: [] }], roles: roles[1]!.replace(/["'\s]/g, "").split(",").filter(Boolean) };
-  if (/requireAuth\(|requirePatient\(|requireOrgMember\(/.test(slice)) return { security: [{ bearerAuth: [] }] };
+  if (/requireAuth\(|requirePatient\(|requireOrgMember\(|earningsAuth\(/.test(slice)) return { security: [{ bearerAuth: [] }] };
   // getAuth: works signed-out, but personalises (or unlocks) when signed in.
   if (/getAuth\(/.test(slice)) return { security: [{}, { bearerAuth: [] }] };
   return { security: [] };

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import OrderItems from "@/components/OrderItems";
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -78,6 +79,7 @@ export default function AdminPage() {
 
   return (
     <div>
+      <Link href="/admin/withdrawals" className="button-primary m-4">Process M-Pesa withdrawals</Link>
       <section className="border-b border-slate-200 bg-white">
         <div className="mx-auto max-w-6xl px-4 py-10">
           <div className="flex items-center gap-2 text-sm font-semibold text-teal-600">

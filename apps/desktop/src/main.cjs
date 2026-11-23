@@ -72,6 +72,11 @@ function buildMenu() {
   ];
   Menu.setApplicationMenu(Menu.buildFromTemplate([
     { label: 'Care Bora', submenu: actions },
+    { label: 'Navigate', submenu: [
+      { label: 'Back', accelerator: 'Alt+Left', click: () => { const history = window?.webContents.navigationHistory; if (history?.canGoBack()) history.goBack(); else show(PORTAL); } },
+      { label: 'Forward', accelerator: 'Alt+Right', click: () => { const history = window?.webContents.navigationHistory; if (history?.canGoForward()) history.goForward(); } },
+      { label: 'Home', accelerator: 'CmdOrCtrl+Home', click: () => show(PORTAL) },
+    ] },
     { label: 'Edit', submenu: [{ role: 'undo' }, { role: 'redo' }, { type: 'separator' }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }] },
     { label: 'View', submenu: [{ role: 'reload' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { role: 'togglefullscreen' }] },
   ]));

@@ -82,6 +82,8 @@ jobs:
         # migrations that create the PostGIS geog-sync triggers, which would
         # silently break every proximity query (storefront, ambulance dispatch).
         run: npm run db:deploy
+      - name: Test B2C accounting and callbacks
+        run: npm run test:b2c -w @carebora/core
       - name: Seed demo data
         run: npm run db:seed
       - name: Generate disposable browser push keys

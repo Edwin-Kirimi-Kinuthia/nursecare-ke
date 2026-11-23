@@ -23,6 +23,7 @@ export const absoluteUrl = (path = "/") => `${SITE_URL}${path.startsWith("/") ? 
 export const PRIVATE_PATHS = [
   "/admin",
   "/vendor",
+  "/earnings",
   "/records",
   "/appointments",
   "/home-visits",

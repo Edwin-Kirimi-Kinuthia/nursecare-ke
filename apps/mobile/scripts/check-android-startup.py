@@ -49,7 +49,7 @@ def main():
                 raise RuntimeError("CareBora exited during native startup")
             adb("shell", "uiautomator", "dump", "/sdcard/carebora-startup.xml", check=False)
             xml = adb("shell", "cat", "/sdcard/carebora-startup.xml", check=False).stdout
-            if b"Find a provider" in xml:
+            if b"Find a provider" in xml or (b"Our services" in xml and b"Consultations" in xml):
                 (out / "home.xml").write_bytes(xml)
                 break
             time.sleep(2)

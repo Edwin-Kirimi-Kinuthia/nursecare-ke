@@ -324,6 +324,7 @@ export const adminService = {
       earnings30,
       payableAll,
       settledAll,
+      paidWithdrawals,
       refunded,
       orderCount,
       vendorOrderGroups,
@@ -340,6 +341,7 @@ export const adminService = {
       sumLedger(["platform_fee"], thirtyDaysAgo),
       sumLedger(["vendor_payout", "provider_payout"]),
       sumLedger(["payout_settled"]),
+      db.payout.aggregate({ where: { status: "paid" }, _sum: { amountKes: true } }),
       db.payment.aggregate({ where: { status: "refunded" }, _sum: { refundedKes: true } }),
       db.order.count(),
       // Fulfilment status lives per vendor slice of a checkout now (a cart can span orgs).
@@ -364,7 +366,7 @@ export const adminService = {
     // collected = earnings + owed + already paid out, which is also the check
     // that these figures agree with each other.
     const earningsKes = earningsAll._sum.amountKes ?? 0;
-    const owedKes = (payableAll._sum.amountKes ?? 0) - Math.abs(settledAll._sum.amountKes ?? 0);
+    const owedKes = (payableAll._sum.amountKes ?? 0) - Math.abs(settledAll._sum.amountKes ?? 0) - (paidWithdrawals._sum.amountKes ?? 0);
 
     const toMap = (groups: { _count: { _all: number }; [k: string]: unknown }[], key: string) =>
       Object.fromEntries(groups.map((g) => [g[key] as string, g._count._all]));
