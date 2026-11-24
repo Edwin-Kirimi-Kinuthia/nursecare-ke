@@ -17,7 +17,7 @@ export const onSessionEnded = (fn: () => void) => {
  * token the session is genuinely over: wipe it and tell the UI. A *network*
  * failure is not that — the user is just offline — so tokens are kept.
  */
-async function refreshSession(): Promise<boolean> {
+export async function refreshSession(): Promise<boolean> {
   const rt = getRefreshToken();
   if (!rt) return false;
   try {

@@ -25,7 +25,7 @@ export default function PharmacyScreen() {
   const [category, setCategory] = useState("");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [cats, setCats] = useState<string[]>([]);
+
 
   // Debounce typing so each keystroke isn't a request.
   useEffect(() => { const h = setTimeout(() => setSearch(query.trim()), 350); return () => clearTimeout(h); }, [query]);
@@ -35,11 +35,7 @@ export default function PharmacyScreen() {
     () => api.searchDrugs({ limit: 50, ...(category ? { category } : {}), ...(search ? { search } : {}), ...where } as never),
     [category, search, county],
   );
-  // Category chips come from the unfiltered list, so choosing one doesn't hide the others.
-  useEffect(() => {
-    api.searchDrugs({ limit: 50, ...where } as never).then((r) => setCats(Array.from(new Set(r.drugs.map((d) => d.category))).sort())).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [county]);
+  const cats = list.data?.categories ?? [];
 
   const counties = useMemo(() => KENYA_COUNTIES.map((c) => ({ value: c as string, label: c })), []);
 

@@ -9,7 +9,7 @@ import { errorMessage, useAsync } from "@/lib/useAsync";
 import { dayTime } from "@/lib/format";
 import { openAuthedPdf } from "@/lib/pdf";
 import { pickDocumentDataUrl } from "@/lib/pickFile";
-import { openSite } from "@/lib/links";
+import { openUploadedDocument } from "@/lib/documents";
 import { SignInPrompt } from "@/features/SignInPrompt";
 import { Screen, Card } from "@/ui/Screen";
 import { Button } from "@/ui/Button";
@@ -164,9 +164,10 @@ function Documents({ id, r, reload }: { id: string; r: PatientRecord; reload: ()
   }
   return (
     <>
+      {err && <Banner tone="danger">{err}</Banner>}
       <Section title="Documents" onAdd={() => setOpen(true)}>
         {r.documents.length === 0 ? <None text="No documents uploaded." /> : r.documents.map((d) => (
-          <Pressable key={d.id} onPress={() => void openSite(d.fileUrl)} accessibilityRole="link">
+          <Pressable key={d.id} onPress={() => void openUploadedDocument(d.fileUrl).catch(e => setErr(errorMessage(e, "Could not open this document.")))} accessibilityRole="link">
             <Line left={d.title} right={`${d.type.replace(/_/g, " ")} · ${dayTime(d.createdAt)}`} />
           </Pressable>
         ))}

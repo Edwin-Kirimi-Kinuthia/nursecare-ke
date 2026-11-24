@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import ClinicalPdfLink from "@/components/ClinicalPdfLink";
 import type { SickOffCertificate } from "@carebora/api-client";
 import { issueSickOffSchema } from "@carebora/shared";
 import { api } from "@/lib/api";
@@ -52,9 +53,9 @@ export default function SickOffPanel({ consultationId, canIssue }: { consultatio
       <summary className="cursor-pointer text-sm font-semibold text-teal-700">Sick-off certificates</summary>
       {open && <div className="mt-3 space-y-3">
         {certificates.length === 0 && <p className="text-sm text-slate-500">No sick-off certificate issued for this session.</p>}
-        {certificates.map((c) => <a key={c.id} href={api.sickOffPdfUrl(consultationId, c.id)} target="_blank" rel="noreferrer" className="block rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800 hover:underline">
+        {certificates.map((c) => <ClinicalPdfLink key={c.id} href={api.sickOffPdfUrl(consultationId, c.id)} className="block rounded-lg bg-teal-50 px-3 py-2 text-sm font-medium text-teal-800 hover:underline">
           Download signed sick-off · {c.fromDate.slice(0, 10)} to {c.throughDate.slice(0, 10)} · {c.providerName}
-        </a>)}
+        </ClinicalPdfLink>)}
         {canIssue && !issuing && <button onClick={() => { setIssuing(true); setError(null); }} className="rounded-lg bg-teal-600 px-3 py-2 text-sm font-semibold text-white">Issue signed sick-off</button>}
         {issuing && <form onSubmit={issue} className="space-y-4 border-t border-slate-100 pt-4">
           <p className="text-sm text-slate-500">Your name, licensing body and number will be taken from your <Link href="/profile" className="text-teal-700 underline">professional profile</Link>. An issued certificate cannot be edited.</p>

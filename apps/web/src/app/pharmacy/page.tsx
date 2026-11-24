@@ -22,9 +22,11 @@ export default function PharmacyPage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
+  const [allCategories, setAllCategories] = useState<string[]>([]);
+
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => { if (active) setLoading(true); });
+    queueMicrotask(() => { if (active) { setLoading(true); setError(null); } });
     const query = {
       limit: 50,
       ...(category ? { category } : {}),
@@ -32,30 +34,11 @@ export default function PharmacyPage() {
       ...(lat != null && lng != null ? { lat, lng } : county ? { county } : {}),
     };
     api.searchDrugs(query)
-      .then((res) => { if (active) setDrugs(res.drugs); })
+      .then((res) => { if (active) { setDrugs(res.drugs); setAllCategories(res.categories); } })
       .catch(() => { if (active) setError("Could not load the pharmacy catalogue."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [category, search, lat, lng, county]);
-
-  // Categories come from an unfiltered look at what's on sale in the user's
-  // area — not from `drugs`, which is already narrowed by the selected
-  // category and the search box. Deriving them from the filtered list meant
-  // choosing a category made every other chip disappear, and typing in the
-  // search shrank the row again. Only the location changes this set.
-  const [allCategories, setAllCategories] = useState<string[]>([]);
-  useEffect(() => {
-    let active = true;
-    api.searchDrugs({
-      limit: 50,
-      ...(lat != null && lng != null ? { lat, lng } : county ? { county } : {}),
-    })
-      .then((res) => {
-        if (active) setAllCategories(Array.from(new Set(res.drugs.map((d) => d.category))).sort());
-      })
-      .catch(() => { /* chips are optional; the grid reports its own errors */ });
-    return () => { active = false; };
-  }, [lat, lng, county]);
 
   const categories = useMemo(() => ["", ...allCategories], [allCategories]);
 

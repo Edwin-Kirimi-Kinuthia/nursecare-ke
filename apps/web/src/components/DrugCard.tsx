@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Plus, Minus, Check, MapPin, Eye, ShoppingCart } from "lucide-react";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { kes } from "@/lib/api";
@@ -43,7 +44,7 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
 
       <div className="pcard__body">
         <div className="pcard__cat" title={d.category}>{d.category}</div>
-        <h3 className="pcard__title">{onOpen ? <button type="button" onClick={onOpen} className="text-left hover:underline">{d.name}</button> : d.name}</h3>
+        <h3 className="pcard__title"><Link href={`/pharmacy/${d.drugId}`} className="hover:underline">{d.name}</Link></h3>
         <p className="pcard__meta">
           <MapPin className="h-3 w-3 shrink-0" />
           <span className="truncate">

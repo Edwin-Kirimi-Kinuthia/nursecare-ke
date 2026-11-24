@@ -82,6 +82,7 @@ function Gate() {
       <AppHeader />
       <Stack
         screenOptions={{
+          headerBackVisible: false,
           // The back arrow lives in the persistent header (as on the website's nav);
           // each inner screen only adds a slim title strip under it.
           header: ({ options }) => <TitleStrip title={typeof options.title === "string" ? options.title : ""} />,

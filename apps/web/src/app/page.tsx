@@ -2,14 +2,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import {
-  ArrowRight, ArrowUpRight, Video, Pill, Home as HomeIcon, FlaskConical,
-  FileText, Ambulance, Phone, BadgeCheck, CreditCard, CalendarDays, Star,
+  ArrowRight, ArrowUpRight,
+  Ambulance, Phone, BadgeCheck, CreditCard, CalendarDays, Star,
 } from "lucide-react";
 import { providerService, reviewService } from "@carebora/core";
 import type { ProviderPublicProfile } from "@carebora/api-client";
 import { JsonLd } from "@/components/JsonLd";
 import ProviderCard from "@/components/ProviderCard";
 import FaqList from "@/components/FaqList";
+import { CARE_IMAGES } from "@/lib/care-imagery";
+import ambulanceImg from "@/assets/home/ambulance.jpg";
 import heroImg from "@/assets/home/hero-video-call.jpg";
 import { organizationSchema, websiteSchema, faqSchema, HOME_FAQS } from "@/lib/structured-data";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
@@ -18,12 +20,12 @@ export const metadata: Metadata = { alternates: { canonical: "/" } };
 export const revalidate = 600;
 
 const SERVICES = [
-  { title: "Online consultations", description: "Choose a doctor or nurse and book a private video appointment.", href: "/providers", Icon: Video },
-  { title: "Pharmacy delivery", description: "Find medication, compare pharmacy offers, and arrange delivery.", href: "/pharmacy", Icon: Pill },
-  { title: "Care at home", description: "Request a visit from a nurse, doctor, or physiotherapist.", href: "/home-visits", Icon: HomeIcon },
-  { title: "Laboratory tests", description: "Find an approved laboratory and access your results in your account.", href: "/labs", Icon: FlaskConical },
-  { title: "Medical documents", description: "Request a medical report, sick-off sheet, or other clinical document.", href: "/contact", Icon: FileText },
-  { title: "Ambulance requests", description: "Contact the ambulance line or follow a request through your account.", href: "/ambulance", Icon: Ambulance },
+  { title: "Online consultations", description: "Choose a doctor or nurse and book a private video appointment.", href: "/online-doctor-kenya", image: CARE_IMAGES.consultation },
+  { title: "Pharmacy delivery", description: "Find medication, compare pharmacy offers, and arrange delivery.", href: "/pharmacy", image: CARE_IMAGES.pharmacy },
+  { title: "Care at home", description: "Request a visit from a nurse, doctor, or physiotherapist.", href: "/home-visits-nairobi", image: CARE_IMAGES.homeVisit },
+  { title: "Laboratory tests", description: "Find an approved laboratory and access your results in your account.", href: "/laboratory-tests-kenya", image: CARE_IMAGES.laboratory },
+  { title: "Medical documents", description: "Request a medical report, sick-off sheet, or other clinical document.", href: "/sick-off-sheet-online-kenya", image: CARE_IMAGES.portrait },
+  { title: "Ambulance requests", description: "Contact the ambulance line or follow a request through your account.", href: "/ambulance-nairobi", image: { src: ambulanceImg, alt: "An ambulance ready to respond" } },
 ] as const;
 
 const STEPS = [
@@ -67,9 +69,9 @@ export default async function HomePage() {
       <section id="services" aria-labelledby="services-heading" className="mx-auto max-w-6xl px-4 py-10">
         <div className="flex items-end justify-between gap-4"><div><p className="text-sm font-semibold text-teal-700">How can we help today?</p><h2 id="services-heading" className="mt-2 text-3xl font-semibold tracking-tight">Choose your service</h2></div><span className="text-sm text-slate-500 sm:hidden">Swipe to explore →</span></div>
         <div className="mt-6 flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 sm:grid sm:grid-cols-2 lg:grid-cols-3">
-          {SERVICES.map(({ title, description, href, Icon }, i) => (
+          {SERVICES.map(({ title, description, href, image }) => (
             <Link key={href} href={href} className="group min-w-[82%] snap-start rounded-2xl border border-slate-200 bg-white p-6 transition hover:-translate-y-1 hover:border-teal-500 hover:shadow-lg sm:min-w-0">
-              <div className="flex items-center justify-between"><span className={`grid h-12 w-12 place-items-center rounded-2xl ${i === 5 ? "bg-rose-50 text-rose-700" : "bg-teal-50 text-teal-800"}`}><Icon className="h-6 w-6" /></span><ArrowUpRight className="h-5 w-5 text-slate-400 group-hover:text-teal-700" /></div>
+              <div className="relative -mx-6 -mt-6 mb-5 h-44 overflow-hidden rounded-t-2xl"><Image src={image.src} alt={image.alt} fill placeholder="blur" sizes="(min-width: 1024px) 360px, (min-width: 640px) 50vw, 82vw" className="object-cover transition group-hover:scale-105" /></div>
               <h3 className="mt-5 text-lg font-semibold">{title}</h3><p className="mt-2 text-sm leading-relaxed text-slate-600">{description}</p><span className="mt-5 inline-flex items-center gap-2 text-sm font-semibold text-teal-800">Get started <ArrowRight className="h-4 w-4" /></span>
             </Link>
           ))}

@@ -1,3 +1,4 @@
+import laboratory from "@/assets/care/laboratory.jpg";
 import portrait from "@/assets/care/care-portrait.jpg";
 import consultation from "@/assets/care/video-call.jpg";
 import pharmacy from "@/assets/care/pharmacy.jpg";
@@ -5,6 +6,11 @@ import homeVisit from "@/assets/home/home-visit.jpg";
 
 /** Illustrative service photographs; never used as provider profile pictures. */
 export const CARE_IMAGES = {
+  laboratory: {
+    src: laboratory,
+    alt: "A laboratory professional examining a sample with a microscope",
+    credit: { author: "Edward Jenner", license: "Pexels License", source: "https://www.pexels.com/photo/person-woman-laboratory-research-4031416/" },
+  },
   portrait: {
     src: portrait,
     alt: "A smiling healthcare professional in a white coat holding a notebook",

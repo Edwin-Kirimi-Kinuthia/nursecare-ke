@@ -1,8 +1,8 @@
 import { useRef, useState, type ComponentRef } from "react";
-import { Pressable, ScrollView, View, useWindowDimensions } from "react-native";
+import { Image, type ImageSourcePropType, Pressable, ScrollView, View, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { FlaskConical, Ambulance, Home as HomeIcon, Pill, Stamp, Video, type LucideIcon } from "lucide-react-native";
+import { Ambulance } from "lucide-react-native";
 import type { Appointment } from "@carebora/api-client";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
@@ -18,13 +18,13 @@ import { Avatar, Badge } from "@/ui/parts";
 import { Footer } from "@/ui/Footer";
 import { gradients, useTheme } from "@/ui/theme";
 
-const FEATURES: { Icon: LucideIcon; title: string; desc: string; to: string }[] = [
-  { Icon: Video, title: "Consultations", desc: "Choose a clinician and book a private video appointment.", to: "/doctors" },
-  { Icon: Pill, title: "Pharmacy", desc: "Find your medicines and arrange delivery.", to: "/pharmacy" },
-  { Icon: HomeIcon, title: "Home care", desc: "Arrange a nurse, doctor or physiotherapist visit.", to: "/home-visits" },
-  { Icon: Ambulance, title: "Ambulance", desc: "Call for assistance or track an ambulance request.", to: "/ambulance" },
-  { Icon: FlaskConical, title: "Laboratory tests", desc: "Find a lab and view results in your account.", to: "/labs" },
-  { Icon: Stamp, title: "Medical documents", desc: "Request reports, sick-off sheets and medical forms.", to: "/support/new" },
+const FEATURES: { image: ImageSourcePropType; title: string; desc: string; to: string }[] = [
+  { image: require("../../../assets/services/consultation.jpg"), title: "Consultations", desc: "Choose a clinician and book a private video appointment.", to: "/doctors" },
+  { image: require("../../../assets/services/pharmacy.jpg"), title: "Pharmacy", desc: "Find your medicines and arrange delivery.", to: "/pharmacy" },
+  { image: require("../../../assets/services/home-visit.jpg"), title: "Home care", desc: "Arrange a nurse, doctor or physiotherapist visit.", to: "/home-visits" },
+  { image: require("../../../assets/services/ambulance.jpg"), title: "Ambulance", desc: "Call for assistance or track an ambulance request.", to: "/ambulance" },
+  { image: require("../../../assets/services/laboratory.jpg"), title: "Laboratory tests", desc: "Find a lab and view results in your account.", to: "/labs" },
+  { image: require("../../../assets/services/documents.jpg"), title: "Medical documents", desc: "Request reports, sick-off sheets and medical forms.", to: "/support/new" },
 ];
 
 export default function HomeScreen() {
@@ -60,7 +60,7 @@ One place to find it.</Text>
         <View style={{ paddingHorizontal: 16, flexDirection: "row", justifyContent: "space-between" }}><Text variant="subheading">Our services</Text><Text tone="muted">{slide + 1} / {FEATURES.length}</Text></View>
         <ScrollView ref={carousel} horizontal showsHorizontalScrollIndicator={false} snapToInterval={cardWidth + 12} decelerationRate="fast" contentContainerStyle={{ paddingHorizontal: 16, gap: 12 }} onMomentumScrollEnd={e => setSlide(Math.min(FEATURES.length - 1, Math.round(e.nativeEvent.contentOffset.x / (cardWidth + 12))))}>
           {FEATURES.map(f => <Pressable key={f.title} accessibilityRole="button" accessibilityLabel={`Open ${f.title}`} onPress={() => openFeature(f)} style={{ width: cardWidth, borderWidth: 1, borderColor: t.border, backgroundColor: t.surface, borderRadius: 24, padding: 24, gap: 12 }}>
-            <View style={{ backgroundColor: "#CCFBF1", borderRadius: 16, width: 48, height: 48, justifyContent: "center", alignItems: "center" }}><f.Icon size={24} color="#115E59" /></View>
+            <Image source={f.image} accessibilityLabel={f.title} style={{ height: 160, width: cardWidth - 48, borderRadius: 16 }} resizeMode="cover" />
             <Text variant="subheading">{f.title}</Text><Text tone="muted" style={{ minHeight: 48 }}>{f.desc}</Text>
             <Text style={{ color: "#0F766E", fontFamily: "Inter_700Bold" }}>Get started →</Text>
           </Pressable>)}

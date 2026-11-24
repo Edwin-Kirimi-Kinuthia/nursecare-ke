@@ -1,6 +1,6 @@
 {
   "name": "carebora-mobile",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "main": "expo-router/entry",
   "dependencies": {
     "@expo-google-fonts/inter": "^0.4.2",
@@ -34,6 +34,7 @@
     "expo-status-bar": "~58.0.5",
     "expo-symbols": "~58.0.5",
     "expo-system-ui": "~58.0.7",
+    "expo-updates": "~58.0.22",
     "expo-web-browser": "~58.1.0",
     "livekit-client": "^2.22.4",
     "lucide-react-native": "^1.57.0",
@@ -66,7 +67,11 @@
     "check": "tsc --noEmit && expo lint && npx --yes expo-doctor",
     "build:android": "eas build --platform android --profile production",
     "build:ios": "eas build --platform ios --profile production",
-    "preview": "bash scripts/preview-web.sh"
+    "preview": "bash scripts/preview-web.sh",
+    "update:production": "npx eas-cli@latest update --channel production",
+    "update:preview": "npx eas-cli@latest update --channel preview",
+    "test:documents": "node --test test/documents.test.cjs",
+    "build:android:apk": "npx eas-cli@latest build --platform android --profile production-apk"
   },
   "private": true,
   "description": "Care Bora iOS and Android app. Standalone (not an npm workspace): React Native pins its own React version, which must not be hoisted over the web app's."

@@ -5,3 +5,12 @@ node_modules
 **/.next
 .turbo
 **/.turbo
+
+# Standalone app dependencies, installers and test artifacts are not web sources.
+**/node_modules
+**/dist
+**/build
+**/.expo
+**/test-results
+**/playwright-report
+**/coverage

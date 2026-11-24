@@ -1343,6 +1343,7 @@ export interface StorefrontDrug {
 }
 
 export interface StorefrontResult {
+  categories: string[];
   drugs: StorefrontDrug[];
   total: number;
   limit: number;

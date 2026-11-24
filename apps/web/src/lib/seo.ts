@@ -8,7 +8,7 @@
  * help it.
  */
 export const SITE_URL = (
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://nursecare-ke-five.vercel.app"
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://app.carebora.co.ke"
 ).replace(/\/$/, "");
 
 export const SITE_NAME = "Care Bora Kenya";

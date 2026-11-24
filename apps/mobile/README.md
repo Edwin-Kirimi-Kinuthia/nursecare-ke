@@ -181,3 +181,7 @@ scripts/        generate-icons.py rebuilds every icon from assets/brand/logo-sou
 
 The session lives in the device keychain (`expo-secure-store`), never plain storage.
 The API client refreshes an expired access token by itself and retries once.
+
+### App updates
+
+Use Node 22.13+ for Expo SDK 58. The existing EAS project ID is stored in `app.json`; `EAS_PROJECT_ID` can override it. Production and preview builds use separate update channels; fingerprint runtime versions prevent incompatible native updates. Use the `production-apk` build profile for the public Android download (production update channel), or `production` for store bundles. Build and distribute a new binary once to include `expo-updates`, then publish compatible JavaScript/assets with `npx eas-cli@latest update --channel production --message "Describe the change"` (or `preview`). Native dependency/config changes require a new build. Startup checks download updates for the next launch; Account → App updates can check and restart explicitly. No active consultation is restarted automatically. Without a project ID, updates are disabled and clients can use the download page.

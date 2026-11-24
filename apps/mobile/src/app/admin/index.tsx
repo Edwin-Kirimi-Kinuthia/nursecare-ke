@@ -1,6 +1,7 @@
+import { openUploadedDocument } from "@/lib/documents";
 import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, View } from "react-native";
+import { Alert, Pressable, ScrollView, View } from "react-native";
 import { router } from "expo-router";
 import { ShieldCheck, Star } from "lucide-react-native";
 import type { Appointment, AdminUserSummary, HomeVisit, Order, Organization, ProviderPublicProfile, Review, VerificationProvider } from "@carebora/api-client";
@@ -10,7 +11,6 @@ import { api } from "@/lib/api";
 import { useAsync } from "@/lib/useAsync";
 import { useAct } from "@/lib/useAct";
 import { dayTime, kes } from "@/lib/format";
-import { openSite } from "@/lib/links";
 import { Screen, Card } from "@/ui/Screen";
 import { Button } from "@/ui/Button";
 import { Field } from "@/ui/Field";
@@ -218,7 +218,7 @@ function UserSheet({ userId, onClose, onSaved }: { userId: string; onClose: () =
             <View style={{ gap: 6 }}>
               <Text variant="label" tone="muted">UPLOADED DOCUMENTS</Text>
               <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8 }}>
-                {user.verificationDocuments.map((d) => <Chip key={d.id} label={d.type.replace(/_/g, " ")} onPress={() => void openSite(d.fileUrl)} />)}
+                {user.verificationDocuments.map((d) => <Chip key={d.id} label={d.type.replace(/_/g, " ")} onPress={() => void openUploadedDocument(d.fileUrl).catch(e => Alert.alert("Could not open document", e instanceof Error ? e.message : "Please try again."))} />)}
               </View>
             </View>
           )}
@@ -253,7 +253,7 @@ function Verifications() {
               </View>
               <Badge label={v.verificationStatus.replace("_", " ")} tone={v.verificationStatus === "verified" ? "ok" : v.verificationStatus === "rejected" ? "danger" : "warn"} />
             </View>
-            {doc && <Text onPress={() => void openSite(doc.fileUrl)} style={{ color: "#0F766E", fontFamily: "Inter_600SemiBold" }}>View licence document →</Text>}
+            {doc && <Text onPress={() => void openUploadedDocument(doc.fileUrl).catch(e => Alert.alert("Could not open licence", e instanceof Error ? e.message : "Please try again."))} style={{ color: "#0F766E", fontFamily: "Inter_600SemiBold" }} accessibilityRole="button">View licence document →</Text>}
             {v.verificationStatus !== "verified" && (
               <View style={{ flexDirection: "row", gap: 8 }}>
                 <View style={{ flex: 1 }}><Button title="Approve" size="sm" loading={busy === v.userId + "a"} onPress={() => run(v.userId + "a", () => api.adminReviewVerification(v.userId, { status: "verified" }), list.reload)} /></View>

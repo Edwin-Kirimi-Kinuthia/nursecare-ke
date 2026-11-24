@@ -11,3 +11,5 @@ Downloaded 7 November 2026. The original photographs are retained, with responsi
 License: https://www.pexels.com/license/ (free commercial use; no endorsement implied). Public credits are available at `/photo-credits`.
 
 The community health photograph in `../home/home-visit.jpg` is by Neil Thomas / Safari Doctors, under CC BY-SA 4.0. Its existing attribution and source are retained in `src/lib/care-imagery.ts` and on the public credits page. New photograph selection does not change product or provider profile images.
+
+`laboratory.jpg`: Edward Jenner, [Pexels](https://www.pexels.com/photo/person-woman-laboratory-research-4031416/), Pexels License. Downloaded 24 November 2026.

@@ -104,14 +104,12 @@ export const storefrontService = {
 
   /** Drug listing for the buyer-facing storefront, grouped by drug with the nearest/cheapest offer surfaced. */
   async searchDrugs(query: StorefrontQuery) {
-    const rows = await queryOffers({
-      category: query.category,
-      search: query.search,
-      requiresPrescription: query.requiresPrescription,
-      county: query.county,
-      lat: query.lat,
-      lng: query.lng,
-    });
+    // Discover categories before filtering or pagination, using the same eligible offers.
+    const allRows = await queryOffers({ county: query.county, lat: query.lat, lng: query.lng });
+    const categories = [...new Set(allRows.map(row => row.category).filter(c => c.trim()))].sort();
+    const rows = query.category || query.search || query.requiresPrescription !== undefined
+      ? await queryOffers({ ...query })
+      : allRows;
 
     const byDrug = new Map<string, OfferRow[]>();
     for (const row of rows) {
@@ -155,7 +153,7 @@ export const storefrontService = {
 
     const total = grouped.length;
     const page = grouped.slice(query.offset, query.offset + query.limit);
-    return { drugs: page, total, limit: query.limit, offset: query.offset };
+    return { drugs: page, categories, total, limit: query.limit, offset: query.offset };
   },
 
   /** Every vendor offer of one drug, ranked by distance (if known) then price. */

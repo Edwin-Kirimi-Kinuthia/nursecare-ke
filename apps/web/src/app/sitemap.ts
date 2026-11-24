@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { db } from "@carebora/db";
 import { providerService } from "@carebora/core";
 import { absoluteUrl, isIndexableProvider } from "@/lib/seo";
 import { SERVICE_PAGES_UPDATED } from "@/lib/service-pages";
@@ -27,6 +28,7 @@ type Entry = {
  * for the whole site, including the pages that really did change.
  */
 const STATIC_ROUTES: Entry[] = [
+  { path: "/laboratory-tests-kenya", changeFrequency: "monthly", priority: 0.8, updated: "2026-11-24" },
   { path: "/download", changeFrequency: "weekly", priority: 0.6, updated: "2026-11-18" },
   { path: "/", changeFrequency: "weekly", priority: 1, updated: "2026-10-21" },
   { path: "/online-doctor-kenya", changeFrequency: "monthly", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
@@ -75,5 +77,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     providerEntries = [];
   }
 
-  return [...staticEntries, ...providerEntries];
+  // Include every active catalogue item, including temporarily unavailable medicine.
+  const drugs = await db.drug.findMany({ where: { isActive: true }, select: { id: true, updatedAt: true } }).catch(() => []);
+  const drugEntries: MetadataRoute.Sitemap = drugs.map(d => ({ url: absoluteUrl(`/pharmacy/${d.id}`), lastModified: d.updatedAt, changeFrequency: "daily", priority: 0.7 }));
+  return [...staticEntries, ...providerEntries, ...drugEntries];
 }

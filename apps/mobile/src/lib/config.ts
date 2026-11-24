@@ -13,9 +13,9 @@ export const APP_VERSION = Constants.expoConfig?.version ?? "0.0.0";
 
 /** Where the store listing lives, for the "please update" screen. Filled in once the apps are published. */
 export const STORE_URL = Platform.select({
-  ios: process.env.EXPO_PUBLIC_IOS_STORE_URL ?? "https://apps.apple.com/ke/app/care-bora",
-  android: process.env.EXPO_PUBLIC_ANDROID_STORE_URL ?? "https://play.google.com/store/apps/details?id=ke.co.carebora.app",
-  default: SITE_URL,
+  ios: process.env.EXPO_PUBLIC_IOS_STORE_URL ?? `${SITE_URL}/download`,
+  android: process.env.EXPO_PUBLIC_ANDROID_STORE_URL ?? `${SITE_URL}/download`,
+  default: `${SITE_URL}/download`,
 });
 
 /** True when `current` is an older version than `minimum` ("1.2.0" < "1.10.0"). */

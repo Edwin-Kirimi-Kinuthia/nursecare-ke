@@ -52,7 +52,7 @@ function careLinksFor(user: PublicUser | null): NavLink[] {
 const SERVICE_LINKS: NavLink[] = [
   { href: "/online-doctor-kenya", label: "Online consultations", Icon: Stethoscope },
   { href: "/home-visits-nairobi", label: "Care at home", Icon: Home },
-  { href: "/labs", label: "Laboratory tests", Icon: FlaskConical },
+  { href: "/laboratory-tests-kenya", label: "Laboratory tests", Icon: FlaskConical },
   { href: "/sick-off-sheet-online-kenya", label: "Sick-off sheets", Icon: FileText },
   { href: "/ambulance-nairobi", label: "Ambulance assistance", Icon: Ambulance, tone: "rose" },
 ];

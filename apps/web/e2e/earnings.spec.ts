@@ -7,9 +7,9 @@ test.describe("Earnings account", () => {
   test.beforeAll(() => {
     if (!process.env.DATABASE_URL || !["localhost", "127.0.0.1"].includes(new URL(process.env.DATABASE_URL).hostname)) throw new Error("Requires a disposable local database");
   });
-  test("isolates balances, reserves atomically, deduplicates retries and records M-Pesa payout", async ({ request }) => {
+  for (const role of ["doctor", "nurse", "physio", "pharmacy"] as const) test(`${role}: isolates balances, reserves atomically, deduplicates retries and records manual M-Pesa payout`, async ({ request }) => {
     const tag = randomUUID();
-    const provider = await db.user.create({ data: { email: `earnings-${tag}@example.com`, fullName: "Earnings test", role: "doctor" } });
+    const provider = await db.user.create({ data: { email: `earnings-${tag}@example.com`, fullName: "Earnings test", role } });
     const other = await db.user.create({ data: { email: `other-${tag}@example.com`, fullName: "Other account", role: "nurse" } });
     const admin = await db.user.create({ data: { email: `admin-${tag}@example.com`, fullName: "Admin test", role: "admin" } });
     const patient = await db.user.create({ data: { email: `patient-${tag}@example.com`, fullName: "Patient test", role: "patient" } });
@@ -26,6 +26,9 @@ test.describe("Earnings account", () => {
       const payouts = await Promise.all(responses.map(r => r.json()));
       expect(new Set(payouts.map(r => r.data.id)).size).toBe(1);
       const w = payouts[0].data;
+      const queue = await (await request.get("/api/v1/admin/withdrawals", { headers: ah })).json();
+      expect(queue.data.some((entry: { id: string }) => entry.id === w.id)).toBe(true);
+      expect(w.gateway).toBeNull();
       expect(w.phoneNumber).toBe("254712345678");
       const concurrent = await Promise.all([1, 2].map(() => request.post("/api/v1/earnings/withdrawals", { headers: ph, data: { ...input, amountKes: 300, requestKey: randomUUID() } })));
       expect(concurrent.map(r => r.status()).sort()).toEqual([201, 400]);

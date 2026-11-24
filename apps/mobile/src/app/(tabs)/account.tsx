@@ -1,3 +1,4 @@
+import { AppUpdates } from "@/features/AppUpdates";
 import { useEffect, useState } from "react";
 import { Alert, Switch, View } from "react-native";
 import { router } from "expo-router";
@@ -45,6 +46,7 @@ export default function AccountScreen() {
       <Screen>
         <SignInPrompt icon="person-outline" title="Sign in to Care Bora" hint="Book consultations, pay with M-Pesa and keep your records in one place." />
         {links}
+        <AppUpdates />
       </Screen>
     );
   }
@@ -117,6 +119,7 @@ export default function AccountScreen() {
       )}
 
       {links}
+        <AppUpdates />
 
       <Card style={{ paddingVertical: 4 }}>
         <Row icon="trash-outline" title="Delete account" subtitle="Permanently remove your account and data" tone="danger" onPress={() => router.push("/delete-account")} />

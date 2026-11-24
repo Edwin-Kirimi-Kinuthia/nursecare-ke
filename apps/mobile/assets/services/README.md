@@ -1,0 +1,1 @@
+Service photos shared with the website. Attribution and licenses: apps/web/src/assets/care/README.md and apps/web/src/lib/care-imagery.ts. Photos illustrate services and do not identify Care Bora staff or providers.

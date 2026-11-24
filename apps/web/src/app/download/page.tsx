@@ -29,7 +29,7 @@ export default async function DownloadPage() {
           return <section key={platform.title} className="rounded-2xl border border-slate-200 bg-white p-6">
             <h2 className="text-xl font-semibold">{platform.title}</h2>
             <p className="mt-2 text-sm text-slate-600">{platform.detail}</p>
-            {assets.length ? assets.map(asset => <a key={asset.name} href={asset.url} className="mt-4 block rounded-xl bg-primary px-4 py-3 text-center font-semibold text-white">
+            {assets.length ? assets.map(asset => <a key={asset.name} href={asset.url} download className="button-primary mt-4 flex w-full justify-center underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
               Download {asset.name.split(".").pop()} · {Math.ceil(asset.size / 1024 / 1024)} MB
             </a>) : <p className="mt-4 text-sm font-medium text-slate-500">Download will appear here after the build is released.</p>}
           </section>;

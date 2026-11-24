@@ -28,7 +28,7 @@ export default function UploadedDocumentLink({ href, children, className }: { hr
   }
 
   return <span className="inline-flex flex-col">
-    <a href={href} target="_blank" rel="noopener noreferrer" onClick={prepareDocument} onAuxClick={prepareDocument} className={className}>
+    <a href={href} target="_blank" rel="noopener noreferrer" onClick={prepareDocument} onAuxClick={prepareDocument} className={`cursor-pointer underline underline-offset-4 ${className ?? "text-teal-700 font-semibold"}`}>
       {children}
     </a>
     {error && <span role="alert" className="mt-1 text-xs text-rose-700">{error}</span>}
