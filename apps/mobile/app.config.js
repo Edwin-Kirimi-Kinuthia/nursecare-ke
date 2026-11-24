@@ -3,7 +3,7 @@ module.exports = ({ config }) => {
   const projectId = process.env.EAS_PROJECT_ID || config.extra?.eas?.projectId;
   return {
     ...config,
-    runtimeVersion: { policy: "fingerprint" },
+    runtimeVersion: { policy: "appVersion" },
     updates: {
       ...config.updates,
       enabled: Boolean(projectId),
