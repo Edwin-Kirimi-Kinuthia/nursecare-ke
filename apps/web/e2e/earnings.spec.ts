@@ -9,6 +9,7 @@ test.describe("Earnings account", () => {
   });
   for (const role of ["doctor", "nurse", "physio", "pharmacy"] as const) test(`${role}: isolates balances, reserves atomically, deduplicates retries and records manual M-Pesa payout`, async ({ request }) => {
     const tag = randomUUID();
+    const receipt = tag.replace(/-/g, "").slice(0, 10).toUpperCase();
     const provider = await db.user.create({ data: { email: `earnings-${tag}@example.com`, fullName: "Earnings test", role } });
     const other = await db.user.create({ data: { email: `other-${tag}@example.com`, fullName: "Other account", role: "nurse" } });
     const admin = await db.user.create({ data: { email: `admin-${tag}@example.com`, fullName: "Admin test", role: "admin" } });
@@ -32,16 +33,16 @@ test.describe("Earnings account", () => {
       expect(w.phoneNumber).toBe("254712345678");
       const concurrent = await Promise.all([1, 2].map(() => request.post("/api/v1/earnings/withdrawals", { headers: ph, data: { ...input, amountKes: 300, requestKey: randomUUID() } })));
       expect(concurrent.map(r => r.status()).sort()).toEqual([201, 400]);
-      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ph, data: { status: "paid", reference: "ABC1234567" } })).status()).toBe(403);
-      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "paid", reference: "ABC1234567" } })).status()).toBe(409);
+      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ph, data: { status: "paid", reference: receipt } })).status()).toBe(403);
+      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "paid", reference: receipt } })).status()).toBe(409);
       expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "processing" } })).status()).toBe(200);
       expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "paid" } })).status()).toBe(400);
-      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "paid", reference: "ABC1234567" } })).status()).toBe(200);
+      expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "paid", reference: receipt } })).status()).toBe(200);
       expect((await request.patch(`/api/v1/admin/withdrawals/${w.id}`, { headers: ah, data: { status: "failed" } })).status()).toBe(409);
       expect((await (await request.get("/api/v1/earnings", { headers: ph })).json()).data).toMatchObject({ earnedKes: 800, availableKes: 0, pendingKes: 300, paidKes: 500 });
       const remaining = await db.payout.findFirstOrThrow({ where: { providerId: provider.id, status: "pending" } });
       expect((await request.patch(`/api/v1/admin/withdrawals/${remaining.id}`, { headers: ah, data: { status: "processing" } })).status()).toBe(200);
-      expect((await request.patch(`/api/v1/admin/withdrawals/${remaining.id}`, { headers: ah, data: { status: "paid", reference: "ABC1234567" } })).status()).toBe(409);
+      expect((await request.patch(`/api/v1/admin/withdrawals/${remaining.id}`, { headers: ah, data: { status: "paid", reference: receipt } })).status()).toBe(409);
       expect((await request.patch(`/api/v1/admin/withdrawals/${remaining.id}`, { headers: ah, data: { status: "failed" } })).status()).toBe(200);
       expect((await (await request.get("/api/v1/earnings", { headers: ph })).json()).data.availableKes).toBe(300);
     } finally {
