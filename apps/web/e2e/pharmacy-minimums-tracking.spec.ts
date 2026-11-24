@@ -120,8 +120,13 @@ test("paid orders can be updated by admins and their vendor, and clients see eac
     await vendor.goto("/vendor"); await vendor.getByRole("button", { name: "Orders", exact: true }).click();
     for (const [actor, label, expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered", "Delivered"]] as const) {
       await actor.getByRole("button", { name: "Refresh orders", exact: true }).click();
-      const response = actor.waitForResponse(r => r.url().endsWith(`/orders/${vendorOrderId}`) && r.request().method() === "PATCH");
-      await actor.getByRole("button", { name: label, exact: true }).click(); expect((await response).status()).toBe(200);
+      const rowId = actor === admin ? orderId : vendorOrderId;
+      const row = actor.getByRole("article", { name: `Pharmacy order ${rowId.slice(0, 8).toUpperCase()}`, exact: true });
+      const [response] = await Promise.all([
+        actor.waitForResponse(r => r.url().endsWith(`/orders/${vendorOrderId}`) && r.request().method() === "PATCH"),
+        row.getByRole("button", { name: label, exact: true }).click(),
+      ]);
+      expect(response.status()).toBe(200);
       await client.getByRole("button", { name: "Refresh delivery status", exact: true }).click(); await expect(client.getByRole("status")).toHaveText(expected);
     }
     const order = (await (await request.get(`/api/v1/orders/${orderId}`, { headers: headers(patientToken) })).json()).data;

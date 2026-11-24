@@ -26,33 +26,32 @@ async function paidMultiVendorOrder(request: APIRequestContext, code: string) {
   // Two vendors in one cart, so settlement writes a split per vendor and the
   // refund has to reverse each of them.
   //
-  // Pick a drug that actually has two stocked vendors rather than assuming the
-  // first result does — ordering isn't guaranteed, and leftover single-vendor
-  // test drugs from earlier runs can sort to the front, which silently skipped
-  // this whole file.
+  // Use a documented seed product: temporary products from parallel specs may
+  // have higher minimums or be deleted while this refund test is checking out.
   const drugsRes = await request.get(
-    "/api/v1/storefront/drugs?requiresPrescription=false&lat=-1.2864&lng=36.8172&limit=50",
+    "/api/v1/storefront/drugs?requiresPrescription=false&search=Paracetamol&lat=-1.2864&lng=36.8172&limit=50",
   );
-  const drugs: Array<{ drugId: string; vendorCount: number }> = (await drugsRes.json()).data.drugs;
-  const multiVendor = drugs.find((d) => d.vendorCount >= 2);
+  const drugs: Array<{ drugId: string; name: string; vendorCount: number }> = (await drugsRes.json()).data.drugs;
+  const multiVendor = drugs.find((d) => d.name === "Paracetamol 500mg (24 tabs)" && d.vendorCount >= 2);
   expect(multiVendor, "seed should stock at least one drug at two or more pharmacies").toBeTruthy();
 
   const offersRes = await request.get(`/api/v1/storefront/drugs/${multiVendor!.drugId}/offers?lat=-1.2864&lng=36.8172`);
-  const allOffers: Array<{ listingId: string; stockQty: number }> = (await offersRes.json()).data.offers;
+  const allOffers: Array<{ listingId: string; orgId: string; stockQty: number; minOrderQty: number }> = (await offersRes.json()).data.offers;
 
   // Only offers that can actually be filled. Each run consumes stock, so a
   // fixed pick would eventually be rejected by the stock reservation — correctly,
   // but for reasons unrelated to refunds. Buy one unit per vendor to keep the
-  // seeded catalogue usable for everything else in the suite.
-  const offers = allOffers.filter((o) => o.stockQty >= 1);
+  // seeded catalogue usable for everything else in the suite. Honour each
+  // listing's minimum and select distinct vendors even if they have branches.
+  const offers = [...new Map(allOffers.filter(o => o.stockQty >= o.minOrderQty).map(o => [o.orgId, o])).values()];
   expect(offers.length, "needs two vendors with stock for the same drug").toBeGreaterThanOrEqual(2);
 
   const orderRes = await request.post("/api/v1/orders", {
     headers: { Authorization: `Bearer ${patientToken}` },
     data: {
       items: [
-        { listingId: offers[0].listingId, qty: 1 },
-        { listingId: offers[1].listingId, qty: 1 },
+        { listingId: offers[0].listingId, qty: offers[0].minOrderQty },
+        { listingId: offers[1].listingId, qty: offers[1].minOrderQty },
       ],
       phoneNumber: "0712345678",
       deliveryAddress: "Kilimani Road, Nairobi",
