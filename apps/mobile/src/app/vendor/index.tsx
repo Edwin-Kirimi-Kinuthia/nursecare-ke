@@ -1,7 +1,4 @@
-import { OrderStatusActions } from "@/features/OrderStatusActions";
-import { OrderProgress } from "@/features/OrderProgress";
 import { orderStatusLabel } from "@carebora/shared";
-import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
 import { router } from "expo-router";
@@ -10,7 +7,7 @@ import { Building2, MapPin, Pencil, Phone, Plus } from "lucide-react-native";
 import {
   KENYA_COUNTIES, type CreateAmbulanceInput, type CreateBranchInput, type EnterLabResultInput, type PatchAmbulanceRequestInput, type PatchLabOrderInput,
 } from "@carebora/shared";
-import type { Drug, Listing, LabOrder, LabOrderItem, LabTest, OrgBranch, OrganizationDetail, VendorOrder } from "@carebora/api-client";
+import type { Drug, Listing, LabOrder, LabOrderItem, LabTest, OrgBranch, OrganizationDetail } from "@carebora/api-client";
 import { useAuth } from "@/lib/auth";
 import { api } from "@/lib/api";
 import { errorMessage, useAsync } from "@/lib/useAsync";
@@ -250,43 +247,19 @@ function ListingSheet({ listing, onClose, onSaved }: { listing?: Listing; onClos
 }
 
 function Orders() {
-  const list = useAsync(() => api.listVendorOrders({ limit: 50 } as never).then((r) => r.vendorOrders), []);
-  const orders = list.data ?? [];
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const selected = orders.find(o => o.id === selectedId);
+  const list = useAsync(() => api.listVendorOrders({ limit: 50 }).then(r => r.vendorOrders), []);
   const reloadOrders = list.reload;
   useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
   if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
   if (list.loading && !list.data) return <Loading />;
-  if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
-  return (
-    <>
-      {selected && <FormSheet title={`Order #${selected.id.slice(0,8).toUpperCase()}`} onClose={() => setSelectedId(null)}>
-        <Text>{selected.order?.patient.fullName}</Text><Text>{selected.order?.deliveryAddress}</Text><Text>{selected.order?.phoneNumber}</Text>
-        <OrderProgress order={selected} /><OrderItems items={selected.items} /><OrderStatusActions order={selected} onUpdated={list.reload} />
-      </FormSheet>}
-      <Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
-      {orders.map((vo: VendorOrder) => {
-
-        return (
-          <Card key={vo.id} style={{ borderRadius: 16 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open order details" onPress={() => setSelectedId(vo.id)}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.id.slice(0, 8).toUpperCase()} ↗</Text></Pressable>
-              <Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
-            </View>
-            <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta>
-            <Text>{vo.items.length} item(s) · <Text style={{ fontFamily: "Inter_700Bold" }}>{kes(vo.subtotalKes)}</Text></Text>
-            <Meta>{vo.order?.deliveryAddress}</Meta>
-            <Text variant="caption" tone="muted">Contact: {vo.order?.phoneNumber}</Text>
-            {vo.order?.deliveryNotes ? <Text tone="muted">Delivery notes: {vo.order.deliveryNotes}</Text> : null}
-            <Text variant="caption" tone="muted">Payment: {vo.order?.payment?.status.replaceAll("_", " ") ?? "unpaid"}</Text>
-            <OrderProgress order={vo} /><OrderItems items={vo.items} />
-            <OrderStatusActions order={vo} onUpdated={list.reload} />
-          </Card>
-        );
-      })}
-    </>
-  );
+  if (!list.data?.length) return <Empty icon="cube-outline" title="No orders yet" />;
+  return <><Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
+    {list.data.map(vo => <Pressable key={vo.id} accessibilityRole="button" accessibilityLabel={`Open order ${vo.id.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/vendor/orders/[id]", params: { id: vo.id } } as never)}>
+      <Card style={{ borderRadius: 16 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.id.slice(0,8).toUpperCase()} ↗</Text><Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : "info"} /></View>
+        <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta><Text>{vo.items.length} item(s) · {kes(vo.subtotalKes)}</Text><Meta>{vo.order?.deliveryAddress}</Meta><Text variant="caption" tone="muted">View order and update delivery</Text>
+      </Card>
+    </Pressable>)}
+  </>;
 }
 
 const NEXT_AMB: Record<string, PatchAmbulanceRequestInput["status"]> = { dispatched: "en_route_pickup", en_route_pickup: "arrived_pickup", arrived_pickup: "en_route_destination", en_route_destination: "completed" };

@@ -290,6 +290,16 @@ export const orderService = {
 
   // ── Vendor-side fulfilment (one org's slice of an order) ──────────────────
 
+  async getForOrg(orgId: string, vendorOrderId: string) {
+    const vendorOrder = await db.vendorOrder.findFirst({
+      where: { id: vendorOrderId, orgId },
+      include: { ...VENDOR_ORDER_INCLUDE, order: { select: { id: true, deliveryAddress: true, deliveryNotes: true, phoneNumber: true, patient: { select: { fullName: true } } } } },
+    });
+    if (!vendorOrder) throw ApiError.notFound("Order not found");
+    const payment = await paymentService.getForSubject("order", vendorOrder.orderId);
+    return { ...vendorOrder, order: { ...vendorOrder.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
+  },
+
   async listForOrg(orgId: string, query: VendorOrdersQuery) {
     const where = { orgId, ...(query.status ? { status: query.status } : {}) };
     const [vendorOrders, total] = await Promise.all([

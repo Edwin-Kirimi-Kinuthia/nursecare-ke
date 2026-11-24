@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertCircle, LocateFixed, MapPin, Loader2, Pill, PackageSearch, Search } from "lucide-react";
+import { AlertCircle, LocateFixed, MapPin, Loader2, Pill, PackageSearch, Search, SlidersHorizontal } from "lucide-react";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import DrugCard from "@/components/DrugCard";
@@ -22,6 +22,7 @@ export default function PharmacyPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   const [allCategories, setAllCategories] = useState<string[]>([]);
@@ -48,22 +49,13 @@ export default function PharmacyPage() {
     <div>
       {/* Header */}
       <section className="page-banner">
-        <div className="mx-auto grid max-w-6xl items-center gap-8 px-4 py-8 sm:py-12 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
+        <div className="mx-auto grid max-w-6xl items-center gap-5 px-4 py-5 sm:py-8 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
           <div>
-          <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Medicine, delivered" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
-          <div className="mt-6 flex max-w-xl items-center gap-2 rounded-lg bg-white p-1.5 ring-1 ring-slate-300">
-            <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search medication, e.g. Panadol"
-              aria-label="Search medication"
-              className="min-w-0 flex-1 bg-transparent px-1 py-2.5 text-base text-slate-900 outline-none placeholder:text-slate-400"
-            />
+          <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Care Bora Pharmacy" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
+
           </div>
-          </div>
-          <figure className="overflow-hidden rounded-2xl bg-[#234f34]">
-            <div className="service-photo h-44 sm:h-64 lg:h-72"><Image src={CARE_IMAGES.pharmacy.src} alt={CARE_IMAGES.pharmacy.alt} fill placeholder="blur" loading="eager" sizes="(min-width: 1024px) 480px, 92vw" /></div>
+          <figure className="hidden sm:block overflow-hidden rounded-2xl bg-[#234f34]">
+            <div className="service-photo h-40 sm:h-44 lg:h-48"><Image src={CARE_IMAGES.pharmacy.src} alt={CARE_IMAGES.pharmacy.alt} fill placeholder="blur" loading="eager" sizes="(min-width: 1024px) 480px, 92vw" /></div>
             <figcaption className="px-5 py-4 text-sm leading-relaxed text-white">Compare pharmacy offers and delivery options. Upload a prescription when required.</figcaption>
           </figure>
         </div>
@@ -72,6 +64,20 @@ export default function PharmacyPage() {
       <section className="sticky top-16 z-20 border-b border-slate-200 bg-white/90 backdrop-blur">
         <div className="mx-auto max-w-6xl px-4 py-3">
 
+          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-lg bg-white p-1.5 ring-1 ring-slate-300">
+            <Search className="ml-2.5 h-5 w-5 shrink-0 text-slate-400" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search medication, e.g. Panadol"
+              aria-label="Search medication"
+              className="min-w-0 flex-1 bg-transparent px-1 py-1.5 text-sm text-slate-900 outline-none placeholder:text-slate-400"
+            />
+          </div>
+            <button aria-expanded={filtersOpen} aria-controls="pharmacy-filters" onClick={() => setFiltersOpen(v => !v)} className="inline-flex shrink-0 items-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-medium"><SlidersHorizontal size={16} />Filters{(prescription || category || county) ? " •" : ""}</button>
+          </div>
+          <div id="pharmacy-filters" hidden={!filtersOpen} className="mt-3">
           <div className="flex flex-wrap items-center gap-2">
             <label className="text-sm">Sort <select aria-label="Sort medicines" value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="rounded-full border border-slate-200 px-3 py-2"><option value="nearest">Nearest pharmacy</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
             <label className="text-sm">Type <select aria-label="Prescription requirement" value={prescription} onChange={e => setPrescription(e.target.value)} className="rounded-full border border-slate-200 px-3 py-2"><option value="">All medicines</option><option value="true">Prescription required</option><option value="false">Over the counter (OTC)</option></select></label>
@@ -102,6 +108,8 @@ export default function PharmacyPage() {
             )}
           </div>
 
+          <button onClick={() => { setCategory(""); setPrescription(""); setSort("nearest"); }} className="mt-2 text-sm text-teal-700 underline">Reset filters and sort</button>
+          </div>
           {/* One swipeable row on phones; wraps on wider screens. */}
           <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {categories.map((c) => (

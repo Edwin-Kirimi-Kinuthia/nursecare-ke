@@ -106,6 +106,7 @@ function Gate() {
         <Stack.Screen name="ai/index" options={{ title: "" }} />
         <Stack.Screen name="admin/index" options={{ title: "" }} />
         <Stack.Screen name="vendor/index" options={{ title: "" }} />
+        <Stack.Screen name="vendor/orders/[id]" options={{ title: "Order details" }} />
         <Stack.Screen name="labs/index" options={{ title: "" }} />
         <Stack.Screen name="records/index" options={{ title: "" }} />
         <Stack.Screen name="orders/index" options={{ title: "" }} />

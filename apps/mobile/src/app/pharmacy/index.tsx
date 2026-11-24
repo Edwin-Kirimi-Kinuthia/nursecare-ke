@@ -23,6 +23,7 @@ import { useTheme } from "@/ui/theme";
 import { categoryColors } from "@/features/categoryColors";
 
 export default function PharmacyScreen() {
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [county, setCounty] = useState("");
   const [position, setPosition] = useState<{lat:number;lng:number} | null>(null);
   const [locating, setLocating] = useState(false);
@@ -58,13 +59,16 @@ export default function PharmacyScreen() {
 
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
-      <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Medicine, delivered" lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya." />
+      <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Care Bora Pharmacy" lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya." />
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}><SearchBox value={query} onChange={setQuery} /></View><Button title={filtersOpen ? "Hide filters" : `Filters${prescription || county ? " •" : ""}`} variant="secondary" size="sm" onPress={() => setFiltersOpen(v => !v)} /></View>
+      {filtersOpen && <View style={{ gap: 12, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 14 }}>
       <Select label="Your county" value={county} options={counties} onChange={value => { setCounty(value); setPosition(null); if (sort === "nearest") setSort("price_asc"); }} placeholder="All of Kenya" compact />
       <Button title={position ? "Refresh my location" : "Use my location: nearest pharmacies"} size="sm" variant="secondary" loading={locating} onPress={locate} />
       {locationError && <Banner tone="warn">{locationError}</Banner>}
-      <SearchBox value={query} onChange={setQuery} />
       <Select label="Sort medicines" value={sort} onChange={setSort} options={[...(position ? [{value:"nearest",label:"Nearest pharmacy"}] : []), {value:"price_asc",label:"Price: low to high"},{value:"price_desc",label:"Price: high to low"}]} compact />
       <Select label="Prescription" value={prescription} onChange={setPrescription} options={[{value:"",label:"All medicines"},{value:"true",label:"Prescription required"},{value:"false",label:"Over the counter (OTC)"}]} compact />
+      <Button title="Reset filters and sort" variant="ghost" size="sm" onPress={() => { setPrescription(""); setCategory(""); setCounty(""); setPosition(null); setSort("price_asc"); }} />
+      </View>}
       {cats.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ flexGrow: 0 }}>
           <Chip label="All" selected={category === ""} onPress={() => setCategory("")} />

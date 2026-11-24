@@ -830,6 +830,10 @@ export class CareBoraClient {
   }
 
   // ── Vendor — order fulfilment ──
+  getVendorOrder(id: string) {
+    return this.request<VendorOrder>(`/vendor/orders/${id}`);
+  }
+
   listVendorOrders(query?: Partial<VendorOrdersQuery>) {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<VendorOrderListResult>(`/vendor/orders?${params}`);

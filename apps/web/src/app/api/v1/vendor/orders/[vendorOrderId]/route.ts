@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { route, jsonOk } from "@/server/http";
 import { requireOrgMember } from "@/server/auth";
 import { patchVendorOrderSchema } from "@carebora/shared";
@@ -10,4 +11,11 @@ export const PATCH = route(async (req, { params }: { params: Promise<{ vendorOrd
   const input = patchVendorOrderSchema.parse(await req.json());
   const vendorOrder = await orderService.patchVendorOrder(auth.orgId, vendorOrderId, input, auth.sub);
   return jsonOk(vendorOrder);
+});
+
+/** GET /api/v1/vendor/orders/:vendorOrderId — only this pharmacy's order. */
+export const GET = route(async (req, { params }: { params: Promise<{ vendorOrderId: string }> }) => {
+  const auth = await requireOrgMember(req, { orgType: "pharmacy" });
+  const id = z.string().uuid().parse((await params).vendorOrderId);
+  return jsonOk(await orderService.getForOrg(auth.orgId, id));
 });

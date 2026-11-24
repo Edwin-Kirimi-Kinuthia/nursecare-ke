@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, Animated, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router, usePathname } from "expo-router";
-import { Bot, X } from "lucide-react-native";
+import { MessageCircle, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NAVIGATION_SERVICES, type NavigationReply } from "@carebora/shared";
 import { api } from "@/lib/api";
@@ -44,7 +44,7 @@ function Assistant() {
   if (hidden) return null;
   return <>
     <Animated.View style={{ position: "absolute", right: 12, bottom: insets.bottom + 76, transform: [{ translateX: shake }] }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#115E59", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><Bot size={21} color="white" /></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#087CFF", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><MessageCircle size={29} fill="white" color="#087CFF" strokeWidth={1.5} /><View pointerEvents="none" style={{ position: "absolute", flexDirection: "row", gap: 3 }}>{[0,1,2].map(i => <View key={i} style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: "#087CFF" }} />)}</View></Pressable>
     </Animated.View>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "flex-end", padding: 12, paddingBottom: insets.bottom + 12 }}>
