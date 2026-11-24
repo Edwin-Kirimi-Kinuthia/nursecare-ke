@@ -150,7 +150,7 @@ test.describe("Multi-vendor cart split", () => {
     expect(order.vendorOrders.flatMap((vo: { items: object[] }) => vo.items)).toHaveLength(2);
   });
 
-  test("pharmacy and admin dashboards show medicines, quantities, prices and delivery instructions", async ({ page }) => {
+  test("pharmacy detail tabs and admin dashboard show medicines, quantities, prices and delivery instructions", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     for (const [token, route, names] of [
       [vendorAToken, "/vendor", [`E2E Marketplace Drug A ${UNIQUE}`]],
@@ -163,17 +163,20 @@ test.describe("Multi-vendor cart split", () => {
       await page.getByRole("button", { name: "Orders", exact: true }).click();
       const reference = route === "/admin" ? orderId : token === vendorAToken ? vendorOrderAId : vendorOrderBId;
       const card = page.getByRole("article", { name: `Pharmacy order ${reference.slice(0, 8).toUpperCase()}`, exact: true });
-      for (const name of names) await expect(card.getByText(name, { exact: true })).toBeVisible();
-      await expect(card.getByText("Delivery notes: Ring the front door bell", { exact: true })).toBeVisible();
-      await expect(card.getByText("Contact: 0712345678", { exact: true })).toBeVisible();
-      if (token !== vendorBToken) await expect(card.getByText(/Quantity: 2.*120.*each/)).toBeVisible();
+      const detail = route === "/vendor" ? (await Promise.all([page.waitForEvent("popup"), card.getByRole("link").click()]))[0] : page;
+      const contents = route === "/vendor" ? detail.getByRole("article") : card;
+      for (const name of names) await expect(contents.getByText(name, { exact: true })).toBeVisible();
+      await expect(contents.getByText(/(?:Delivery notes|Notes): Ring the front door bell/)).toBeVisible();
+      await expect(contents.getByText("Contact: 0712345678", { exact: true })).toBeVisible();
+      if (token !== vendorBToken) await expect(contents.getByText(/Quantity: 2.*120.*each/)).toBeVisible();
       await expect(page.getByRole("button", { name: "Refresh orders", exact: true })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Mark processing", exact: true })).toHaveCount(0);
+      await expect(detail.getByRole("button", { name: "Mark processing", exact: true })).toHaveCount(0);
       if (route === "/vendor") {
         const hidden = token === vendorAToken ? "B" : "A";
-        await expect(page.getByText(`E2E Marketplace Drug ${hidden} ${UNIQUE}`, { exact: true })).toHaveCount(0);
+        await expect(detail.getByText(`E2E Marketplace Drug ${hidden} ${UNIQUE}`, { exact: true })).toHaveCount(0);
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      expect(await detail.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      if (detail !== page) await detail.close();
     }
   });
 
