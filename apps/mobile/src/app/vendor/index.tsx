@@ -261,7 +261,7 @@ function Orders() {
   if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
   return (
     <>
-      {selected && <FormSheet visible title={`Order #${selected.id.slice(0,8).toUpperCase()}`} onClose={() => setSelectedId(null)}>
+      {selected && <FormSheet title={`Order #${selected.id.slice(0,8).toUpperCase()}`} onClose={() => setSelectedId(null)}>
         <Text>{selected.order?.patient.fullName}</Text><Text>{selected.order?.deliveryAddress}</Text><Text>{selected.order?.phoneNumber}</Text>
         <OrderProgress order={selected} /><OrderItems items={selected.items} /><OrderStatusActions order={selected} onUpdated={list.reload} />
       </FormSheet>}

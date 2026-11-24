@@ -1375,7 +1375,7 @@ function OrdersTab() {
             <article key={o.id} aria-label={`Pharmacy order ${o.id.slice(0, 8).toUpperCase()}`} className="rounded-2xl border border-slate-200 bg-white p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <div className="font-semibold text-slate-900">Order #{o.id.slice(0, 8).toUpperCase()}</div>
+                  <Link href={`/orders/${o.id}`} className="font-semibold text-teal-800 underline">Order #{o.id.slice(0, 8).toUpperCase()} ↗</Link>
                   <div className="mt-0.5 text-xs text-slate-400">{o.patient.fullName} · {when(o.createdAt)}</div>
                   <div className="mt-1 text-sm text-slate-600">{itemCount} item(s) across {o.vendorOrders.length} vendor(s) · <span className="font-semibold text-slate-800">{kes(o.totalKes)}</span></div>
                   <div className="mt-0.5 text-xs text-slate-400">{o.deliveryAddress}</div>

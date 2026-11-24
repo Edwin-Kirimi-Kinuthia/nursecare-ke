@@ -293,7 +293,7 @@ export default function AmbulancePage() {
                       Pay {kes(r.feeKes ?? 0)}
                     </button>
                   )}
-{r.status === "completed" && <ServiceReviewForm serviceType="ambulance" subjectId={r.id} label={"your ambulance service"} />}
+{r.status === "completed" && r.patientId === user?.id && <ServiceReviewForm serviceType="ambulance" subjectId={r.id} label={"your ambulance service"} />}
                   {r.payment?.status === "completed" && (
                     <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 className="h-3.5 w-3.5" /> Paid</span>
                   )}

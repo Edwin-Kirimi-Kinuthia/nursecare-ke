@@ -332,6 +332,7 @@ export default function HomeVisitsPage() {
 }
 
 function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
+  const { user } = useAuth();
   const meta = STATUS_META[visit.status] ?? STATUS_META.pending;
   return (
     <div className="rounded-2xl border border-slate-200 bg-white p-5">
@@ -358,7 +359,7 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </div>
       </div>
 
-{visit.status === "completed" && <ServiceReviewForm serviceType="home_visit" subjectId={visit.id} label={"your home visit"} />}
+{visit.status === "completed" && visit.patientId === user?.id && <ServiceReviewForm serviceType="home_visit" subjectId={visit.id} label={"your home visit"} />}
       <p className="mt-3 text-sm text-slate-600 line-clamp-2">{visit.description}</p>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">

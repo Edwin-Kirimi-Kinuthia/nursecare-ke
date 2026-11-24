@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { AccessibilityInfo, Animated, AppState, Modal, Pressable, ScrollView, TextInput, View } from "react-native";
+import { AccessibilityInfo, Animated, AppState, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router, usePathname } from "expo-router";
 import { Bot, X } from "lucide-react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -47,7 +47,7 @@ function Assistant() {
       <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#115E59", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><Bot size={21} color="white" /></Pressable>
     </Animated.View>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "flex-end", padding: 12, paddingBottom: insets.bottom + 12 }}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "flex-end", padding: 12, paddingBottom: insets.bottom + 12 }}>
         <View style={{ maxHeight: "65%", backgroundColor: "white", padding: 16, borderRadius: 20, gap: 14 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text variant="subheading">Care Bora assistant</Text><Pressable accessibilityRole="button" accessibilityLabel="Close assistant" hitSlop={12} onPress={() => setOpen(false)}><X size={24} color="#115E59" /></Pressable></View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 14 }}>
@@ -58,7 +58,7 @@ function Assistant() {
             <Button title="Send question" loading={busy} disabled={!question.trim()} onPress={ask} />
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   </>;
 }
