@@ -320,7 +320,7 @@ function Orders() {
         return (
           <Card key={o.id} style={{ borderRadius: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ fontFamily: "Inter_700Bold" }}>Order #{o.id.slice(0, 8).toUpperCase()}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open order details" onPress={() => router.push({ pathname: "/orders/[id]", params: { id: o.id } })}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{o.id.slice(0, 8).toUpperCase()} ↗</Text></Pressable>
               <Badge label={o.payment?.status ?? "unpaid"} tone={o.payment?.status === "completed" ? "ok" : "neutral"} />
             </View>
             <Meta>{o.patient.fullName} · {dayTime(o.createdAt)}</Meta>
@@ -429,7 +429,7 @@ function Reviews() {
           <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <View style={{ flexDirection: "row", gap: 2 }}>{[1, 2, 3, 4, 5].map((i) => <Star key={i} size={14} color="#F59E0B" fill={i <= r.rating ? "#F59E0B" : "transparent"} />)}</View>
             <Text style={{ fontFamily: "Inter_600SemiBold" }}>{r.patient.fullName}</Text>
-            {r.provider && <Meta>→ {r.provider.user.fullName}</Meta>}
+            {r.provider && <Meta>→ {r.provider.user.fullName}</Meta>}{r.organization && <Meta>→ {r.organization.name}</Meta>}
             {!r.isVisible && <Badge label="Hidden" />}
           </View>
           {r.comment ? <Text tone="muted">“{r.comment}”</Text> : null}

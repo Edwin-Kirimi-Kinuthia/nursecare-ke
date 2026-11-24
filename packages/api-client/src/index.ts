@@ -746,6 +746,18 @@ export class CareBoraClient {
     return this.request<AuditLogListResult>(`/admin/audit-logs?${params}`);
   }
 
+  getServiceReview(input: import("@carebora/shared").ServiceReviewSubject) {
+    return this.request<ServiceReview | null>(`/service-reviews?${new URLSearchParams(input)}`);
+  }
+  createServiceReview(input: import("@carebora/shared").CreateServiceReviewInput) {
+    return this.post<ServiceReview>("/service-reviews", input);
+  }
+  requestOrderReview(id: string, admin = false) {
+    return this.post<{ok: boolean}>(`/${admin ? "admin" : "vendor"}/orders/${id}/review-request`, {});
+  }
+  listOrganizationReviews(id: string) {
+    return this.request<{reviews: ServiceReview[]; ratingAvg: number; ratingCount: number}>(`/organizations/${id}/reviews`);
+  }
   // ── Reviews (M9) ──
   createReview(appointmentId: string, input: CreateReviewInput) {
     return this.post<Review>(`/appointments/${appointmentId}/review`, input);
@@ -955,6 +967,9 @@ export type AppointmentStatus = "awaiting_payment" | "requested" | "confirmed" |
 export type VerificationStatus = "unverified" | "pending" | "in_review" | "verified" | "rejected";
 
 export interface ProviderPublicProfile extends ProviderProfile {
+  completedConsultations: number;
+  completedHomeVisits: number;
+  completedServices: number;
   user: { id: string; fullName: string; avatarUrl: string | null; role: string };
 }
 
@@ -1794,6 +1809,8 @@ export interface AuditLogListResult {
 // ── M9: Reviews ─────────────────────────────────────────────────────────────
 
 export interface Review {
+  serviceType?: string;
+  organization?: { name: string } | null;
   id: string;
   appointmentId: string;
   patientId: string;
@@ -1980,5 +1997,13 @@ export interface AppNotification {
   body: string | null;
   link: string | null;
   readAt: string | null;
+  createdAt: string;
+}
+
+export interface ServiceReview {
+  id: string;
+  rating: number;
+  comment: string | null;
+  serviceType: string;
   createdAt: string;
 }

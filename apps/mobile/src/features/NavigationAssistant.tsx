@@ -43,12 +43,12 @@ function Assistant() {
   }
   if (hidden) return null;
   return <>
-    <Animated.View style={{ position: "absolute", right: 16, bottom: insets.bottom + 88, transform: [{ translateX: shake }] }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#115E59", padding: 14, borderRadius: 30, flexDirection: "row", alignItems: "center", gap: 8, elevation: 5 }}><Bot size={22} color="white" /><Text style={{ color: "white", fontFamily: "Inter_600SemiBold" }}>Need help?</Text></Pressable>
+    <Animated.View style={{ position: "absolute", right: 12, bottom: insets.bottom + 76, transform: [{ translateX: shake }] }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#115E59", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><Bot size={21} color="white" /></Pressable>
     </Animated.View>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "center", padding: 20 }}>
-        <View style={{ maxHeight: "80%", backgroundColor: "white", padding: 20, borderRadius: 24, gap: 14 }}>
+      <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "flex-end", padding: 12, paddingBottom: insets.bottom + 12 }}>
+        <View style={{ maxHeight: "65%", backgroundColor: "white", padding: 16, borderRadius: 20, gap: 14 }}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text variant="subheading">Care Bora assistant</Text><Pressable accessibilityRole="button" accessibilityLabel="Close assistant" hitSlop={12} onPress={() => setOpen(false)}><X size={24} color="#115E59" /></Pressable></View>
           <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ gap: 14 }}>
             <Text variant="caption" tone="muted">Navigation help. Please keep medical details private.</Text>

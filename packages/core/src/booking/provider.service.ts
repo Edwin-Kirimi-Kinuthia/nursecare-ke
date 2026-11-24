@@ -28,6 +28,25 @@ function withPublicAvatar<T extends { user: { id: string; avatarUrl: string | nu
   return { ...p, user: { ...user, avatarUrl: publicAvatar(user.id, user.avatarUrl, updatedAt) } };
 }
 
+async function withActivity<T extends { userId: string }>(profiles: T[]) {
+  const ids = profiles.map(p => p.userId);
+  if (!ids.length) return [];
+  const [appointments, visits, ratings, serviceRatings] = await Promise.all([
+    db.appointment.groupBy({ by: ["providerId", "appointmentType"], where: { providerId: { in: ids }, status: "completed" }, _count: { _all: true } }),
+    db.homeVisit.groupBy({ by: ["providerId"], where: { providerId: { in: ids }, status: "completed" }, _count: { _all: true } }),
+    db.review.groupBy({ by: ["providerId"], where: { providerId: { in: ids }, isVisible: true }, _sum: { rating: true }, _count: { rating: true } }),
+    db.serviceReview.groupBy({ by: ["providerId"], where: { providerId: { in: ids }, isVisible: true }, _sum: { rating: true }, _count: { rating: true } }),
+  ]);
+  return profiles.map(p => {
+    const completedConsultations = appointments.filter(a => a.providerId === p.userId && a.appointmentType !== "home_visit").reduce((n,a) => n+a._count._all,0);
+    const completedHomeVisits = appointments.filter(a => a.providerId === p.userId && a.appointmentType === "home_visit").reduce((n,a) => n+a._count._all,0) + (visits.find(v => v.providerId === p.userId)?._count._all ?? 0);
+    const scores = [...ratings, ...serviceRatings].filter(r => r.providerId === p.userId);
+    const ratingCount = scores.reduce((n,r) => n+r._count.rating,0);
+    const ratingAvg = ratingCount ? scores.reduce((n,r) => n+(r._sum.rating ?? 0),0)/ratingCount : 0;
+    return { ...p, completedConsultations, completedHomeVisits, completedServices: completedConsultations+completedHomeVisits, ratingAvg, ratingCount };
+  });
+}
+
 export const providerService = {
   /** Paginated, filterable provider directory (defaults to verified providers). */
   async list(query: ProvidersQuery) {
@@ -70,13 +89,13 @@ export const providerService = {
         where,
         include: { user: PUBLIC_USER },
         orderBy: [{ ratingAvg: "desc" }, { createdAt: "asc" }],
-        skip: query.offset,
-        take: query.limit,
+
       }),
       db.providerProfile.count({ where }),
     ]);
 
-    return { providers: providers.map(withPublicAvatar), total, limit: query.limit, offset: query.offset };
+    const ranked = (await withActivity(providers)).sort((a,b) => b.ratingAvg-a.ratingAvg || b.completedServices-a.completedServices || b.ratingCount-a.ratingCount || a.userId.localeCompare(b.userId));
+    return { providers: ranked.slice(query.offset, query.offset+query.limit).map(withPublicAvatar), total, limit: query.limit, offset: query.offset };
   },
 
   /**
@@ -128,6 +147,6 @@ export const providerService = {
       include: { user: PUBLIC_USER },
     });
     if (!profile || profile.user.deletedAt) throw ApiError.notFound("Provider not found");
-    return withPublicAvatar(profile);
+    return withPublicAvatar((await withActivity([profile]))[0]!);
   },
 };

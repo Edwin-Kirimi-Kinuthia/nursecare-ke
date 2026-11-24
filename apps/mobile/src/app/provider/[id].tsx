@@ -75,7 +75,7 @@ export default function ProviderScreen() {
             <View style={{ flexDirection: "row", gap: 2 }}>
               {[1, 2, 3, 4, 5].map((i) => <Star key={i} size={17} color="#F59E0B" fill={i <= Math.round(p.ratingAvg) ? "#F59E0B" : "transparent"} />)}
             </View>
-            <Text tone="faint" style={{ fontSize: 14 }}>{p.ratingCount > 0 ? `${p.ratingAvg} · ${p.ratingCount} ${p.ratingCount === 1 ? "review" : "reviews"}` : "No reviews yet"}</Text>
+            <Text tone="faint" style={{ fontSize: 14 }}>{p.ratingCount > 0 ? `${p.ratingAvg.toFixed(1)} · ${p.ratingCount} ${p.ratingCount === 1 ? "review" : "reviews"}` : "No reviews yet"}</Text>
           </View>
           {place ? (
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -138,6 +138,7 @@ export default function ProviderScreen() {
         </Card>
       )}
 
+      <Text tone="muted">{p.completedConsultations ?? 0} completed consultations · {p.completedHomeVisits ?? 0} completed home visits</Text>
       <Text variant="heading" style={{ marginTop: 8 }}>Patient reviews</Text>
       {reviews.data && reviews.data.reviews.length > 0 ? (
         reviews.data.reviews.map((r) => (

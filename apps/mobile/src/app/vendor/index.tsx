@@ -1,3 +1,4 @@
+import { OrderStatusActions } from "@/features/OrderStatusActions";
 import { OrderProgress } from "@/features/OrderProgress";
 import { orderStatusLabel } from "@carebora/shared";
 import { OrderItems } from "@/features/OrderItems";
@@ -248,11 +249,11 @@ function ListingSheet({ listing, onClose, onSaved }: { listing?: Listing; onClos
   );
 }
 
-const NEXT_ORDER = { paid: "processing", processing: "dispatched", dispatched: "in_delivery", in_delivery: "delivered" } as const;
 function Orders() {
   const list = useAsync(() => api.listVendorOrders({ limit: 50 } as never).then((r) => r.vendorOrders), []);
-  const { busy, err, run } = useAct();
   const orders = list.data ?? [];
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selected = orders.find(o => o.id === selectedId);
   const reloadOrders = list.reload;
   useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
   if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
@@ -260,14 +261,17 @@ function Orders() {
   if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
   return (
     <>
+      {selected && <FormSheet visible title={`Order #${selected.id.slice(0,8).toUpperCase()}`} onClose={() => setSelectedId(null)}>
+        <Text>{selected.order?.patient.fullName}</Text><Text>{selected.order?.deliveryAddress}</Text><Text>{selected.order?.phoneNumber}</Text>
+        <OrderProgress order={selected} /><OrderItems items={selected.items} /><OrderStatusActions order={selected} onUpdated={list.reload} />
+      </FormSheet>}
       <Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
-      {err && <Banner tone="danger">{err}</Banner>}
       {orders.map((vo: VendorOrder) => {
-        const next = NEXT_ORDER[vo.status as keyof typeof NEXT_ORDER];
+
         return (
           <Card key={vo.id} style={{ borderRadius: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-              <Text style={{ fontFamily: "Inter_700Bold" }}>Order #{vo.id.slice(0, 8).toUpperCase()}</Text>
+              <Pressable accessibilityRole="button" accessibilityLabel="Open order details" onPress={() => setSelectedId(vo.id)}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.id.slice(0, 8).toUpperCase()} ↗</Text></Pressable>
               <Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
             </View>
             <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta>
@@ -277,7 +281,7 @@ function Orders() {
             {vo.order?.deliveryNotes ? <Text tone="muted">Delivery notes: {vo.order.deliveryNotes}</Text> : null}
             <Text variant="caption" tone="muted">Payment: {vo.order?.payment?.status.replaceAll("_", " ") ?? "unpaid"}</Text>
             <OrderProgress order={vo} /><OrderItems items={vo.items} />
-            {next && <Button title={`Mark ${orderStatusLabel(next).toLowerCase()}`} size="sm" loading={busy === vo.id} onPress={() => run(vo.id, () => api.patchVendorOrder(vo.id, { status: next }), list.reload)} />}
+            <OrderStatusActions order={vo} onUpdated={list.reload} />
           </Card>
         );
       })}

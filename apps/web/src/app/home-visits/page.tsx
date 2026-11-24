@@ -1,4 +1,5 @@
 "use client";
+import ServiceReviewForm from "@/components/ServiceReviewForm";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -357,6 +358,7 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </div>
       </div>
 
+{visit.status === "completed" && <ServiceReviewForm serviceType="home_visit" subjectId={visit.id} label={"your home visit"} />}
       <p className="mt-3 text-sm text-slate-600 line-clamp-2">{visit.description}</p>
 
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">

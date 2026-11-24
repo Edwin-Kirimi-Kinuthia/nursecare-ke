@@ -1,3 +1,7 @@
+import { useAuth } from "@/lib/auth";
+import { useAsync } from "@/lib/useAsync";
+import { api } from "@/lib/api";
+import { ServiceReviewForm } from "@/features/ServiceReviewForm";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useContacts } from "@/lib/appConfig";
@@ -33,6 +37,7 @@ export default function AmbulanceScreen() {
         </View>
       </Card>
       <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>We can&apos;t promise an arrival time. It depends on where you are and which crew is free.</Text>
+      <PastAmbulanceServices />
     </Screen>
   );
 }
@@ -44,4 +49,12 @@ function Step({ n, text }: { n: number; text: string }) {
       <Text style={{ flex: 1 }}>{text}</Text>
     </View>
   );
+}
+
+function PastAmbulanceServices() {
+  const { user } = useAuth();
+  const result = useAsync(() => user ? api.listAmbulanceRequests({ limit: 50 }) : Promise.resolve(null), [user?.id]);
+  if (!user) return null;
+  if (result.error) return <Card><Text tone="muted">Could not load past ambulance services.</Text><Button title="Retry past services" size="sm" onPress={result.reload} /></Card>;
+  return <>{result.data?.requests.filter(r => r.status === "completed" && r.patientId === user.id).map(r => <ServiceReviewForm key={r.id} serviceType="ambulance" subjectId={r.id} label="your ambulance service" />)}</>;
 }

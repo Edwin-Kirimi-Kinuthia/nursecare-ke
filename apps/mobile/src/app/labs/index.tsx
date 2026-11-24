@@ -1,3 +1,4 @@
+import { ServiceReviewForm } from "@/features/ServiceReviewForm";
 import { useMemo, useState } from "react";
 import { Pressable, View } from "react-native";
 import { FlaskConical, MapPin } from "lucide-react-native";
@@ -111,6 +112,7 @@ export default function LabsScreen() {
               <Badge label={o.status.replace(/_/g, " ")} tone={o.status === "resulted" ? "ok" : o.status === "cancelled" ? "neutral" : "info"} />
             </View>
             <Text variant="caption" tone="faint">{dayTime(o.createdAt)}</Text>
+          {o.status === "resulted" && <ServiceReviewForm serviceType="lab_order" subjectId={o.id} label={o.organization.name} />}
             {o.items.map((i) => (
               <View key={i.id} style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                 <Text>{i.testName}</Text>

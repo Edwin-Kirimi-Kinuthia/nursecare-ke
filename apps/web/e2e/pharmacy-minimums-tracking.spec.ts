@@ -33,6 +33,7 @@ test.beforeAll(async () => {
 });
 test.afterAll(async () => {
   if (!users.length) return;
+  await db.serviceReview.deleteMany({ where: { patientId: { in: users } } });
   await db.order.deleteMany({ where: { patientId: { in: users } } });
   await db.payment.deleteMany({ where: { patientId: { in: users } } });
   await db.auditLog.deleteMany({ where: { actorId: { in: users } } });
@@ -110,24 +111,25 @@ test("paid orders can be updated by admins and their vendor, and clients see eac
   expect((await request.post("/api/v1/admin/payments/verifications", { headers: headers(adminToken), data: { id: paymentId, approve: true } })).status()).toBe(200);
   expect((await request.patch(`/api/v1/admin/orders/${vendorOrderId}`, { headers: headers(patientToken), data: { status: "processing" } })).status()).toBe(403);
   expect((await request.patch(`/api/v1/vendor/orders/${vendorOrderId}`, { headers: headers(otherToken), data: { status: "processing" } })).status()).toBe(404);
-  expect((await request.patch(`/api/v1/admin/orders/${vendorOrderId}`, { headers: headers(adminToken), data: { status: "delivered" } })).status()).toBe(400);
+  expect((await request.patch(`/api/v1/admin/orders/${vendorOrderId}`, { headers: headers(adminToken), data: { status: "in_delivery" } })).status()).toBe(400);
   const contexts = await Promise.all([patientToken, adminToken, vendorToken].map(async value => { const ctx = await browser.newContext(); await ctx.addCookies([{ name: "cb_access", value, url: test.info().project.use.baseURL! }]); return ctx; }));
   try {
     const client = await contexts[0].newPage(), admin = await contexts[1].newPage(), vendor = await contexts[2].newPage();
     await client.goto("/orders"); await client.getByRole("link", { name: /Track order/ }).click();
-    await expect(client.getByRole("status")).toHaveText("Paid");
+    await expect(client.getByRole("region", { name: "Test pharmacy 0 delivery progress", exact: true }).getByRole("status")).toHaveText("Paid");
     await admin.goto("/admin"); await admin.getByRole("button", { name: "Orders", exact: true }).click();
     await vendor.goto("/vendor"); await vendor.getByRole("button", { name: "Orders", exact: true }).click();
-    for (const [actor, label, expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered", "Delivered"]] as const) {
+    for (const [actor, label, expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered & request review", "Delivered"]] as const) {
       await actor.getByRole("button", { name: "Refresh orders", exact: true }).click();
       const rowId = actor === admin ? orderId : vendorOrderId;
       const row = actor.getByRole("article", { name: `Pharmacy order ${rowId.slice(0, 8).toUpperCase()}`, exact: true });
+      if (expected === "Delivered") actor.once("dialog", dialog => dialog.accept());
       const [response] = await Promise.all([
         actor.waitForResponse(r => r.url().endsWith(`/orders/${vendorOrderId}`) && r.request().method() === "PATCH"),
         row.getByRole("button", { name: label, exact: true }).click(),
       ]);
       expect(response.status()).toBe(200);
-      await client.getByRole("button", { name: "Refresh delivery status", exact: true }).click(); await expect(client.getByRole("status")).toHaveText(expected);
+      await client.getByRole("button", { name: "Refresh delivery status", exact: true }).click(); await expect(client.getByRole("region", { name: "Test pharmacy 0 delivery progress", exact: true }).getByRole("status")).toHaveText(expected);
     }
     const order = (await (await request.get(`/api/v1/orders/${orderId}`, { headers: headers(patientToken) })).json()).data;
     expect(order.vendorOrders[0].statusHistory.map((e: { status: string }) => e.status)).toEqual(["pending", "paid", "processing", "dispatched", "in_delivery", "delivered"]);
@@ -178,4 +180,26 @@ test("each pharmacy in one checkout has its own minimum and delivery progress", 
   await page.goto(`/orders/${o.id}`);
   await expect(page.getByRole("region", { name: "Test pharmacy 0 delivery progress" }).getByRole("status")).toHaveText("Preparing");
   await expect(page.getByRole("region", { name: "Test pharmacy 1 delivery progress" }).getByRole("status")).toHaveText("Paid");
+});
+
+
+test("direct delivery requests one review and only the purchaser can rate the completed service", async ({ request }) => {
+  const response = await request.post("/api/v1/orders", { headers: headers(patientToken), data: checkout(10) });
+  expect(response.status()).toBe(201); const placed = (await response.json()).data;
+  const id = placed.vendorOrders[0].id;
+  const review = { serviceType: "vendor_order", subjectId: id, rating: 5, comment: "Helpful delivery service." };
+  expect((await request.post("/api/v1/service-reviews", { headers: headers(patientToken), data: review })).status()).toBe(400);
+  await request.post("/api/v1/payments/till/submit", { headers: headers(patientToken), data: { gatewayRef: placed.payment.gatewayRef, code: `REV${tag.replace(/-/g, "").slice(0,9)}` } });
+  await request.post("/api/v1/admin/payments/verifications", { headers: headers(adminToken), data: { id: placed.payment.id, approve: true } });
+  expect((await request.patch(`/api/v1/admin/orders/${id}`, { headers: headers(adminToken), data: { status: "delivered" } })).status()).toBe(200);
+  for (let i=0;i<2;i++) expect((await request.post(`/api/v1/vendor/orders/${id}/review-request`, { headers: headers(vendorToken) })).status()).toBe(200);
+  expect(await db.notification.count({ where: { userId: patientId, type: "service_review_requested", link: `/orders/${placed.id}` } })).toBe(1);
+  expect((await request.post(`/api/v1/vendor/orders/${id}/review-request`, { headers: headers(otherToken) })).status()).toBe(404);
+  expect((await request.post("/api/v1/service-reviews", { headers: headers(otherToken), data: review })).status()).toBe(403);
+  const created = await request.post("/api/v1/service-reviews", { headers: headers(patientToken), data: review });
+  expect(created.status()).toBe(201);
+  expect((await request.post("/api/v1/service-reviews", { headers: headers(patientToken), data: review })).status()).toBe(409);
+  const publicReviews = (await (await request.get(`/api/v1/organizations/${orgId}/reviews`)).json()).data;
+  expect(publicReviews.reviews).toHaveLength(1); expect(publicReviews.reviews[0].rating).toBe(5); expect(publicReviews.reviews[0]).not.toHaveProperty("patientId");
+  expect((await db.organization.findUniqueOrThrow({ where: { id: orgId } })).ratingAvg).toBe(5);
 });

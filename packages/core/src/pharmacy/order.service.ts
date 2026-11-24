@@ -319,12 +319,12 @@ export const orderService = {
   },
 
   async patchVendorOrder(orgId: string, vendorOrderId: string, input: PatchVendorOrderInput, actorId?: string) {
-    return db.$transaction(async tx => {
+    const result = await db.$transaction(async tx => {
       const vo = await tx.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { items: true } });
       if (!vo) throw ApiError.notFound("Order not found");
       if (vo.status === input.status) return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
       const cancelling = input.status === "cancelled";
-      if (cancelling ? !["paid", "processing"].includes(vo.status) : ORDER_NEXT_STATUS[vo.status] !== input.status) {
+      if (cancelling ? !["paid", "processing"].includes(vo.status) : (ORDER_NEXT_STATUS[vo.status] !== input.status && !(input.status === "delivered" && ["paid", "processing", "dispatched", "in_delivery"].includes(vo.status)))) {
         throw ApiError.badRequest(`Cannot move a ${vo.status} order to ${input.status}`);
       }
       const now = new Date();
@@ -344,5 +344,24 @@ export const orderService = {
       if (actorId) await tx.auditLog.create({ data: { actorId, action: "pharmacy.order_status", entityType: "VendorOrder", entityId: vo.id, metadata: { from: vo.status, to: input.status } } });
       return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
     });
+    if (input.status === "delivered") await this.requestReview(orgId, vendorOrderId);
+    return result;
+  },
+
+  async requestReview(orgId: string, vendorOrderId: string) {
+    const vo = await db.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { order: { select: { patientId: true } }, organization: { select: { name: true } } } });
+    if (!vo) throw ApiError.notFound("Order not found");
+    if (vo.status !== "delivered") throw ApiError.badRequest("Mark this order delivered before requesting a review");
+    await inAppNotifications.create(vo.order.patientId, {
+      type: "service_review_requested", title: "How was your pharmacy delivery?",
+      body: `Your order from ${vo.organization.name} was delivered. Please rate your experience.`,
+      link: `/orders/${vo.orderId}`, eventKey: `pharmacy-review:${vo.id}`,
+    });
+    return { ok: true };
+  },
+  async adminRequestReview(vendorOrderId: string) {
+    const vo = await db.vendorOrder.findUnique({ where: { id: vendorOrderId }, select: { orgId: true } });
+    if (!vo) throw ApiError.notFound("Order not found");
+    return this.requestReview(vo.orgId, vendorOrderId);
   },
 };

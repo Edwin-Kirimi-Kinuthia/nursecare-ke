@@ -62,6 +62,7 @@ async function queryOffers(opts: {
         AND (${categoryFilter}::text IS NULL OR d.category ILIKE ${categoryFilter})
         AND (${searchFilter}::text IS NULL OR d.name ILIKE ${searchFilter} OR d.generic_name ILIKE ${searchFilter})
         AND (${rxFilter}::boolean IS NULL OR d.requires_prescription = ${rxFilter})
+        AND (${countyFilter}::text IS NULL OR b.county = ${countyFilter})
         AND ST_DWithin(b.geog, ST_SetSRID(ST_MakePoint(${opts.lng}, ${opts.lat}), 4326)::geography, b.delivery_radius_km * 1000)
       ORDER BY "distanceKm" ASC, l.price_kes ASC
     `;
@@ -122,7 +123,7 @@ export const storefrontService = {
 
     const grouped = [...byDrug.values()].map((offers) => {
       const cheapest = offers.reduce((a, b) => (b.priceKes < a.priceKes ? b : a));
-      const nearest = query.lat !== undefined
+      const nearest = !query.sort?.startsWith("price_") && query.lat !== undefined
         ? offers.reduce((a, b) => ((b.distanceKm ?? Infinity) < (a.distanceKm ?? Infinity) ? b : a))
         : cheapest;
       const vendorCount = new Set(offers.map((o) => o.orgId)).size;
@@ -150,11 +151,12 @@ export const storefrontService = {
       };
     });
 
-    grouped.sort((a, b) =>
-      query.lat !== undefined
-        ? (a.nearestVendor.distanceKm ?? Infinity) - (b.nearestVendor.distanceKm ?? Infinity)
-        : a.bestPriceKes - b.bestPriceKes,
-    );
+    grouped.sort((a, b) => {
+      if (query.sort === "price_desc") return b.unitPriceKes - a.unitPriceKes || a.drugId.localeCompare(b.drugId);
+      if (query.sort === "price_asc") return a.unitPriceKes - b.unitPriceKes || a.drugId.localeCompare(b.drugId);
+      const distance = (a.nearestVendor.distanceKm ?? Infinity) - (b.nearestVendor.distanceKm ?? Infinity);
+      return (query.lat !== undefined && Number.isFinite(distance) ? distance : 0) || a.unitPriceKes - b.unitPriceKes || a.drugId.localeCompare(b.drugId);
+    });
 
     const total = grouped.length;
     const page = grouped.slice(query.offset, query.offset + query.limit);

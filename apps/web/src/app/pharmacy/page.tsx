@@ -15,6 +15,8 @@ import { CARE_IMAGES } from "@/lib/care-imagery";
 export default function PharmacyPage() {
   const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
   const [drugs, setDrugs] = useState<StorefrontDrug[]>([]);
+  const [sort, setSort] = useState<"nearest" | "price_asc" | "price_desc">("nearest");
+  const [prescription, setPrescription] = useState("");
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -28,7 +30,7 @@ export default function PharmacyPage() {
     let active = true;
     queueMicrotask(() => { if (active) { setLoading(true); setError(null); } });
     const query = {
-      limit: 50,
+      limit: 50, sort, ...(prescription ? { requiresPrescription: prescription === "true" } : {}),
       ...(category ? { category } : {}),
       ...(search ? { search } : {}),
       ...(lat != null && lng != null ? { lat, lng } : county ? { county } : {}),
@@ -38,7 +40,7 @@ export default function PharmacyPage() {
       .catch(() => { if (active) setError("Could not load the pharmacy catalogue."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [category, search, lat, lng, county]);
+  }, [category, search, lat, lng, county, sort, prescription]);
 
   const categories = useMemo(() => ["", ...allCategories], [allCategories]);
 
@@ -71,6 +73,8 @@ export default function PharmacyPage() {
         <div className="mx-auto max-w-6xl px-4 py-3">
 
           <div className="flex flex-wrap items-center gap-2">
+            <label className="text-sm">Sort <select aria-label="Sort medicines" value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="rounded-full border border-slate-200 px-3 py-2"><option value="nearest">Nearest pharmacy</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
+            <label className="text-sm">Type <select aria-label="Prescription requirement" value={prescription} onChange={e => setPrescription(e.target.value)} className="rounded-full border border-slate-200 px-3 py-2"><option value="">All medicines</option><option value="true">Prescription required</option><option value="false">Over the counter (OTC)</option></select></label>
             <button
               onClick={() => setShowLocationPicker((s) => !s)}
               className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 hover:border-teal-400 hover:text-teal-700"

@@ -1,3 +1,5 @@
+import * as Location from "expo-location";
+import { Button } from "@/ui/Button";
 import { absoluteUrl } from "@/lib/links";
 import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
@@ -22,6 +24,11 @@ import { categoryColors } from "@/features/categoryColors";
 
 export default function PharmacyScreen() {
   const [county, setCounty] = useState("");
+  const [position, setPosition] = useState<{lat:number;lng:number} | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState("");
+  const [sort, setSort] = useState("price_asc");
+  const [prescription, setPrescription] = useState("");
   const [category, setCategory] = useState("");
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -30,10 +37,20 @@ export default function PharmacyScreen() {
   // Debounce typing so each keystroke isn't a request.
   useEffect(() => { const h = setTimeout(() => setSearch(query.trim()), 350); return () => clearTimeout(h); }, [query]);
 
-  const where = county ? { county } : {};
+  async function locate() {
+    setLocating(true); setLocationError("");
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== "granted") throw new Error("Location permission was not granted. You can choose your county instead.");
+      const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setPosition({lat:location.coords.latitude,lng:location.coords.longitude}); setCounty(""); setSort("nearest");
+    } catch (error) { setLocationError(error instanceof Error ? error.message : "Could not get your location. Choose your county instead."); }
+    finally { setLocating(false); }
+  }
+  const where = { ...(county ? { county } : {}), ...(position ?? {}) };
   const list = useAsync(
-    () => api.searchDrugs({ limit: 50, ...(category ? { category } : {}), ...(search ? { search } : {}), ...where } as never),
-    [category, search, county],
+    () => api.searchDrugs({ limit: 50, sort, ...(prescription ? { requiresPrescription: prescription === "true" } : {}), ...(category ? { category } : {}), ...(search ? { search } : {}), ...where } as never),
+    [category, search, county, sort, prescription, position],
   );
   const cats = list.data?.categories ?? [];
 
@@ -42,8 +59,12 @@ export default function PharmacyScreen() {
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
       <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Medicine, delivered" lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya." />
-      <Select label="Your county" value={county} options={counties} onChange={setCounty} placeholder="All of Kenya" compact />
+      <Select label="Your county" value={county} options={counties} onChange={value => { setCounty(value); setPosition(null); if (sort === "nearest") setSort("price_asc"); }} placeholder="All of Kenya" compact />
+      <Button title={position ? "Refresh my location" : "Use my location: nearest pharmacies"} size="sm" variant="secondary" loading={locating} onPress={locate} />
+      {locationError && <Banner tone="warn">{locationError}</Banner>}
       <SearchBox value={query} onChange={setQuery} />
+      <Select label="Sort medicines" value={sort} onChange={setSort} options={[...(position ? [{value:"nearest",label:"Nearest pharmacy"}] : []), {value:"price_asc",label:"Price: low to high"},{value:"price_desc",label:"Price: high to low"}]} compact />
+      <Select label="Prescription" value={prescription} onChange={setPrescription} options={[{value:"",label:"All medicines"},{value:"true",label:"Prescription required"},{value:"false",label:"Over the counter (OTC)"}]} compact />
       {cats.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ flexGrow: 0 }}>
           <Chip label="All" selected={category === ""} onPress={() => setCategory("")} />

@@ -1,9 +1,11 @@
 "use client";
+import ServiceReviewForm from "@/components/ServiceReviewForm";
 import { useCallback, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { useSection, SectionShell } from "@/components/dashboard/section";
+import OrderStatusActions from "@/components/OrderStatusActions";
 import OrderProgress from "@/components/OrderProgress";
 import OrderItems from "@/components/OrderItems";
 import { api, kes, when } from "@/lib/api";
@@ -18,7 +20,8 @@ export default function OrderPage() {
     <button className="button-secondary my-5" onClick={() => void reload()}>Refresh delivery status</button>
     <SectionShell loading={loading && !order} error={error} onRetry={reload}>{order && <>
     <p className="mb-5 text-sm text-slate-600">Order #{order.id.slice(0,8).toUpperCase()} · {when(order.createdAt)}</p>
-    {order.vendorOrders.map(v => <article key={v.id} className="mb-5 rounded-2xl border border-slate-200 p-5"><h2 className="text-lg font-semibold">{v.organization.name}</h2><OrderProgress order={v} /><OrderItems items={v.items} /></article>)}
+    {order.vendorOrders.map(v => <article key={v.id} className="mb-5 rounded-2xl border border-slate-200 p-5"><h2 className="text-lg font-semibold">{v.organization.name}</h2>{v.status === "delivered" && order.patient.id === user?.id && <ServiceReviewForm serviceType="vendor_order" subjectId={v.id} label={v.organization.name} />}
+<OrderProgress order={v} />{user?.role === "admin" && <OrderStatusActions order={v} admin onUpdated={reload} />}<OrderItems items={v.items} /></article>)}
     <p className="mt-5">Deliver to: {order.deliveryAddress}</p><p className="mt-2 font-semibold">Total: {kes(order.totalKes)}</p><p className="mt-2 text-sm">Payment: {order.payment?.status.replaceAll("_", " ") ?? "Pending"}</p>
     </>}</SectionShell></>}
   </div>;

@@ -1,4 +1,5 @@
 "use client";
+import OrganizationReviews from "@/components/OrganizationReviews";
 import { medicineUnit } from "@carebora/shared";
 
 import { useEffect, useState } from "react";
@@ -155,7 +156,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                     return (
                       <div key={o.listingId} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
                         <div className="min-w-0">
-                          <div className="truncate text-sm font-semibold text-slate-800">{o.orgName}</div>
+                          <div className="truncate text-sm font-semibold text-slate-800">{o.orgName}</div><OrganizationReviews orgId={o.orgId} name={o.orgName} />
                           <div className="flex items-center gap-1 text-xs text-slate-400">
                             <MapPin className="h-3 w-3" />
                             {o.branchName} · {o.distanceKm != null ? `${o.distanceKm.toFixed(1)}km` : o.county}

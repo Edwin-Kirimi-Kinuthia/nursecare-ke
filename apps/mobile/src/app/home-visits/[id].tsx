@@ -1,3 +1,4 @@
+import { ServiceReviewForm } from "@/features/ServiceReviewForm";
 import { View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { api } from "@/lib/api";
@@ -36,6 +37,7 @@ export default function HomeVisitScreen() {
           defaultPhone={user?.phone} noun="home visit" sitePath="/home-visits" onPaid={res.reload} />
       ) : null}
       {v.payment?.receiptNumber && <Banner tone="ok">Paid {kes(v.feeKes)} · M-Pesa receipt {v.payment.receiptNumber}</Banner>}
+          {v.status === "completed" && v.patientId === user?.id && <ServiceReviewForm serviceType="home_visit" subjectId={v.id} label={"your home visit"} />}
       {v.visitNotes && <Card><Text variant="label" tone="muted">PROVIDER NOTES</Text><Text>{v.visitNotes}</Text></Card>}
       {v.status === "cancelled" && v.payment?.failureReason && <Banner tone="danger">{v.payment.failureReason}</Banner>}
     </Screen>

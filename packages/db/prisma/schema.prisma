@@ -145,6 +145,7 @@ enum VisitUrgency {
 
 /// Base identity. One row per person/entity, regardless of role.
 model User {
+  serviceReviews ServiceReview[]
   id              String    @id @default(uuid()) @db.Uuid
   role            UserRole  @default(patient)
   email           String    @unique
@@ -297,6 +298,7 @@ model PatientProfile {
 
 /// Provider profile for doctors, nurses, physios, pharmacies.
 model ProviderProfile {
+  serviceReviews ServiceReview[]
   userId             String             @id @map("user_id") @db.Uuid
   specialty          String?
   subSpecialty       String?            @map("sub_specialty")
@@ -924,6 +926,7 @@ enum OrgMemberRole {
 
 /// A vendor business on the platform (pharmacy, ambulance operator, lab, clinic).
 model Organization {
+  serviceReviews ServiceReview[]
   id                String    @id @default(uuid()) @db.Uuid
   type              OrgType
   name              String
@@ -1547,4 +1550,27 @@ model WhatsAppMessage {
   @@index([status, availableAt])
   @@index([recipientUserId])
   @@map("whatsapp_messages")
+}
+
+/// Verified reviews of completed services outside scheduled consultations.
+model ServiceReview {
+  id String @id @default(uuid()) @db.Uuid
+  serviceType String @map("service_type")
+  subjectId String @map("subject_id") @db.Uuid
+  patientId String @map("patient_id") @db.Uuid
+  providerId String? @map("provider_id") @db.Uuid
+  orgId String? @map("org_id") @db.Uuid
+  rating Int
+  comment String?
+  isVisible Boolean @default(true) @map("is_visible")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  patient User @relation(fields: [patientId], references: [id])
+  provider ProviderProfile? @relation(fields: [providerId], references: [userId])
+  organization Organization? @relation(fields: [orgId], references: [id])
+  @@unique([serviceType, subjectId])
+  @@index([providerId, isVisible])
+  @@index([orgId, isVisible])
+  @@index([patientId])
+  @@map("service_reviews")
 }

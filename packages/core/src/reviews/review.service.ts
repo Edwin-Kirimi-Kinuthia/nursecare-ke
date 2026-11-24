@@ -1,3 +1,4 @@
+import { serviceReviewService } from "./service-review.service";
 import { db } from "@carebora/db";
 import { ApiError, type CreateReviewInput, type ModerateReviewInput, type ReviewsQuery } from "@carebora/shared";
 
@@ -47,18 +48,15 @@ export const reviewService = {
   },
 
   async listByProvider(providerId: string, query: ReviewsQuery) {
-    const where = { providerId, isVisible: query.isVisible ?? true };
-    const [reviews, total] = await Promise.all([
-      db.review.findMany({
-        where,
-        include: REVIEW_INCLUDE,
-        orderBy: { createdAt: "desc" },
-        take: query.limit,
-        skip: query.offset,
-      }),
-      db.review.count({ where }),
+    const where = { providerId, isVisible: true };
+    const [appointments, services, totalAppointments, totalServices] = await Promise.all([
+      db.review.findMany({ where, include: REVIEW_INCLUDE, orderBy: { createdAt: "desc" }, take: query.offset + query.limit }),
+      db.serviceReview.findMany({ where, include: { patient: REVIEW_INCLUDE.patient }, orderBy: { createdAt: "desc" }, take: query.offset + query.limit }),
+      db.review.count({ where }), db.serviceReview.count({ where }),
     ]);
-    return { reviews, total, limit: query.limit, offset: query.offset };
+    const reviews = [...appointments, ...services.map(r => ({ ...r, appointmentId: r.subjectId, appointment: { id: r.subjectId, appointmentType: "home_visit", slot: null } }))]
+      .sort((a,b) => b.createdAt.getTime()-a.createdAt.getTime() || a.id.localeCompare(b.id)).slice(query.offset, query.offset+query.limit);
+    return { reviews, total: totalAppointments+totalServices, limit: query.limit, offset: query.offset };
   },
 
   /**
@@ -105,25 +103,23 @@ export const reviewService = {
 
   async adminList(query: ReviewsQuery) {
     const where = query.isVisible !== undefined ? { isVisible: query.isVisible } : {};
-    const [reviews, total] = await Promise.all([
-      db.review.findMany({
-        where,
-        include: {
-          ...REVIEW_INCLUDE,
-          provider: { select: { userId: true, specialty: true, user: { select: { fullName: true, email: true } } } },
-        },
-        orderBy: { createdAt: "desc" },
-        take: query.limit,
-        skip: query.offset,
-      }),
-      db.review.count({ where }),
+    const provider = { select: { userId: true, specialty: true, user: { select: { fullName: true, email: true } } } } as const;
+    const [appointments, services, countA, countB] = await Promise.all([
+      db.review.findMany({ where, include: { ...REVIEW_INCLUDE, provider }, orderBy: { createdAt: "desc" }, take: query.offset + query.limit }),
+      db.serviceReview.findMany({ where, include: { patient: REVIEW_INCLUDE.patient, provider, organization: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: query.offset + query.limit }),
+      db.review.count({ where }), db.serviceReview.count({ where }),
     ]);
-    return { reviews, total, limit: query.limit, offset: query.offset };
+    const reviews = [...appointments, ...services.map(r => ({ ...r, appointmentId: r.subjectId, appointment: null }))]
+      .sort((a,b) => b.createdAt.getTime()-a.createdAt.getTime() || a.id.localeCompare(b.id)).slice(query.offset,query.offset+query.limit);
+    return { reviews, total: countA + countB, limit: query.limit, offset: query.offset };
   },
 
   async moderate(reviewId: string, input: ModerateReviewInput) {
     const review = await db.review.findUnique({ where: { id: reviewId } });
-    if (!review) throw ApiError.notFound("Review not found");
+    if (!review) {
+      if (!await db.serviceReview.findUnique({ where: { id: reviewId } })) throw ApiError.notFound("Review not found");
+      return serviceReviewService.moderate(reviewId, input.isVisible);
+    }
     const updated = await db.review.update({
       where: { id: reviewId },
       data: { isVisible: input.isVisible },

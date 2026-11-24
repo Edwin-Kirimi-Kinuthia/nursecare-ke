@@ -207,6 +207,7 @@ export default function ProviderProfile({
         )}
       </div>
 
+      <p className="my-4 text-sm text-slate-600">{provider.completedConsultations ?? 0} completed consultations · {provider.completedHomeVisits ?? 0} completed home visits</p>
       <ProviderReviews
         providerId={id}
         ratingAvg={provider.ratingAvg}

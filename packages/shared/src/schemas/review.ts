@@ -17,3 +17,11 @@ export const reviewsQuerySchema = z.object({
   isVisible: z.coerce.boolean().optional(),
 });
 export type ReviewsQuery = z.infer<typeof reviewsQuerySchema>;
+
+export const serviceReviewSubjectSchema = z.object({
+  serviceType: z.enum(["vendor_order", "home_visit", "lab_order", "ambulance"]),
+  subjectId: z.string().uuid(),
+});
+export const createServiceReviewSchema = serviceReviewSubjectSchema.merge(createReviewSchema);
+export type ServiceReviewSubject = z.infer<typeof serviceReviewSubjectSchema>;
+export type CreateServiceReviewInput = z.infer<typeof createServiceReviewSchema>;

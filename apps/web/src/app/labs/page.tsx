@@ -1,4 +1,5 @@
 "use client";
+import ServiceReviewForm from "@/components/ServiceReviewForm";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -199,6 +200,7 @@ export default function LabsPage() {
                 <div>
                   <div className="font-semibold text-slate-900">{o.organization.name}</div>
                   <div className="mt-0.5 text-xs text-slate-400">{when(o.createdAt)}</div>
+{o.status === "resulted" && <ServiceReviewForm serviceType="lab_order" subjectId={o.id} label={o.organization.name} />}
                   <ul className="mt-2 space-y-1 text-sm text-slate-600">
                     {o.items.map((i) => (
                       <li key={i.id} className="flex items-center gap-2">

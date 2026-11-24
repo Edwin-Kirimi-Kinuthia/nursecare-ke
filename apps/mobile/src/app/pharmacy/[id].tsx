@@ -1,3 +1,4 @@
+import { OrganizationReviews } from "@/features/OrganizationReviews";
 import { medicineUnit } from "@carebora/shared";
 import { absoluteUrl } from "@/lib/links";
 import { Image, View } from "react-native";
@@ -62,7 +63,7 @@ export default function DrugScreen() {
           <View key={o.listingId} style={{ backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 14, gap: 10 }}>
             <View>
               <Text variant="caption" tone="muted">Minimum order: {o.minOrderQty ?? 1} units</Text>
-              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 16 }}>{o.orgName}</Text>
+              <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 16 }}>{o.orgName}</Text><OrganizationReviews orgId={o.orgId} name={o.orgName} />
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><MapPin size={13} color={t.textMuted} /><Text variant="caption" tone="muted">{o.branchName} · {o.distanceKm != null ? `${o.distanceKm.toFixed(1)}km` : o.county}</Text></View>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>

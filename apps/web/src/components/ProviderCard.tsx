@@ -31,8 +31,9 @@ export default function ProviderCard({ p }: { p: ProviderPublicProfile }) {
       </div>
       <AvailabilityBadge available={p.isAvailable} className="mt-3" />
       {p.ratingCount > 0 ? (
-        <div className="mt-3 flex items-center gap-2"><Stars value={p.ratingAvg} /><span className="text-xs text-slate-500">{p.ratingAvg} ({p.ratingCount} reviews)</span></div>
+        <div className="mt-3 flex items-center gap-2"><Stars value={p.ratingAvg} /><span className="text-xs text-slate-500">{p.ratingAvg.toFixed(1)} ({p.ratingCount} reviews)</span></div>
       ) : <p className="mt-3 text-xs text-slate-500">No patient reviews yet</p>}
+      <p className="mt-2 text-xs text-slate-500">{p.completedServices ?? 0} completed consultations and home visits</p>
 
       <div className="mt-auto pt-5"><div className="flex items-end justify-between gap-3 border-t border-slate-200 pt-4">
         <div><p className="text-xs text-slate-500">Video consultation</p><p className="mt-1 font-semibold text-slate-900">{p.consultationFeeKes ? kes(p.consultationFeeKes) : "Fee not listed"}</p></div>

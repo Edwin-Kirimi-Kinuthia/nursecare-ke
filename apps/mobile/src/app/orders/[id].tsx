@@ -1,3 +1,6 @@
+import { useAuth } from "@/lib/auth";
+import { OrderStatusActions } from "@/features/OrderStatusActions";
+import { ServiceReviewForm } from "@/features/ServiceReviewForm";
 import { useEffect } from "react";
 import { OrderProgress } from "@/features/OrderProgress";
 import { AppState, View } from "react-native";
@@ -12,6 +15,7 @@ import { orderLabel, orderTone } from "@/features/orderStatus";
 
 export default function OrderScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const { user } = useAuth();
   const res = useAsync(() => api.getOrder(id), [id]);
   const reload = res.reload;
   useEffect(() => { const timer = setInterval(() => { if (AppState.currentState === "active") void reload(); }, 15_000); return () => clearInterval(timer); }, [reload]);
@@ -31,7 +35,9 @@ export default function OrderScreen() {
             <Text variant="subheading">{v.organization.name}</Text>
             <Badge label={orderLabel(v.status)} tone={orderTone(v.status)} />
           </View>
+          {v.status === "delivered" && o.patient.id === user?.id && <ServiceReviewForm serviceType="vendor_order" subjectId={v.id} label={v.organization.name} />}
           <OrderProgress order={v} />
+          {user?.role === "admin" && <OrderStatusActions order={v} admin onUpdated={res.reload} />}
           {v.items.map((i) => (
             <View key={i.id} style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={{ flex: 1 }}>{i.qty} × {i.drugName}</Text>

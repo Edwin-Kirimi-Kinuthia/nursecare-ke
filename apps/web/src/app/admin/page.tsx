@@ -918,7 +918,7 @@ function ReviewsTab() {
                     {Array.from({ length: 5 }).map((_, i) => <Star key={i} className={`h-3.5 w-3.5 ${i < r.rating ? "fill-current" : "text-slate-200"}`} />)}
                   </span>
                   <span className="text-sm font-semibold text-slate-800">{r.patient.fullName}</span>
-                  {r.provider && <span className="text-xs text-slate-400">→ {r.provider.user.fullName}</span>}
+                  {r.provider && <span className="text-xs text-slate-400">→ {r.provider.user.fullName}</span>}{r.organization && <span className="text-xs text-slate-400">→ {r.organization.name}</span>}
                   {!r.isVisible && <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-500">Hidden</span>}
                 </div>
                 {r.comment && <p className="mt-1.5 text-sm text-slate-600">&ldquo;{r.comment}&rdquo;</p>}

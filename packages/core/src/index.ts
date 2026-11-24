@@ -75,3 +75,5 @@ export { aiService } from "./ai/ai.service";
 export type { SymptomCheckResult, ProviderMatchResult, FactCheckResult, PharmacySuggestion } from "./ai/ai.service";
 export { earningsService } from "./payment/earnings.service";
 export { b2cService } from "./payment/b2c.service";
+
+export { serviceReviewService } from "./reviews/service-review.service";
