@@ -1,3 +1,4 @@
+import { medicineUnit } from "@carebora/shared";
 import { absoluteUrl } from "@/lib/links";
 import { Image, View } from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
@@ -56,17 +57,18 @@ export default function DrugScreen() {
       </Text>
       {offers.map((o) => {
         const qty = items[o.listingId] ?? 0;
-        const out = o.stockQty === 0;
+        const out = o.stockQty < (o.minOrderQty ?? 1);
         return (
           <View key={o.listingId} style={{ backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 14, gap: 10 }}>
             <View>
+              <Text variant="caption" tone="muted">Minimum order: {o.minOrderQty ?? 1} units</Text>
               <Text style={{ fontFamily: "Inter_600SemiBold", fontSize: 16 }}>{o.orgName}</Text>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}><MapPin size={13} color={t.textMuted} /><Text variant="caption" tone="muted">{o.branchName} · {o.distanceKm != null ? `${o.distanceKm.toFixed(1)}km` : o.county}</Text></View>
             </View>
             <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-              <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 20 }}>{kes(o.priceKes)}</Text>
-              {qty > 0 ? <Stepper qty={qty} onAdd={() => add(o.listingId)} onSub={() => sub(o.listingId)} disableAdd={out} />
-                : <Button title={out ? "Out of stock" : "Add to cart"} size="sm" disabled={out} onPress={() => add(o.listingId)} />}
+              <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 20 }}>{kes(o.priceKes)} / {medicineUnit(drug.form)}</Text>
+              {qty > 0 ? <Stepper qty={qty} onAdd={() => add(o.listingId, o.minOrderQty ?? 1, Math.min(100, o.stockQty))} onSub={() => sub(o.listingId, o.minOrderQty ?? 1)} disableAdd={out || qty >= Math.min(100, o.stockQty)} />
+                : <Button title={out ? "Out of stock" : "Add to cart"} size="sm" disabled={out} onPress={() => add(o.listingId, o.minOrderQty ?? 1, Math.min(100, o.stockQty))} />}
             </View>
           </View>
         );

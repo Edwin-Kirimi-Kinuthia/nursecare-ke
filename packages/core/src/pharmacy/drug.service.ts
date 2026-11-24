@@ -60,18 +60,18 @@ export const drugService = {
    * this used to do — left it invisible to every client.
    */
   async adminCreate(adminUserId: string, input: AdminCreateDrugInput) {
-    const { priceKes, stockQty, ...drugFields } = input;
+    const { priceKes, stockQty, minOrderQty, ...drugFields } = input;
     const drug = await this.create(drugFields);
-    const listing = await upsertHouseListing(adminUserId, drug.id, { priceKes, stockQty });
-    return { ...drug, priceKes: listing?.priceKes ?? null, stockQty: listing?.stockQty ?? null };
+    const listing = await upsertHouseListing(adminUserId, drug.id, { priceKes, stockQty, minOrderQty });
+    return { ...drug, priceKes: listing?.priceKes ?? null, stockQty: listing?.stockQty ?? null, minOrderQty: listing?.minOrderQty ?? 1 };
   },
 
   /** Admin update: catalogue fields, plus the house listing's price and stock. */
   async adminUpdate(adminUserId: string, drugId: string, input: AdminUpdateDrugInput) {
-    const { priceKes, stockQty, ...drugFields } = input;
+    const { priceKes, stockQty, minOrderQty, ...drugFields } = input;
     const drug = await this.update(drugId, drugFields);
-    const listing = await upsertHouseListing(adminUserId, drugId, { priceKes, stockQty });
-    return { ...drug, priceKes: listing?.priceKes ?? null, stockQty: listing?.stockQty ?? null };
+    const listing = await upsertHouseListing(adminUserId, drugId, { priceKes, stockQty, minOrderQty });
+    return { ...drug, priceKes: listing?.priceKes ?? null, stockQty: listing?.stockQty ?? null, minOrderQty: listing?.minOrderQty ?? 1 };
   },
 
   /**
@@ -83,17 +83,18 @@ export const drugService = {
     const base = await this.list(query);
     const listings = await db.listing.findMany({
       where: { drugId: { in: base.drugs.map((d) => d.id) } },
-      select: { drugId: true, priceKes: true, stockQty: true, isActive: true, organization: { select: { slug: true, status: true } } },
+      select: { drugId: true, priceKes: true, stockQty: true, minOrderQty: true, isActive: true, organization: { select: { slug: true, status: true } } },
     });
 
     const drugs = base.drugs.map((d) => {
       const own = listings.filter((l) => l.drugId === d.id);
       const house = own.find((l) => l.organization.slug === HOUSE_ORG_SLUG);
-      const sellable = own.filter((l) => l.isActive && l.stockQty > 0 && l.organization.status === "approved");
+      const sellable = own.filter((l) => l.isActive && l.stockQty >= l.minOrderQty && l.organization.status === "approved");
       return {
         ...d,
         priceKes: house?.priceKes ?? null,
         stockQty: house?.stockQty ?? null,
+        minOrderQty: house?.minOrderQty ?? 1,
         /** How many pharmacies a client could actually buy this from right now. */
         sellerCount: sellable.length,
       };

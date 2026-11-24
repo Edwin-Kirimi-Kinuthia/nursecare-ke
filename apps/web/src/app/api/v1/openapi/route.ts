@@ -283,7 +283,7 @@ export function GET() {
         get: { tags: ["Vendor"], summary: "List this org's slice of every checkout it's part of", security: [bearerAuth], parameters: [{ name: "status", in: "query", schema: { type: "string" } }], responses: { 200: { description: "Vendor orders" } } },
       },
       "/vendor/orders/{vendorOrderId}": {
-        patch: { tags: ["Vendor"], summary: "Advance fulfilment status, or cancel", security: [bearerAuth], parameters: [{ name: "vendorOrderId", in: "path", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["processing", "dispatched", "delivered", "cancelled"] } } } } } }, responses: { 200: { description: "Updated" } } },
+        patch: { tags: ["Vendor"], summary: "Advance fulfilment status, or cancel", security: [bearerAuth], parameters: [{ name: "vendorOrderId", in: "path", required: true, schema: { type: "string" } }], requestBody: { required: true, content: { "application/json": { schema: { type: "object", properties: { status: { type: "string", enum: ["processing", "dispatched", "in_delivery", "delivered", "cancelled"] } } } } } }, responses: { 200: { description: "Updated" } } },
       },
 
       // ── Vendor onboarding & organizations ─────────────────────────────────

@@ -8,6 +8,6 @@ export const PATCH = route(async (req, { params }: { params: Promise<{ vendorOrd
   const auth = await requireOrgMember(req, { roles: ["owner", "manager", "staff"], orgType: "pharmacy" });
   const { vendorOrderId } = await params;
   const input = patchVendorOrderSchema.parse(await req.json());
-  const vendorOrder = await orderService.patchVendorOrder(auth.orgId, vendorOrderId, input);
+  const vendorOrder = await orderService.patchVendorOrder(auth.orgId, vendorOrderId, input, auth.sub);
   return jsonOk(vendorOrder);
 });

@@ -24,6 +24,7 @@ export const PRIVATE_PATHS = [
   "/admin",
   "/vendor",
   "/earnings",
+  "/orders",
   "/records",
   "/appointments",
   "/home-visits",

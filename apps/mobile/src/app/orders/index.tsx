@@ -1,4 +1,5 @@
-import { Pressable, View } from "react-native";
+import { useEffect } from "react";
+import { AppState, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Package } from "lucide-react-native";
 import { api } from "@/lib/api";
@@ -17,6 +18,8 @@ export default function OrdersScreen() {
   const t = useTheme();
   const { user } = useAuth();
   const list = useAsync(() => (user ? api.listOrders({ limit: 30 } as never) : Promise.resolve(null)), [user?.id]);
+  const reload = list.reload;
+  useEffect(() => { if (!user) return; const timer = setInterval(() => { if (AppState.currentState === "active") void reload(); }, 15_000); return () => clearInterval(timer); }, [user, reload]);
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing}>
       <PageHeader eyebrow="Pharmacy" Icon={Package} title="My orders" />
@@ -31,8 +34,9 @@ export default function OrdersScreen() {
               style={{ backgroundColor: "#fff", borderRadius: 16, borderWidth: 1, borderColor: t.border, padding: 16, gap: 6 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <Text style={{ fontFamily: "Inter_700Bold" }}>Order {o.id.slice(0, 8).toUpperCase()}</Text>
-                <Badge label={orderLabel(status)} tone={orderTone(status)} />
+                <Badge label={new Set(o.vendorOrders.map(v => v.status)).size > 1 ? "Multiple deliveries" : orderLabel(status)} tone={orderTone(status)} />
               </View>
+              {o.vendorOrders.map(v => <Text key={v.id} variant="caption" tone="muted">{v.organization.name} · {orderLabel(v.status)}</Text>)}
               <Text variant="caption" tone="muted">{dayTime(o.createdAt)} · {o.vendorOrders.reduce((n, v) => n + v.items.length, 0)} item(s)</Text>
               <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 18 }}>{kes(o.totalKes)}</Text>
             </Pressable>

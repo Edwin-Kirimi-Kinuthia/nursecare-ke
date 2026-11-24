@@ -10,6 +10,8 @@ interface OfferRow {
   listingId: string;
   priceKes: number;
   stockQty: number;
+  minOrderQty: number;
+  form: string | null;
   orgId: string;
   orgName: string;
   branchId: string;
@@ -43,7 +45,7 @@ async function queryOffers(opts: {
     return db.$queryRaw<OfferRow[]>`
       SELECT
         d.id AS "drugId", d.name AS "drugName", d.category, d.image_url AS "imageUrl",
-        d.requires_prescription AS "requiresPrescription",
+        d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
         l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
         o.id AS "orgId", o.name AS "orgName",
         b.id AS "branchId", b.name AS "branchName", b.county,
@@ -52,7 +54,7 @@ async function queryOffers(opts: {
       JOIN drugs d ON d.id = l.drug_id
       JOIN organizations o ON o.id = l.org_id
       JOIN org_branches b ON b.org_id = o.id
-      WHERE l.is_active = true AND l.stock_qty > 0
+      WHERE l.is_active = true AND l.stock_qty >= l.min_order_qty
         AND d.is_active = true
         AND o.type = 'pharmacy' AND o.status = 'approved'
         AND b.is_active = true
@@ -68,7 +70,7 @@ async function queryOffers(opts: {
   return db.$queryRaw<OfferRow[]>`
     SELECT
       d.id AS "drugId", d.name AS "drugName", d.category, d.image_url AS "imageUrl",
-      d.requires_prescription AS "requiresPrescription",
+      d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
       l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
       o.id AS "orgId", o.name AS "orgName",
       b.id AS "branchId", b.name AS "branchName", b.county,
@@ -77,7 +79,7 @@ async function queryOffers(opts: {
     JOIN drugs d ON d.id = l.drug_id
     JOIN organizations o ON o.id = l.org_id
     JOIN org_branches b ON b.org_id = o.id
-    WHERE l.is_active = true AND l.stock_qty > 0
+    WHERE l.is_active = true AND l.stock_qty >= l.min_order_qty
       AND d.is_active = true
       AND o.type = 'pharmacy' AND o.status = 'approved'
       AND b.is_active = true
@@ -131,10 +133,13 @@ export const storefrontService = {
         imageUrl: nearest.imageUrl,
         requiresPrescription: nearest.requiresPrescription,
         bestPriceKes: cheapest.priceKes,
+        unitPriceKes: nearest.priceKes,
         vendorCount,
         // The surfaced listing — "Add to cart" on the storefront adds this one directly.
         listingId: nearest.listingId,
         stockQty: nearest.stockQty,
+        minOrderQty: nearest.minOrderQty,
+        form: nearest.form,
         nearestVendor: {
           orgId: nearest.orgId,
           orgName: nearest.orgName,
@@ -168,6 +173,7 @@ export const storefrontService = {
         listingId: r.listingId,
         priceKes: r.priceKes,
         stockQty: r.stockQty,
+        minOrderQty: r.minOrderQty,
         orgId: r.orgId,
         orgName: r.orgName,
         branchName: r.branchName,

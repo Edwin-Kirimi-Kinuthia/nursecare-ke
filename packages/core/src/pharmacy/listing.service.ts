@@ -29,7 +29,7 @@ export const listingService = {
     }
 
     return db.listing.create({
-      data: { orgId, drugId, priceKes: input.priceKes, stockQty: input.stockQty },
+      data: { orgId, drugId, priceKes: input.priceKes, stockQty: input.stockQty, minOrderQty: input.minOrderQty },
       include: LISTING_INCLUDE,
     });
   },

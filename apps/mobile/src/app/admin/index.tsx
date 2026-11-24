@@ -1,3 +1,6 @@
+import { OrderProgress } from "@/features/OrderProgress";
+import { OrderStatusActions } from "@/features/OrderStatusActions";
+import { orderStatusLabel } from "@carebora/shared";
 import { openUploadedDocument } from "@/lib/documents";
 import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useState } from "react";
@@ -329,9 +332,9 @@ function Orders() {
               <View key={vo.id} style={{ gap: 10, paddingVertical: 8 }}>
                 <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                 <Text variant="caption" tone="muted" style={{ flex: 1 }}>{vo.organization.name} · {vo.items.reduce((a, i) => a + i.qty, 0)} item(s)</Text>
-                <Badge label={vo.status.replace("_", " ")} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
+                <Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
                 </View>
-                <OrderItems items={vo.items} />
+                <OrderProgress order={vo} /><OrderStatusActions order={vo} admin onUpdated={list.reload} /><OrderItems items={vo.items} />
               </View>
             ))}
           </Card>

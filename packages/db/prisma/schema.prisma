@@ -120,6 +120,7 @@ enum OrderStatus {
   paid
   processing
   dispatched
+  in_delivery
   delivered
   cancelled
   refunded
@@ -714,6 +715,7 @@ model Listing {
   orgId     String   @map("org_id") @db.Uuid
   drugId    String   @map("drug_id") @db.Uuid
   priceKes  Int      @map("price_kes")
+  minOrderQty Int    @default(1) @map("min_order_qty")
   stockQty  Int      @default(0) @map("stock_qty")
   isActive  Boolean  @default(true) @map("is_active")
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -762,6 +764,7 @@ model VendorOrder {
   subtotalKes    Int         @map("subtotal_kes")
   deliveryFeeKes Int         @default(0) @map("delivery_fee_kes")
   dispatchedAt   DateTime?   @map("dispatched_at") @db.Timestamptz(6)
+  inDeliveryAt   DateTime?   @map("in_delivery_at") @db.Timestamptz(6)
   deliveredAt    DateTime?   @map("delivered_at") @db.Timestamptz(6)
   createdAt      DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -769,10 +772,21 @@ model VendorOrder {
   order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [orgId], references: [id])
   items        OrderItem[]
+  statusHistory VendorOrderStatusEvent[]
 
   @@index([orderId])
   @@index([orgId, status])
   @@map("vendor_orders")
+}
+
+model VendorOrderStatusEvent {
+  id String @id @default(uuid()) @db.Uuid
+  vendorOrderId String @map("vendor_order_id") @db.Uuid
+  status OrderStatus
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  vendorOrder VendorOrder @relation(fields: [vendorOrderId], references: [id], onDelete: Cascade)
+  @@index([vendorOrderId, createdAt])
+  @@map("vendor_order_status_events")
 }
 
 /// Line item inside a VendorOrder. Snapshots the drug name and price at checkout time.

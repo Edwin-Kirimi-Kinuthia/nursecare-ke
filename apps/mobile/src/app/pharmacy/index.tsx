@@ -4,7 +4,7 @@ import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Check, Eye, MapPin, Pill, ShoppingCart } from "lucide-react-native";
-import { KENYA_COUNTIES } from "@carebora/shared";
+import { KENYA_COUNTIES, medicineUnit } from "@carebora/shared";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
 import { useAsync } from "@/lib/useAsync";
@@ -73,7 +73,7 @@ const TONES = ["#E3F8FF", "#DCFAFB", "#FFE8DF", "#F0FFF0"] as const;
 function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
   const { items, add, sub } = useCart();
   const qty = items[d.listingId] ?? 0;
-  const out = d.stockQty === 0;
+  const out = d.stockQty < (d.minOrderQty ?? 1);
   const low = d.stockQty > 0 && d.stockQty < 20;
   const [from, to] = categoryColors(d.category);
   const open = () => router.push({ pathname: "/pharmacy/[id]", params: { id: d.drugId } });
@@ -92,7 +92,7 @@ function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
         </View>
         <View style={{ paddingHorizontal: 20, paddingBottom: 4, gap: 3 }}>
           <Text numberOfLines={1} style={{ color: "#64748B", fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
-          <Text numberOfLines={2} style={{ fontFamily: "Inter_800ExtraBold", fontSize: 17, color: "#0F172A" }}>{d.name}</Text>
+          <Text numberOfLines={2} style={{ fontFamily: "Inter_800ExtraBold", fontSize: 17, color: "#0F172A" }}>{d.name}</Text><Text variant="caption" tone="muted">Minimum order: {d.minOrderQty ?? 1} units</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <MapPin size={13} color="#475569" />
             <Text variant="caption" style={{ flex: 1, color: "#475569" }} numberOfLines={1}>
@@ -101,12 +101,12 @@ function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
           </View>
           <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: out || low ? "#FF5151" : "#047857" }}>{out ? "Out of stock" : low ? `Low stock: ${d.stockQty} left` : "In stock"}</Text>
         </View>
-        <Text style={{ textAlign: "center", color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 22, paddingVertical: 8 }}>{kes(d.bestPriceKes)}</Text>
+        <Text style={{ textAlign: "center", color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 22, paddingVertical: 8 }}>{kes(d.unitPriceKes ?? d.bestPriceKes)} / {medicineUnit(d.form)}</Text>
       </Pressable>
       <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.8)" }}>
         <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Eye size={22} color="#161616" /></Pressable>
-        {qty > 0 ? <Stepper qty={qty} onAdd={() => add(d.listingId)} onSub={() => sub(d.listingId)} disableAdd={out} />
-          : <Pressable onPress={() => add(d.listingId)} disabled={out} accessibilityRole="button" accessibilityLabel={`Add ${d.name} to cart`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", opacity: out ? 0.35 : 1 }}><ShoppingCart size={22} color="#161616" /></Pressable>}
+        {qty > 0 ? <Stepper qty={qty} onAdd={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} onSub={() => sub(d.listingId, d.minOrderQty ?? 1)} disableAdd={out || qty >= Math.min(100, d.stockQty)} />
+          : <Pressable onPress={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} disabled={out} accessibilityRole="button" accessibilityLabel={`Add ${d.name} to cart`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", opacity: out ? 0.35 : 1 }}><ShoppingCart size={22} color="#161616" /></Pressable>}
       </View>
     </View>
   );

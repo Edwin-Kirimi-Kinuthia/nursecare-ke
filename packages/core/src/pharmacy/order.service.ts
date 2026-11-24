@@ -4,6 +4,7 @@ import { HOUSE_ORG_SLUG } from "./house-pharmacy";
 import { db } from "@carebora/db";
 import {
   ApiError,
+  ORDER_NEXT_STATUS,
   type CreateOrderInput,
   type OrdersQuery,
   type VendorOrdersQuery,
@@ -14,6 +15,7 @@ import { paymentService, toPaymentSummary } from "../payment/payment.service";
 import { getEnv } from "../config/env";
 
 const VENDOR_ORDER_INCLUDE = {
+  statusHistory: { orderBy: { createdAt: "asc" as const } },
   organization: { select: { id: true, name: true, type: true } },
   items: { include: { listing: { include: { drug: true } } } },
 } as const;
@@ -60,9 +62,14 @@ export const orderService = {
     //    org is approved — a suspended/rejected vendor must not be checkout-
     //    able just because a patient still has one of its listingIds cached
     //    (from a cart built before suspension, or a stale page).
+    // Merge duplicate lines before checking limits, stock and minimum quantities.
+    const quantities = new Map<string, number>();
+    for (const item of input.items) quantities.set(item.listingId, (quantities.get(item.listingId) ?? 0) + item.qty);
+    input = { ...input, items: [...quantities].map(([listingId, qty]) => ({ listingId, qty })) };
+    if (input.items.some(item => item.qty > 100)) throw ApiError.badRequest("Order at most 100 units of each product");
     const listingIds = [...new Set(input.items.map((i) => i.listingId))];
     const listings = await db.listing.findMany({
-      where: { id: { in: listingIds }, isActive: true, organization: { status: "approved" } },
+      where: { id: { in: listingIds }, isActive: true, drug: { isActive: true }, organization: { status: "approved" } },
       include: { drug: true },
     });
     if (listings.length !== listingIds.length) {
@@ -88,6 +95,7 @@ export const orderService = {
 
     for (const item of input.items) {
       const listing = listingMap.get(item.listingId)!;
+      if (item.qty < listing.minOrderQty) throw ApiError.badRequest(`Minimum order for "${listing.drug.name}" is ${listing.minOrderQty} units`);
       if (listing.stockQty < item.qty) {
         throw ApiError.conflict(`Insufficient stock for "${listing.drug.name}"`);
       }
@@ -142,6 +150,7 @@ export const orderService = {
           vendorOrders: {
             create: [...byOrg.values()].map((g) => ({
               orgId: g.orgId,
+              statusHistory: { create: { status: "pending" } },
               subtotalKes: g.subtotalKes,
               items: { create: g.items },
             })),
@@ -158,12 +167,12 @@ export const orderService = {
       // no-op update means someone else took the last units first.
       for (const item of input.items) {
         const reserved = await tx.listing.updateMany({
-          where: { id: item.listingId, stockQty: { gte: item.qty } },
+          where: { id: item.listingId, isActive: true, drug: { isActive: true }, organization: { status: "approved" }, minOrderQty: { lte: item.qty }, stockQty: { gte: item.qty } },
           data: { stockQty: { decrement: item.qty } },
         });
         if (reserved.count === 0) {
           const name = listingMap.get(item.listingId)?.drug.name ?? "an item";
-          throw ApiError.conflict(`"${name}" just went out of stock — please adjust your cart`);
+          throw ApiError.conflict(`"${name}" availability or minimum quantity changed — please refresh your cart`);
         }
       }
       return created;
@@ -197,7 +206,7 @@ export const orderService = {
       const vendorNet = vo.subtotalKes - platformFee;
 
       await db.$transaction([
-        db.vendorOrder.update({ where: { id: vo.id }, data: { status: "paid" } }),
+        db.vendorOrder.update({ where: { id: vo.id }, data: { status: "paid", statusHistory: { create: { status: "paid" } } } }),
         db.ledgerEntry.create({
           data: {
             paymentId,
@@ -235,7 +244,7 @@ export const orderService = {
     if (!vendorOrders.length) return;
     await db.$transaction(async (tx) => {
       for (const vo of vendorOrders) {
-        await tx.vendorOrder.update({ where: { id: vo.id }, data: { status: "cancelled" } });
+        await tx.vendorOrder.update({ where: { id: vo.id }, data: { status: "cancelled", statusHistory: { create: { status: "cancelled" } } } });
         for (const item of vo.items) {
           await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
         }
@@ -303,42 +312,37 @@ export const orderService = {
     }), total, limit: query.limit, offset: query.offset };
   },
 
-  async patchVendorOrder(orgId: string, vendorOrderId: string, input: PatchVendorOrderInput) {
-    const vo = await db.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { items: true } });
-    if (!vo) throw ApiError.notFound("Order not found");
+  async adminPatchVendorOrder(vendorOrderId: string, input: PatchVendorOrderInput, actorId: string) {
+    const order = await db.vendorOrder.findUnique({ where: { id: vendorOrderId }, select: { orgId: true } });
+    if (!order) throw ApiError.notFound("Order not found");
+    return this.patchVendorOrder(order.orgId, vendorOrderId, input, actorId);
+  },
 
-    if (input.status === "cancelled") {
-      if (vo.status !== "paid" && vo.status !== "processing") {
-        throw ApiError.badRequest("Only paid or processing orders can be cancelled");
+  async patchVendorOrder(orgId: string, vendorOrderId: string, input: PatchVendorOrderInput, actorId?: string) {
+    return db.$transaction(async tx => {
+      const vo = await tx.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { items: true } });
+      if (!vo) throw ApiError.notFound("Order not found");
+      if (vo.status === input.status) return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
+      const cancelling = input.status === "cancelled";
+      if (cancelling ? !["paid", "processing"].includes(vo.status) : ORDER_NEXT_STATUS[vo.status] !== input.status) {
+        throw ApiError.badRequest(`Cannot move a ${vo.status} order to ${input.status}`);
       }
-      return db.$transaction(async (tx) => {
-        const updated = await tx.vendorOrder.update({
-          where: { id: vendorOrderId },
-          data: { status: "cancelled" },
-          include: VENDOR_ORDER_INCLUDE,
-        });
-        for (const item of vo.items) {
-          await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
-        }
-        return updated;
+      const now = new Date();
+      const changed = await tx.vendorOrder.updateMany({
+        where: { id: vo.id, orgId, status: vo.status },
+        data: { status: input.status,
+          ...(input.status === "dispatched" ? { dispatchedAt: now } : {}),
+          ...(input.status === "in_delivery" ? { inDeliveryAt: now } : {}),
+          ...(input.status === "delivered" ? { deliveredAt: now } : {}),
+        },
       });
-    }
-
-    const validNext: Record<string, string[]> = {
-      paid: ["processing"],
-      processing: ["dispatched"],
-      dispatched: ["delivered"],
-    };
-    if (input.status && !(validNext[vo.status] ?? []).includes(input.status)) {
-      throw ApiError.badRequest(`Cannot move a ${vo.status} order to ${input.status}`);
-    }
-
-    const data: Record<string, unknown> = {};
-    if (input.status) {
-      data.status = input.status;
-      if (input.status === "dispatched") data.dispatchedAt = new Date();
-      if (input.status === "delivered") data.deliveredAt = new Date();
-    }
-    return db.vendorOrder.update({ where: { id: vendorOrderId }, data, include: VENDOR_ORDER_INCLUDE });
+      if (!changed.count) throw ApiError.conflict("This order changed. Refresh before updating it again.");
+      await tx.vendorOrderStatusEvent.create({ data: { vendorOrderId: vo.id, status: input.status, createdAt: now } });
+      if (cancelling) {
+        for (const item of vo.items) await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
+      }
+      if (actorId) await tx.auditLog.create({ data: { actorId, action: "pharmacy.order_status", entityType: "VendorOrder", entityId: vo.id, metadata: { from: vo.status, to: input.status } } });
+      return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
+    });
   },
 };

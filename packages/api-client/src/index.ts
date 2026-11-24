@@ -822,6 +822,10 @@ export class CareBoraClient {
     const params = new URLSearchParams(query as Record<string, string>);
     return this.request<VendorOrderListResult>(`/vendor/orders?${params}`);
   }
+  adminPatchVendorOrder(vendorOrderId: string, input: PatchVendorOrderInput) {
+    return this.patch<VendorOrder>(`/admin/orders/${vendorOrderId}`, input);
+  }
+
   patchVendorOrder(vendorOrderId: string, input: PatchVendorOrderInput) {
     return this.patch<VendorOrder>(`/vendor/orders/${vendorOrderId}`, input);
   }
@@ -1265,6 +1269,7 @@ export type OrderStatus =
   | "paid"
   | "processing"
   | "dispatched"
+  | "in_delivery"
   | "delivered"
   | "cancelled"
   | "refunded";
@@ -1292,6 +1297,7 @@ export interface Drug {
 export interface AdminDrug extends Drug {
   priceKes: number | null;
   stockQty: number | null;
+  minOrderQty: number;
   sellerCount: number;
 }
 
@@ -1315,6 +1321,7 @@ export interface Listing {
   drugId: string;
   priceKes: number;
   stockQty: number;
+  minOrderQty: number;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
@@ -1323,16 +1330,19 @@ export interface Listing {
 
 /** One row in the buyer-facing storefront — a drug plus its best/nearest offer. */
 export interface StorefrontDrug {
+  form: string | null;
   drugId: string;
   name: string;
   category: string;
   imageUrl: string | null;
   requiresPrescription: boolean;
   bestPriceKes: number;
+  unitPriceKes: number;
   vendorCount: number;
   /** The listing surfaced by nearestVendor — "Add to cart" adds this listing directly. */
   listingId: string;
   stockQty: number;
+  minOrderQty: number;
   nearestVendor: {
     orgId: string;
     orgName: string;
@@ -1354,6 +1364,7 @@ export interface DrugOffer {
   listingId: string;
   priceKes: number;
   stockQty: number;
+  minOrderQty: number;
   orgId: string;
   orgName: string;
   branchName: string;
@@ -1386,6 +1397,8 @@ export interface VendorOrder {
   status: OrderStatus;
   subtotalKes: number;
   deliveryFeeKes: number;
+  inDeliveryAt: string | null;
+  statusHistory?: { id: string; status: OrderStatus; createdAt: string }[];
   dispatchedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;

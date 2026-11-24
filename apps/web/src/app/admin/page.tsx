@@ -1,4 +1,6 @@
 "use client";
+import OrderProgress from "@/components/OrderProgress";
+import OrderStatusActions from "@/components/OrderStatusActions";
 
 import Link from "next/link";
 import OrderItems from "@/components/OrderItems";
@@ -1106,7 +1108,7 @@ function AppointmentsTab() {
 // ── Pharmacy catalogue (admin sells through Care Bora's own pharmacy; vendor
 //    pharmacies manage their own price/stock from the vendor dashboard) ──
 const EMPTY_DRUG: AdminCreateDrugInput = {
-  name: "", category: "", requiresPrescription: false, priceKes: 0, stockQty: 0,
+  name: "", category: "", requiresPrescription: false, priceKes: 0, stockQty: 0, minOrderQty: 1,
 };
 
 function PharmacyTab() {
@@ -1195,7 +1197,7 @@ function PharmacyTab() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex justify-end gap-1">
-                      <button onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
+                      <button aria-label={`Edit ${d.name}`} onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-slate-500 hover:bg-slate-100" title="Edit"><Pencil className="h-4 w-4" /></button>
                       <button onClick={() => remove(d)} className="rounded-lg p-1.5 text-rose-500 hover:bg-rose-50" title="Remove"><Trash2 className="h-4 w-4" /></button>
                     </div>
                   </td>
@@ -1222,7 +1224,7 @@ function DrugModal({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
     category: drug.category, form: drug.form ?? undefined, strength: drug.strength ?? undefined,
     requiresPrescription: drug.requiresPrescription,
     images: drug.images?.length ? drug.images : drug.imageUrl ? [drug.imageUrl] : [],
-    priceKes: drug.priceKes ?? 0, stockQty: drug.stockQty ?? 0,
+    priceKes: drug.priceKes ?? 0, stockQty: drug.stockQty ?? 0, minOrderQty: drug.minOrderQty ?? 1,
   } : { ...EMPTY_DRUG });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -1310,7 +1312,7 @@ function DrugModal({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
             <div className="text-xs font-semibold uppercase tracking-wide text-teal-700">Care Bora Pharmacy listing</div>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
               <label className="block">
-                <span className="mb-1 block text-xs font-medium text-slate-600">Price (KES)</span>
+                <span className="mb-1 block text-xs font-medium text-slate-600">Price per unit (KES)</span>
                 <input
                   required type="number" min="1" value={form.priceKes || ""}
                   onChange={(e) => set("priceKes", parseInt(e.target.value, 10) || 0)}
@@ -1327,6 +1329,10 @@ function DrugModal({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
                 />
               </label>
             </div>
+            <label className="mt-3 block text-sm font-medium">Minimum order quantity (units)
+              <input aria-label="Minimum order quantity (units)" type="number" min="1" max="100" step="1" required value={form.minOrderQty} onChange={e => set("minOrderQty", Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2" />
+            </label>
+            <p className="mt-2 text-xs text-slate-600">Price and stock refer to one tablet, capsule, bottle, tube or other unit. The minimum is a purchase quantity, not a dosage.</p>
             {form.stockQty === 0 && (
               <p className="mt-2 flex items-start gap-1.5 text-xs text-amber-700">
                 <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" />
@@ -1346,7 +1352,7 @@ function DrugModal({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
   );
 }
 
-// ── Orders oversight (read-only — fulfilment is advanced per-vendor in the vendor dashboard) ──
+// ── Pharmacy fulfilment ──
 const ORDER_STATUS_CLS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700", awaiting_verification: "bg-orange-100 text-orange-700",
   paid: "bg-blue-100 text-blue-700", processing: "bg-indigo-100 text-indigo-700",
@@ -1387,6 +1393,7 @@ function OrdersTab() {
                     <span className="text-slate-600">{vo.organization.name} · {vo.items.reduce((n, i) => n + i.qty, 0)} item(s)</span>
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium capitalize ${ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100 text-slate-600"}`}>{vo.status.replace("_", " ")}</span>
                     </div>
+                    <OrderProgress order={vo} /><OrderStatusActions order={vo} admin onUpdated={reload} />
                     <OrderItems items={vo.items} />
                   </div>
                 ))}

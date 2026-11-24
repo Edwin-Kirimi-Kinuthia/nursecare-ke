@@ -6,8 +6,8 @@ type Items = Record<string, number>;
 type CartValue = {
   items: Items;
   count: number;
-  add: (listingId: string) => void;
-  sub: (listingId: string) => void;
+  add: (listingId: string, minimum?: number, maximum?: number) => void;
+  sub: (listingId: string, minimum?: number) => void;
   remove: (listingId: string) => void;
   clear: () => void;
 };
@@ -38,9 +38,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     SecureStore.setItemAsync(KEY, JSON.stringify(items)).catch(() => {});
   }, [items, loaded]);
 
-  const add = useCallback((id: string) => setItems((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 })), []);
-  const sub = useCallback((id: string) => setItems((c) => {
-    const n = (c[id] ?? 0) - 1;
+  const add = useCallback((id: string, minimum = 1, maximum = 100) => setItems(c => { const qty = c[id] ?? 0; return qty >= maximum || maximum < minimum ? c : { ...c, [id]: Math.min(maximum, Math.max(minimum, qty + 1)) }; }), []);
+  const sub = useCallback((id: string, minimum = 1) => setItems((c) => {
+    const n = (c[id] ?? 0) <= minimum ? 0 : (c[id] ?? 0) - 1;
     const { [id]: _drop, ...rest } = c;
     return n > 0 ? { ...rest, [id]: n } : rest;
   }), []);

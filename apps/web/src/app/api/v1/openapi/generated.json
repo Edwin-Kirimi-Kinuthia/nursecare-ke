@@ -259,6 +259,11 @@
                   "stockQty": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "minOrderQty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
                   }
                 },
                 "additionalProperties": false
@@ -488,6 +493,12 @@
                   "stockQty": {
                     "type": "integer",
                     "minimum": 0
+                  },
+                  "minOrderQty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 1
                   }
                 },
                 "required": [
@@ -603,6 +614,80 @@
             "$ref": "#/components/responses/Error"
           },
           "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "422": {
+            "$ref": "#/components/responses/Error"
+          }
+        }
+      }
+    },
+    "/admin/orders/{vendorOrderId}": {
+      "patch": {
+        "tags": [
+          "Admin"
+        ],
+        "summary": "Fulfil any pharmacy's order.",
+        "description": "Requires role: admin.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "vendorOrderId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "processing",
+                      "dispatched",
+                      "in_delivery",
+                      "delivered",
+                      "cancelled"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DataEnvelope"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Error"
+          },
+          "403": {
+            "$ref": "#/components/responses/Error"
+          },
+          "404": {
             "$ref": "#/components/responses/Error"
           },
           "422": {
@@ -11070,6 +11155,11 @@
                     "type": "integer",
                     "minimum": 0
                   },
+                  "minOrderQty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100
+                  },
                   "isActive": {
                     "type": "boolean"
                   }
@@ -11216,6 +11306,12 @@
                     "type": "integer",
                     "minimum": 0,
                     "default": 0
+                  },
+                  "minOrderQty": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 100,
+                    "default": 1
                   }
                 },
                 "required": [
@@ -11418,11 +11514,15 @@
                     "enum": [
                       "processing",
                       "dispatched",
+                      "in_delivery",
                       "delivered",
                       "cancelled"
                     ]
                   }
                 },
+                "required": [
+                  "status"
+                ],
                 "additionalProperties": false
               }
             }
@@ -11478,6 +11578,7 @@
                 "paid",
                 "processing",
                 "dispatched",
+                "in_delivery",
                 "delivered",
                 "cancelled",
                 "refunded"

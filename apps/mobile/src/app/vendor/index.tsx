@@ -1,3 +1,5 @@
+import { OrderProgress } from "@/features/OrderProgress";
+import { orderStatusLabel } from "@carebora/shared";
 import { OrderItems } from "@/features/OrderItems";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
@@ -199,6 +201,7 @@ function ListingSheet({ listing, onClose, onSaved }: { listing?: Listing; onClos
   const [q, setQ] = useState(""); const [results, setResults] = useState<Drug[]>([]);
   const [drug, setDrug] = useState<Drug | null>(listing?.drug ?? null);
   const [newName, setNewName] = useState(""); const [newCat, setNewCat] = useState("");
+  const [minimum, setMinimum] = useState(String(listing?.minOrderQty ?? 1));
   const [price, setPrice] = useState(listing ? String(listing.priceKes) : ""); const [stock, setStock] = useState(listing ? String(listing.stockQty) : "0");
   const { busy, err, run } = useAct();
   useEffect(() => {
@@ -233,17 +236,19 @@ function ListingSheet({ listing, onClose, onSaved }: { listing?: Listing; onClos
         </View>
       )}
       <View style={{ flexDirection: "row", gap: 10 }}>
-        <View style={{ flex: 1 }}><Field label="Price (KES)" value={price} onChangeText={(v) => setPrice(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
+        <View style={{ flex: 1 }}><Field label="Price per unit (KES)" value={price} onChangeText={(v) => setPrice(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
         <View style={{ flex: 1 }}><Field label="Stock" value={stock} onChangeText={(v) => setStock(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
       </View>
       {err && <Banner tone="danger">{err}</Banner>}
-      <Button title="Save" loading={busy === "save"} disabled={!ok} onPress={() => run("save", () => listing ? api.patchVendorListing(listing.id, { priceKes: p, stockQty: s })
-        : api.createVendorListing(drug ? { drugId: drug.id, priceKes: p, stockQty: s } : { drug: { name: newName, category: newCat, requiresPrescription: false }, priceKes: p, stockQty: s }), onSaved)} />
+      <Field label="Minimum order quantity (units)" value={minimum} onChangeText={setMinimum} keyboardType="number-pad" />
+      <Text variant="caption" tone="muted">Price and stock count individual units. The minimum is a purchase quantity, not a dosage.</Text>
+      <Button title="Save" loading={busy === "save"} disabled={!ok} onPress={() => run("save", () => listing ? api.patchVendorListing(listing.id, { priceKes: p, stockQty: s, minOrderQty: Number(minimum) })
+        : api.createVendorListing(drug ? { drugId: drug.id, priceKes: p, stockQty: s, minOrderQty: Number(minimum) } : { drug: { name: newName, category: newCat, requiresPrescription: false }, priceKes: p, stockQty: s, minOrderQty: Number(minimum) }), onSaved)} />
     </FormSheet>
   );
 }
 
-const NEXT_ORDER = { paid: "processing", processing: "dispatched", dispatched: "delivered" } as const;
+const NEXT_ORDER = { paid: "processing", processing: "dispatched", dispatched: "in_delivery", in_delivery: "delivered" } as const;
 function Orders() {
   const list = useAsync(() => api.listVendorOrders({ limit: 50 } as never).then((r) => r.vendorOrders), []);
   const { busy, err, run } = useAct();
@@ -263,7 +268,7 @@ function Orders() {
           <Card key={vo.id} style={{ borderRadius: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
               <Text style={{ fontFamily: "Inter_700Bold" }}>Order #{vo.id.slice(0, 8).toUpperCase()}</Text>
-              <Badge label={vo.status.replace("_", " ")} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
+              <Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
             </View>
             <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta>
             <Text>{vo.items.length} item(s) · <Text style={{ fontFamily: "Inter_700Bold" }}>{kes(vo.subtotalKes)}</Text></Text>
@@ -271,8 +276,8 @@ function Orders() {
             <Text variant="caption" tone="muted">Contact: {vo.order?.phoneNumber}</Text>
             {vo.order?.deliveryNotes ? <Text tone="muted">Delivery notes: {vo.order.deliveryNotes}</Text> : null}
             <Text variant="caption" tone="muted">Payment: {vo.order?.payment?.status.replaceAll("_", " ") ?? "unpaid"}</Text>
-            <OrderItems items={vo.items} />
-            {next && <Button title={`Mark ${next}`} size="sm" loading={busy === vo.id} onPress={() => run(vo.id, () => api.patchVendorOrder(vo.id, { status: next }), list.reload)} />}
+            <OrderProgress order={vo} /><OrderItems items={vo.items} />
+            {next && <Button title={`Mark ${orderStatusLabel(next).toLowerCase()}`} size="sm" loading={busy === vo.id} onPress={() => run(vo.id, () => api.patchVendorOrder(vo.id, { status: next }), list.reload)} />}
           </Card>
         );
       })}

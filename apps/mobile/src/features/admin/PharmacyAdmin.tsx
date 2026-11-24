@@ -78,6 +78,7 @@ function DrugSheet({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
   const [rx, setRx] = useState(drug?.requiresPrescription ?? false);
   const [images, setImages] = useState<string[]>(drug?.images?.length ? drug.images : drug?.imageUrl ? [drug.imageUrl] : []);
   const [price, setPrice] = useState(drug?.priceKes ? String(drug.priceKes) : ""); const [stock, setStock] = useState(String(drug?.stockQty ?? 0));
+  const [minimum, setMinimum] = useState(String(drug?.minOrderQty ?? 1));
   const [pickErr, setPickErr] = useState<string | null>(null);
   const { busy, err, run } = useAct();
   async function addImage() {
@@ -86,7 +87,7 @@ function DrugSheet({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
   }
   const input: AdminCreateDrugInput = {
     name, genericName: generic || undefined, description: description || undefined, category, form: form || undefined, strength: strength || undefined,
-    requiresPrescription: rx, images, priceKes: parseInt(price, 10) || 0, stockQty: parseInt(stock, 10) || 0,
+    requiresPrescription: rx, images, minOrderQty: Number(minimum), priceKes: parseInt(price, 10) || 0, stockQty: parseInt(stock, 10) || 0,
   };
   return (
     <FormSheet title={drug ? "Edit drug" : "Add drug"} onClose={onClose}>
@@ -109,9 +110,11 @@ function DrugSheet({ drug, onClose, onSaved }: { drug: AdminDrug | null; onClose
       <Field label="Description (optional)" value={description} onChangeText={setDescription} multiline style={{ minHeight: 64, textAlignVertical: "top", paddingTop: 12 }} />
       <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}><Text>Requires a prescription</Text><Switch value={rx} onValueChange={setRx} /></View>
       <View style={{ flexDirection: "row", gap: 10 }}>
-        <View style={{ flex: 1 }}><Field label="Price (KES)" value={price} onChangeText={(v) => setPrice(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
+        <View style={{ flex: 1 }}><Field label="Price per unit (KES)" value={price} onChangeText={(v) => setPrice(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
         <View style={{ flex: 1 }}><Field label="Stock" value={stock} onChangeText={(v) => setStock(v.replace(/\D/g, ""))} keyboardType="number-pad" /></View>
       </View>
+      <Field label="Minimum order quantity (units)" value={minimum} onChangeText={setMinimum} keyboardType="number-pad" />
+      <Text variant="caption" tone="muted">Price and stock are per tablet, bottle, tube or other unit. This minimum is a purchase quantity, not a dosage.</Text>
       {(parseInt(stock, 10) || 0) === 0 && <Text variant="caption" style={{ color: "#B45309" }}>Clients won&apos;t see this while stock is zero. Set a quantity to put it on sale.</Text>}
       {err && <Banner tone="danger">{err}</Banner>}
       <Button title={drug ? "Save changes" : "Add drug"} loading={busy === "s"} disabled={!name.trim() || !category.trim()} onPress={() => run("s", () => (drug ? api.adminUpdateDrug(drug.id, input) : api.adminCreateDrug(input)), onSaved)} />

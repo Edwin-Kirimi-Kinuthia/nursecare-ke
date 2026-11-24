@@ -1,4 +1,5 @@
 "use client";
+import OrderProgress from "@/components/OrderProgress";
 
 import Link from "next/link";
 import OrderItems from "@/components/OrderItems";
@@ -399,6 +400,7 @@ function ListingModal({ listing, onClose, onSaved }: { listing?: Listing; onClos
   const [newDrugCategory, setNewDrugCategory] = useState("");
   const [priceKes, setPriceKes] = useState(listing?.priceKes ?? 0);
   const [stockQty, setStockQty] = useState(listing?.stockQty ?? 0);
+  const [minOrderQty, setMinOrderQty] = useState(listing?.minOrderQty ?? 1);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
@@ -415,12 +417,12 @@ function ListingModal({ listing, onClose, onSaved }: { listing?: Listing; onClos
     setErr(null); setBusy(true);
     try {
       if (listing) {
-        const input: PatchListingInput = { priceKes, stockQty };
+        const input: PatchListingInput = { priceKes, stockQty, minOrderQty };
         await api.patchVendorListing(listing.id, input);
       } else {
         const input: CreateListingInput = selectedDrug
-          ? { drugId: selectedDrug.id, priceKes, stockQty }
-          : { drug: { name: newDrugName, category: newDrugCategory, requiresPrescription: false }, priceKes, stockQty };
+          ? { drugId: selectedDrug.id, priceKes, stockQty, minOrderQty }
+          : { drug: { name: newDrugName, category: newDrugCategory, requiresPrescription: false }, priceKes, stockQty, minOrderQty };
         await api.createVendorListing(input);
       }
       onSaved();
@@ -475,7 +477,7 @@ function ListingModal({ listing, onClose, onSaved }: { listing?: Listing; onClos
           )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-xs font-medium text-slate-500">Price (KES)</label>
+              <label className="mb-1 block text-xs font-medium text-slate-500">Price per unit (KES)</label>
               <input required type="number" min="1" value={priceKes || ""} onChange={(e) => setPriceKes(parseInt(e.target.value, 10) || 0)}
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
@@ -485,6 +487,8 @@ function ListingModal({ listing, onClose, onSaved }: { listing?: Listing; onClos
                 className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
             </div>
           </div>
+          <label className="block text-sm">Minimum order quantity (units)<input aria-label="Minimum order quantity (units)" type="number" required min="1" max="100" step="1" value={minOrderQty} onChange={e => setMinOrderQty(Number(e.target.value))} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2" /></label>
+          <p className="text-xs text-slate-500">Price and stock are per tablet, bottle, tube or other unit. The minimum is a purchase quantity, not a dosage.</p>
           {err && <p className="rounded-xl bg-rose-50 px-3 py-2 text-sm text-rose-700">{err}</p>}
           <div className="flex gap-3">
             <button type="submit" disabled={busy || !canSubmit} className="rounded-xl bg-teal-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
@@ -504,8 +508,8 @@ const VENDOR_ORDER_STATUS_CLS: Record<string, string> = {
   paid: "bg-blue-100 text-blue-700", processing: "bg-indigo-100 text-indigo-700",
   dispatched: "bg-violet-100 text-violet-700", delivered: "bg-emerald-100 text-emerald-700", cancelled: "bg-slate-100 text-slate-500",
 };
-const VENDOR_NEXT_STATUS: Record<string, "processing" | "dispatched" | "delivered" | undefined> = {
-  paid: "processing", processing: "dispatched", dispatched: "delivered",
+const VENDOR_NEXT_STATUS: Record<string, "processing" | "dispatched" | "in_delivery" | "delivered" | undefined> = {
+  paid: "processing", processing: "dispatched", dispatched: "in_delivery", in_delivery: "delivered",
 };
 
 function VendorOrdersTab() {
@@ -548,12 +552,12 @@ function VendorOrdersTab() {
                 {VENDOR_NEXT_STATUS[vo.status] && (
                   <button onClick={() => advance(vo)} disabled={busyId === vo.id}
                     className="rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:opacity-60">
-                    Mark {VENDOR_NEXT_STATUS[vo.status]}
+                    Mark {VENDOR_NEXT_STATUS[vo.status]?.replaceAll("_", " ")}
                   </button>
                 )}
               </div>
             </div>
-            <OrderItems items={vo.items} />
+            <OrderProgress order={vo} /><OrderItems items={vo.items} />
           </article>
         ))}
       </div>

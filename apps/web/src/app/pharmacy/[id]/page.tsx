@@ -37,6 +37,6 @@ export default async function DrugPage({ params }: Props) {
       <p className="mt-5 rounded-xl bg-teal-50 p-4">{d.requiresPrescription ? "Prescription only. A valid prescription is required before this medicine can be dispensed." : "Follow the package instructions and ask a pharmacist if you are unsure whether this medicine is suitable for you."}</p>
       <p className="mt-4 text-sm text-slate-500">Consult a qualified clinician or pharmacist about suitability, dosage and interactions.</p>
     </div></div>
-    <section className="mt-10"><h2 className="text-2xl font-semibold">Pharmacy offers</h2><DrugOffers offers={offers} /></section>
+    <section className="mt-10"><h2 className="text-2xl font-semibold">Pharmacy offers</h2><DrugOffers offers={offers} form={d.form} /></section>
   </article>;
 }

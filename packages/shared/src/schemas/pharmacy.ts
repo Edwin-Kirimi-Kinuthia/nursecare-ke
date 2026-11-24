@@ -55,6 +55,7 @@ export type CreateDrugInput = z.infer<typeof createDrugSchema>;
 export const adminCreateDrugSchema = createDrugSchema.extend({
   priceKes: z.number().int().min(1, "Set a price"),
   stockQty: z.number().int().min(0),
+  minOrderQty: z.number().int().min(1).max(100).default(1),
 });
 export type AdminCreateDrugInput = z.infer<typeof adminCreateDrugSchema>;
 
@@ -62,6 +63,7 @@ export const adminUpdateDrugSchema = createDrugSchema.partial().extend({
   isActive: z.boolean().optional(),
   priceKes: z.number().int().min(1).optional(),
   stockQty: z.number().int().min(0).optional(),
+  minOrderQty: z.number().int().min(1).max(100).optional(),
 });
 export type AdminUpdateDrugInput = z.infer<typeof adminUpdateDrugSchema>;
 
@@ -78,12 +80,14 @@ export const createListingSchema = z.object({
   drug: createDrugSchema.optional(),
   priceKes: z.number().int().min(1),
   stockQty: z.number().int().min(0).default(0),
+  minOrderQty: z.number().int().min(1).max(100).default(1),
 }).refine((d) => d.drugId || d.drug, { message: "Provide either drugId or drug" });
 export type CreateListingInput = z.infer<typeof createListingSchema>;
 
 export const patchListingSchema = z.object({
   priceKes: z.number().int().min(1).optional(),
   stockQty: z.number().int().min(0).optional(),
+  minOrderQty: z.number().int().min(1).max(100).optional(),
   isActive: z.boolean().optional(),
 }).refine((d) => Object.keys(d).length > 0, { message: "Nothing to update" });
 export type PatchListingInput = z.infer<typeof patchListingSchema>;
@@ -133,7 +137,7 @@ export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 
 /** Patches one vendor's slice of an order (fulfilment status). */
 export const patchVendorOrderSchema = z.object({
-  status: z.enum(["processing", "dispatched", "delivered", "cancelled"]).optional(),
+  status: z.enum(["processing", "dispatched", "in_delivery", "delivered", "cancelled"]),
 });
 export type PatchVendorOrderInput = z.infer<typeof patchVendorOrderSchema>;
 
@@ -145,7 +149,7 @@ export type OrdersQuery = z.infer<typeof ordersQuerySchema>;
 
 export const vendorOrdersQuerySchema = z.object({
   status: z
-    .enum(["pending", "awaiting_verification", "paid", "processing", "dispatched", "delivered", "cancelled", "refunded"])
+    .enum(["pending", "awaiting_verification", "paid", "processing", "dispatched", "in_delivery", "delivered", "cancelled", "refunded"])
     .optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
   offset: z.coerce.number().int().min(0).default(0),

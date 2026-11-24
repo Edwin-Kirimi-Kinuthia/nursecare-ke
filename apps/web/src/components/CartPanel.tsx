@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Trash2, AlertCircle, CheckCircle2, ShieldCheck, Upload, Stethoscope, FileCheck2 } from "lucide-react";
 import type { Listing } from "@carebora/api-client";
-import { ApiError } from "@carebora/shared";
+import { ApiError, medicineUnit } from "@carebora/shared";
 import { api, kes } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
 import { useCart } from "@/components/CartProvider";
@@ -22,6 +22,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   const { items, add, sub, remove, clear, closeCart } = useCart();
 
   const [catalog, setCatalog] = useState<Record<string, Listing & { organization: { id: string; name: string } }>>({});
+  const [orderedId, setOrderedId] = useState<string | null>(null);
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [rxImage, setRxImage] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   }, [items, catalog]);
 
   const lines = Object.entries(items).filter(([id]) => catalog[id]);
+  const invalidQuantity = Object.keys(items).length !== lines.length || lines.some(([id, qty]) => qty < (catalog[id]?.minOrderQty ?? 1) || qty > Math.min(100, catalog[id]?.stockQty ?? 0));
   const total = lines.reduce((sum, [id, q]) => sum + (catalog[id]?.priceKes ?? 0) * q, 0);
   const hasRx = lines.some(([id]) => catalog[id]?.drug.requiresPrescription);
   const rxSatisfied = !hasRx || !!rxImage;
@@ -66,6 +68,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
   }
 
   async function checkout() {
+    if (invalidQuantity) { setMsg({ kind: "err", text: "Adjust quantities to meet each product’s minimum and available stock." }); return; }
     if (!user) { closeCart(); router.push("/login"); return; }
     setPlacing(true); setMsg(null); setPendingCheckoutId(null);
     const orderTotal = total;
@@ -76,6 +79,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
         deliveryAddress: address,
         prescriptionImage: rxImage ?? undefined,
       });
+      setOrderedId(order.id);
       clear(); setRxImage(null); setRxName("");
       onOrdered?.();
       if (order.redirect) {
@@ -119,6 +123,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
 
   return (
     <div>
+      {orderedId && <Link href={`/orders/${orderedId}`} onClick={closeCart} className="button-primary my-4">Track your order →</Link>}
       {lines.length === 0 && Object.keys(items).length === 0 ? (
         <p className="mt-4 text-sm text-slate-400">Your cart is empty. Add products to get started.</p>
       ) : (
@@ -134,12 +139,12 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="truncate text-sm font-medium text-slate-800">{l.drug.name}</div>
-                    <div className="text-xs text-slate-400">{kes(l.priceKes)} each · {l.organization.name}</div>
+                    <div className="text-xs text-slate-400">{kes(l.priceKes)} / {medicineUnit(l.drug.form)} · Minimum {l.minOrderQty ?? 1} units · {l.organization.name}</div>
                   </div>
                   <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-0.5 text-sm">
-                    <button onClick={() => sub(id)} className="h-6 w-6 rounded text-slate-500 hover:bg-slate-100">−</button>
+                    <button onClick={() => sub(id, l.minOrderQty ?? 1)} className="h-6 w-6 rounded text-slate-500 hover:bg-slate-100">−</button>
                     <span className="w-5 text-center font-semibold">{q}</span>
-                    <button onClick={() => add(id)} className="h-6 w-6 rounded text-slate-500 hover:bg-slate-100">+</button>
+                    <button disabled={q >= Math.min(100, l.stockQty)} onClick={() => add(id, l.minOrderQty ?? 1, Math.min(100, l.stockQty))} className="h-6 w-6 rounded text-slate-500 hover:bg-slate-100">+</button>
                   </div>
                   <button onClick={() => remove(id)} className="text-slate-300 hover:text-rose-500" aria-label="Remove">
                     <Trash2 className="h-4 w-4" />
@@ -149,6 +154,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
             })}
           </ul>
 
+          {invalidQuantity && <p role="alert" className="mt-3 text-sm text-rose-700">Adjust quantities to meet each product’s minimum and available stock. Use + to reach the minimum, or remove an unavailable item.</p>}
           <div className="mt-4 flex items-center justify-between border-t border-slate-100 pt-4">
             <span className="text-slate-500">Total</span>
             <span className="text-xl font-extrabold text-teal-700">{kes(total)}</span>
@@ -185,7 +191,7 @@ export default function CartPanel({ onOrdered }: { onOrdered?: () => void }) {
             <PhoneField label="M-Pesa phone" value={phone} onChange={setPhone} required lockedToKenya />
             <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Delivery address" rows={2}
               className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100" />
-            <button onClick={checkout} disabled={placing || address.length < 5 || !rxSatisfied}
+            <button onClick={checkout} disabled={invalidQuantity || placing || address.length < 5 || !rxSatisfied}
               className="w-full rounded-xl bg-teal-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-teal-500/25 transition hover:bg-teal-700 disabled:opacity-50">
               {placing ? "Placing order…" : !rxSatisfied ? "Add prescription to continue" : `Pay ${kes(total)} via M-Pesa`}
             </button>

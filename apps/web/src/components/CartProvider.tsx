@@ -7,8 +7,8 @@ type Items = Record<string, number>;
 interface CartState {
   items: Items;
   count: number;
-  add: (id: string) => void;
-  sub: (id: string) => void;
+  add: (id: string, minimum?: number, maximum?: number) => void;
+  sub: (id: string, minimum?: number) => void;
   remove: (id: string) => void;
   clear: () => void;
   isOpen: boolean;
@@ -45,10 +45,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try { localStorage.setItem(KEY, JSON.stringify(items)); } catch { /* ignore */ }
   }, [items]);
 
-  const add = (id: string) => setItems((c) => ({ ...c, [id]: (c[id] ?? 0) + 1 }));
-  const sub = (id: string) =>
+  const add = (id: string, minimum = 1, maximum = 100) => setItems(c => { const qty = c[id] ?? 0; return qty >= maximum || maximum < minimum ? c : { ...c, [id]: Math.min(maximum, Math.max(minimum, qty + 1)) }; });
+  const sub = (id: string, minimum = 1) =>
     setItems((c) => {
-      const n = (c[id] ?? 0) - 1;
+      const n = (c[id] ?? 0) <= minimum ? 0 : (c[id] ?? 0) - 1;
       const next = { ...c };
       if (n <= 0) delete next[id]; else next[id] = n;
       return next;

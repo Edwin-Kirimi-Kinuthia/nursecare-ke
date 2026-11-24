@@ -1,4 +1,5 @@
 "use client";
+import { medicineUnit } from "@carebora/shared";
 
 import Link from "next/link";
 import { Plus, Minus, Check, MapPin, Eye, ShoppingCart } from "lucide-react";
@@ -16,7 +17,7 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
   const qty = items[d.listingId] ?? 0;
   const { Icon } = categoryTheme(d.category);
   const lowStock = d.stockQty > 0 && d.stockQty < 20;
-  const outOfStock = d.stockQty === 0;
+  const outOfStock = d.stockQty < (d.minOrderQty ?? 1);
 
   return (
     <article className="pcard" data-tone={index % 4}>
@@ -43,6 +44,7 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
       </button>
 
       <div className="pcard__body">
+        <p className="text-xs text-slate-500">Minimum order: {d.minOrderQty ?? 1} {medicineUnit(d.form)}{(d.minOrderQty ?? 1) === 1 ? "" : "s"}</p>
         <div className="pcard__cat" title={d.category}>{d.category}</div>
         <h3 className="pcard__title"><Link href={`/pharmacy/${d.drugId}`} className="hover:underline">{d.name}</Link></h3>
         <p className="pcard__meta">
@@ -59,15 +61,15 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
       </div>
 
       <div className="pcard__foot">
-        <span className="pcard__price">{kes(d.bestPriceKes)}</span>
+        <span className="pcard__price">{kes(d.unitPriceKes ?? d.bestPriceKes)} / {medicineUnit(d.form)}</span>
         {qty > 0 ? (
           <span className="pcard__qty">
-            <button type="button" onClick={() => sub(d.listingId)} aria-label={`Remove one ${d.name}`}><Minus className="h-4 w-4" /></button>
+            <button type="button" onClick={() => sub(d.listingId, d.minOrderQty ?? 1)} aria-label={`Remove one ${d.name}`}><Minus className="h-4 w-4" /></button>
             <span className="w-6 text-center text-sm font-bold">{qty}</span>
-            <button type="button" onClick={() => add(d.listingId)} disabled={outOfStock} aria-label={`Add one ${d.name}`}><Plus className="h-4 w-4" /></button>
+            <button type="button" onClick={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} disabled={outOfStock || qty >= Math.min(100, d.stockQty)} aria-label={`Add one ${d.name}`}><Plus className="h-4 w-4" /></button>
           </span>
         ) : (
-          <button type="button" className="pcard__add" onClick={() => add(d.listingId)} disabled={outOfStock} aria-label={`Add ${d.name} to cart`}>
+          <button type="button" className="pcard__add" onClick={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} disabled={outOfStock || qty >= Math.min(100, d.stockQty)} aria-label={`Add ${d.name} to cart`}>
             <ShoppingCart className="h-4 w-4" /> Add
           </button>
         )}

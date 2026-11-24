@@ -1,4 +1,5 @@
 "use client";
+import { medicineUnit } from "@carebora/shared";
 
 import { useEffect, useState } from "react";
 import { X, Plus, Minus, ShieldAlert, Check, MapPin, Loader2, ZoomIn } from "lucide-react";
@@ -150,7 +151,7 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                 <div className="mt-2 space-y-2">
                   {offers.map((o) => {
                     const qty = items[o.listingId] ?? 0;
-                    const outOfStock = o.stockQty === 0;
+                    const outOfStock = o.stockQty < (o.minOrderQty ?? 1);
                     return (
                       <div key={o.listingId} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 p-3">
                         <div className="min-w-0">
@@ -161,17 +162,17 @@ export default function DrugDetailModal({ drugId, onClose }: { drugId: string; o
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center gap-3">
-                          <span className="font-bold text-teal-700">{kes(o.priceKes)}</span>
+                          <span className="font-bold text-teal-700">{kes(o.priceKes)} / {medicineUnit(drug.form)}<span className="block text-xs font-normal">Minimum {o.minOrderQty ?? 1} units</span></span>
                           {qty > 0 ? (
                             <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-0.5">
-                              <button onClick={() => sub(o.listingId)} className="grid h-7 w-7 place-items-center rounded text-slate-600 hover:bg-slate-100" aria-label="Remove one"><Minus className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => sub(o.listingId, o.minOrderQty ?? 1)} className="grid h-7 w-7 place-items-center rounded text-slate-600 hover:bg-slate-100" aria-label="Remove one"><Minus className="h-3.5 w-3.5" /></button>
                               <span className="w-5 text-center text-xs font-bold">{qty}</span>
-                              <button onClick={() => add(o.listingId)} disabled={outOfStock} className="grid h-7 w-7 place-items-center rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40" aria-label="Add one"><Plus className="h-3.5 w-3.5" /></button>
+                              <button onClick={() => add(o.listingId, o.minOrderQty ?? 1, Math.min(100, o.stockQty))} disabled={outOfStock || qty >= Math.min(100, o.stockQty)} className="grid h-7 w-7 place-items-center rounded text-slate-600 hover:bg-slate-100 disabled:opacity-40" aria-label="Add one"><Plus className="h-3.5 w-3.5" /></button>
                             </div>
                           ) : (
                             <button
-                              onClick={() => add(o.listingId)}
-                              disabled={outOfStock}
+                              onClick={() => add(o.listingId, o.minOrderQty ?? 1, Math.min(100, o.stockQty))}
+                              disabled={outOfStock || qty >= Math.min(100, o.stockQty)}
                               className="inline-flex items-center gap-1 rounded-lg bg-teal-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-teal-700 disabled:cursor-not-allowed disabled:bg-slate-300"
                             >
                               {outOfStock ? "Out of stock" : <><Plus className="h-3.5 w-3.5" /> Add</>}

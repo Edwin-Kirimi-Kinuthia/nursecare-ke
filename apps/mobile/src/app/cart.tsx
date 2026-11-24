@@ -1,3 +1,4 @@
+import { medicineUnit } from "@carebora/shared";
 import { useEffect, useState } from "react";
 import { Image, Pressable, View } from "react-native";
 import { router } from "expo-router";
@@ -52,6 +53,7 @@ export default function CartScreen() {
   }, [items, catalog, remove]);
 
   const lines = Object.entries(items).filter(([id]) => catalog[id]);
+  const invalidQuantity = Object.keys(items).length !== lines.length || lines.some(([id, qty]) => qty < (catalog[id]?.minOrderQty ?? 1) || qty > Math.min(100, catalog[id]?.stockQty ?? 0));
   const total = lines.reduce((s, [id, q]) => s + catalog[id]!.priceKes * q, 0);
   const needsRx = lines.some(([id]) => catalog[id]!.drug.requiresPrescription);
 
@@ -61,6 +63,7 @@ export default function CartScreen() {
   }
 
   async function checkout() {
+    if (invalidQuantity) { setError("Adjust quantities to meet each product’s minimum and available stock."); return; }
     if (!user) { router.push("/login"); return; }
     setBusy(true); setError(null);
     try {
@@ -106,15 +109,16 @@ export default function CartScreen() {
                 </View>
                 <View style={{ flex: 1, gap: 2 }}>
                   <Text style={{ fontFamily: "Inter_600SemiBold" }} numberOfLines={2}>{l.drug.name}</Text>
-                  <Text variant="caption" tone="muted">{kes(l.priceKes)} each · {l.organization.name}</Text>
+                  <Text variant="caption" tone="muted">{kes(l.priceKes)} / {medicineUnit(l.drug.form)} · Minimum {l.minOrderQty ?? 1} units · {l.organization.name}</Text>
                   <View style={{ marginTop: 6, flexDirection: "row", alignItems: "center", gap: 12 }}>
-                    <Stepper qty={q} onAdd={() => add(id)} onSub={() => sub(id)} />
+                    <Stepper qty={q} disableAdd={q >= Math.min(100, l.stockQty)} onAdd={() => add(id, l.minOrderQty ?? 1, Math.min(100, l.stockQty))} onSub={() => sub(id, l.minOrderQty ?? 1)} />
                     <Pressable onPress={() => remove(id)} accessibilityRole="button" accessibilityLabel={`Remove ${l.drug.name}`} hitSlop={8}><Trash2 size={18} color="#CBD5E1" /></Pressable>
                   </View>
                 </View>
               </View>
             );
           })}
+          {invalidQuantity && <Banner tone="danger">Adjust quantities to meet each product’s minimum and available stock. Use + to reach the minimum, or remove the item.</Banner>}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 6 }}>
             <Text tone="muted" style={{ fontSize: 16 }}>Total</Text>
             <Text style={{ color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 24 }}>{kes(total)}</Text>
@@ -143,7 +147,7 @@ export default function CartScreen() {
             <Field label="Delivery address" value={address} onChangeText={setAddress} multiline placeholder="Building, street, area" style={{ minHeight: 70, textAlignVertical: "top", paddingTop: 12 }} />
             {error && <Banner tone="danger">{error}</Banner>}
             <Button title={needsRx && !rx ? "Add prescription to continue" : user ? `Pay ${kes(total)} via M-Pesa` : "Sign in to check out"}
-              onPress={checkout} loading={busy} disabled={user ? address.trim().length < 5 || phone.length < 12 || (needsRx && !rx) : false} />
+              onPress={checkout} loading={busy} disabled={invalidQuantity || (user ? address.trim().length < 5 || phone.length < 12 || (needsRx && !rx) : false)} />
             <Text variant="caption" tone="faint" style={{ textAlign: "center" }}>Secure M-Pesa checkout</Text>
           </View>
         </>

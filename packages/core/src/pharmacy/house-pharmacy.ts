@@ -83,9 +83,9 @@ async function ensureBranch(orgId: string) {
 export async function upsertHouseListing(
   ownerUserId: string,
   drugId: string,
-  price: { priceKes?: number; stockQty?: number },
+  price: { priceKes?: number; stockQty?: number; minOrderQty?: number },
 ) {
-  if (price.priceKes === undefined && price.stockQty === undefined) return null;
+  if (price.priceKes === undefined && price.stockQty === undefined && price.minOrderQty === undefined) return null;
 
   const orgId = await ensureHousePharmacy(ownerUserId);
   const existing = await db.listing.findFirst({ where: { orgId, drugId }, select: { id: true } });
@@ -96,6 +96,7 @@ export async function upsertHouseListing(
       data: {
         ...(price.priceKes !== undefined ? { priceKes: price.priceKes } : {}),
         ...(price.stockQty !== undefined ? { stockQty: price.stockQty } : {}),
+        ...(price.minOrderQty !== undefined ? { minOrderQty: price.minOrderQty } : {}),
         isActive: true,
       },
     });
@@ -105,6 +106,6 @@ export async function upsertHouseListing(
   // keeps it off the storefront until it's in.
   if (price.priceKes === undefined) return null;
   return db.listing.create({
-    data: { orgId, drugId, priceKes: price.priceKes, stockQty: price.stockQty ?? 0 },
+    data: { orgId, drugId, priceKes: price.priceKes, stockQty: price.stockQty ?? 0, minOrderQty: price.minOrderQty ?? 1 },
   });
 }
