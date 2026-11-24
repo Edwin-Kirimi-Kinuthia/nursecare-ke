@@ -201,14 +201,17 @@ test("provider can draw a signature and issue a sick-off from the appointment sc
   const saved = page.waitForResponse((r) => r.url().endsWith(`/consultations/${consultationId}/sick-offs`) && r.request().method() === "POST");
   await page.getByRole("button", { name: "Sign and issue certificate" }).click();
   expect((await saved).status()).toBe(201);
-  await expect(page.getByRole("link", { name: /Download signed sick-off/ })).toHaveCount(2);
+  await expect(page.getByRole("button", { name: /Download signed sick-off/ })).toHaveCount(2);
 });
 
 test("patient UI downloads existing certificates and cannot issue one", async ({ page }) => {
   await page.context().addCookies([{ name: "cb_access", value: patientToken, url: test.info().project.use.baseURL! }]);
   await page.goto("/appointments"); await page.getByText("Sick-off certificates", { exact: true }).click();
-  await expect(page.getByRole("link", { name: /Download signed sick-off/ }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: /Download signed sick-off/ }).first()).toBeVisible();
   await expect(page.getByRole("button", { name: "Issue signed sick-off" })).toHaveCount(0);
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: /Download signed sick-off/ }).first().click();
+  expect((await downloading).suggestedFilename()).toMatch(/\.pdf$/);
 });
 
 test("patient can download the signed treatment sheet from Records", async ({ page }) => {

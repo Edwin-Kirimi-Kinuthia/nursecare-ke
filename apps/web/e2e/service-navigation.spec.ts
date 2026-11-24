@@ -4,7 +4,7 @@ test("service shortcuts, navigation assistant and desktop back button", async ({
   await page.goto("/");
   const services = page.locator("#services");
   await expect(services.locator("a.group")).toHaveCount(6);
-  for (const href of ["/providers", "/pharmacy", "/home-visits", "/labs", "/contact", "/ambulance"]) await expect(services.locator(`a.group[href="${href}"]`)).toBeVisible();
+  for (const href of ["/online-doctor-kenya", "/pharmacy", "/home-visits-nairobi", "/laboratory-tests-kenya", "/sick-off-sheet-online-kenya", "/ambulance-nairobi"]) await expect(services.locator(`a.group[href="${href}"]`)).toBeVisible();
   await page.getByRole("button", { name: "Open navigation assistant" }).click();
   await page.getByRole("textbox", { name: "Ask for help navigating" }).fill("Where is the pharmacy?");
   const answer = page.waitForResponse(r => r.url().endsWith("/api/v1/ai/navigate") && r.request().method() === "POST");
@@ -12,8 +12,8 @@ test("service shortcuts, navigation assistant and desktop back button", async ({
   expect((await answer).status()).toBe(200);
   await expect(page.getByRole("dialog").getByRole("link", { name: "Pharmacy" })).toBeVisible();
   await page.getByRole("button", { name: "Close assistant", exact: true }).click();
-  await services.locator('a.group[href="/contact"]').click();
-  await expect(page).toHaveURL(/\/contact$/, { timeout: 15000 });
+  await services.locator('a.group[href="/sick-off-sheet-online-kenya"]').click();
+  await expect(page).toHaveURL(/\/sick-off-sheet-online-kenya$/, { timeout: 15000 });
   await page.getByRole("button", { name: "Back", exact: true }).click();
   await expect(page).toHaveURL(/\/$/);
   await page.setViewportSize({ width: 390, height: 844 });
