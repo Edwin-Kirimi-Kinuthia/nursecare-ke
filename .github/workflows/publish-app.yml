@@ -114,13 +114,13 @@ jobs:
         shell: bash
         run: |
           python3 - <<'PY'
-          import os, urllib.parse, urllib.request
+          import os, subprocess, urllib.parse
           from pathlib import Path
           u=urllib.parse.urlparse(os.environ['APK_URL'])
           assert u.scheme=='https' and u.hostname in ('expo.dev','artifacts.expo.dev','d1ahtucjixef4r.cloudfront.net')
           assert u.path.endswith('.apk') and not u.username and not u.password
           p=Path('installers')/f"CareBora-{os.environ['RELEASE_VERSION']}-android.apk"
-          urllib.request.urlretrieve(os.environ['APK_URL'],p)
+          subprocess.run(['curl', '--fail', '--location', '--retry', '3', '--output', str(p), os.environ['APK_URL']], check=True)
           assert p.stat().st_size>10_000_000
           PY
       - name: Check Android package identity and version
