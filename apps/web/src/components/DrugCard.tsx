@@ -24,7 +24,7 @@ export default function DrugCard({ d, onOpen, index = 0 }: { d: StorefrontDrug; 
       <button type="button" className="pcard__img w-full text-left" onClick={onOpen} disabled={!onOpen} aria-label={`View ${d.name} details`}>
         {d.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={d.imageUrl.startsWith("/media/medicines/") ? `${d.imageUrl}&w=320&format=webp` : d.imageUrl} alt={d.name} loading={index < 4 ? "eager" : "lazy"} fetchPriority={index < 2 ? "high" : "auto"} decoding="async" width={320} height={320} />
+          <img src={d.imageUrl.startsWith("/media/medicines/") ? `${d.imageUrl.replace("&format=jpeg", "")}&w=320&format=webp` : d.imageUrl} alt={d.name} loading={index < 4 ? "eager" : "lazy"} fetchPriority={index < 2 ? "high" : "auto"} decoding="async" width={320} height={320} />
         ) : (
           <span className="pcard__tile bg-slate-50">
             <Icon className="h-12 w-12 text-slate-400" strokeWidth={1.5} />

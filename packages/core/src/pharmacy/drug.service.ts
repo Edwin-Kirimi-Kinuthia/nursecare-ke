@@ -12,7 +12,7 @@ import { HOUSE_ORG_SLUG, upsertHouseListing } from "./house-pharmacy";
 
 /** Keep public JSON small; original uploads remain available to catalogue editors. */
 export function publicDrugImages<T extends { id: string; imageUrl: string | null; images: string[]; updatedAt: Date }>(drug: T): T {
-  const image = (url: string, index: number) => /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(url) ? `/media/medicines/${drug.id}/${index}?v=${drug.updatedAt.getTime()}` : url;
+  const image = (url: string, index: number) => /^data:image\/(?:png|jpe?g|webp|gif|avif);base64,/i.test(url) ? `/media/medicines/${drug.id}/${index}?v=${drug.updatedAt.getTime()}&format=jpeg` : url;
   return { ...drug, imageUrl: drug.imageUrl ? image(drug.imageUrl, 0) : null, images: drug.images.map(image) };
 }
 
