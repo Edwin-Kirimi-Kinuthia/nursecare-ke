@@ -12,7 +12,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ drugId: 
   if (!["jpeg", "webp"].includes(format)) return new Response("Unsupported image format", { status: 400 });
   if (![320,640,960].includes(width)) return new Response("Unsupported image size", { status: 400 });
   const [drug] = await db.$queryRaw<{ image: string | null; updatedAt: Date }[]>`
-    SELECT CASE WHEN cardinality(images)>0 THEN images[${Number(index)+1}] ELSE CASE WHEN ${Number(index)}=0 THEN image_url END END AS image, updated_at AS "updatedAt"
+    SELECT CASE WHEN ${query.get("primary") === "1"} THEN image_url WHEN cardinality(images)>0 THEN images[${Number(index)+1}] ELSE CASE WHEN ${Number(index)}=0 THEN image_url END END AS image, updated_at AS "updatedAt"
     FROM drugs WHERE id=${drugId}::uuid AND is_active=true
   `;
   const match = drug?.image?.match(/^data:image\/(?:png|jpeg|jpg|webp|gif|avif);base64,([A-Za-z0-9+/=\s]+)$/i);

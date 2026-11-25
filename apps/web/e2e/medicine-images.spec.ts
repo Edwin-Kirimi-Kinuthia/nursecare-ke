@@ -16,7 +16,7 @@ test("medicine responses exclude inline photos; public images are resized, compr
   try {
     const detail = await request.get(`/api/v1/storefront/drugs/${drug.id}`);
     const publicDrug = (await detail.json()).data;
-    expect(publicDrug.imageUrl).toBe(`/media/medicines/${drug.id}/0?v=${drug.updatedAt.getTime()}&format=jpeg`);
+    expect(publicDrug.imageUrl).toBe(`/media/medicines/${drug.id}/0?v=${drug.updatedAt.getTime()}&format=jpeg&primary=1`);
     expect(await detail.text()).not.toContain("data:image");
     const catalogue = await request.get(`/api/v1/storefront/drugs?search=${encodeURIComponent(drug.name)}`);
     expect((await catalogue.json()).data.drugs[0].imageUrl).toBe(publicDrug.imageUrl);
@@ -42,6 +42,13 @@ test("medicine responses exclude inline photos; public images are resized, compr
     expect(html).toContain('property="og:image"');
     expect(html).not.toContain("data:image");
     expect((await db.drug.findUniqueOrThrow({ where: { id: drug.id } })).imageUrl).toBe(source);
+    const replacement = await sharp({ create: { width: 1200, height: 900, channels: 3, background: "#ff0000" } }).png().toBuffer();
+    await db.drug.update({ where: { id: drug.id }, data: { imageUrl: `data:image/png;base64,${replacement.toString("base64")}` } });
+    const changed = (await (await request.get(`/api/v1/storefront/drugs/${drug.id}`)).json()).data;
+    expect(changed.imageUrl).not.toBe(publicDrug.imageUrl);
+    const primary = await request.get(changed.imageUrl);
+    const gallery = await request.get(changed.images[0]);
+    expect(primary.headers().etag).not.toBe(gallery.headers().etag);
     await db.drug.update({ where: { id: drug.id }, data: { isActive: false } });
     expect((await request.get(publicDrug.imageUrl)).status()).toBe(404);
   } finally {

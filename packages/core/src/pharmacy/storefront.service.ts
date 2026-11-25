@@ -45,7 +45,7 @@ async function queryOffers(opts: {
   if (opts.lat !== undefined && opts.lng !== undefined) {
     return db.$queryRaw<OfferRow[]>`
       SELECT
-        d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg' ELSE d.image_url END AS "imageUrl",
+        d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg&primary=1' ELSE d.image_url END AS "imageUrl",
         d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
         l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
         o.id AS "orgId", o.name AS "orgName",
@@ -71,7 +71,7 @@ async function queryOffers(opts: {
 
   return db.$queryRaw<OfferRow[]>`
     SELECT
-      d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg' ELSE d.image_url END AS "imageUrl",
+      d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg&primary=1' ELSE d.image_url END AS "imageUrl",
       d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
       l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
       o.id AS "orgId", o.name AS "orgName",
