@@ -79,15 +79,17 @@ for (const view of ["Applications", "Users"] as const) {
 
   test(`invalid licence uploads show an error in ${view} without navigating away`, async ({ page }) => {
     await showApplication(page, "data:application/pdf;base64,invalid!", view);
+    const dashboardUrl = page.url();
     await page.getByRole("link", { name: view === "Users" ? "practice licence" : "View licence document" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Could not open this document" })).toBeVisible();
-    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(dashboardUrl);
   });
 
   test(`active document types cannot open in the app's origin from ${view}`, async ({ page }) => {
     await showApplication(page, `data:text/html;base64,${Buffer.from("<h1>Untrusted upload</h1>").toString("base64")}`, view);
+    const dashboardUrl = page.url();
     await page.getByRole("link", { name: view === "Users" ? "practice licence" : "View licence document" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Could not open this document" })).toBeVisible();
-    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(dashboardUrl);
   });
 }
