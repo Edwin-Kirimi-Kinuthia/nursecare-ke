@@ -31,13 +31,13 @@ export function WhatsAppButton() {
       accessibilityLabel="Chat with Care Bora on WhatsApp"
       hitSlop={6}
       style={({ pressed }) => ({
-        position: "absolute", right: 16, bottom, width: 56, height: 56, borderRadius: 28,
-        backgroundColor: "#25D366", borderWidth: 4, borderColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center",
+        position: "absolute", right: 14, bottom, width: 44, height: 44, borderRadius: 22,
+        backgroundColor: "#234F34", borderWidth: 1, borderColor: "rgba(255,255,255,0.85)", alignItems: "center", justifyContent: "center",
         opacity: pressed ? 0.85 : 1, elevation: 6,
         shadowColor: "#000", shadowOpacity: 0.25, shadowRadius: 6, shadowOffset: { width: 0, height: 3 },
       })}
     >
-      <Ionicons name="logo-whatsapp" size={30} color="#FFFFFF" />
+      <Ionicons name="logo-whatsapp" size={23} color="#FFFFFF" />
     </Pressable>
   );
 }

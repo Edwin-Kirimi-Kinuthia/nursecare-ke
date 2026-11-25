@@ -48,7 +48,7 @@ test.describe("SEO", () => {
     const xml = await res.text();
 
     expect(xml).toContain("<urlset");
-    for (const p of ["/providers", "/pharmacy", "/vendors/apply"]) {
+    for (const p of ["/providers", "/pharmacy", "/vendors/apply", "/online-doctor-kenya", "/sick-off-sheet-online-kenya", "/home-visits-nairobi", "/ambulance-nairobi", "/laboratory-tests-kenya"]) {
       expect(xml, `${p} should be in the sitemap`).toContain(`${p}</loc>`);
     }
     // Private routes must never be advertised for crawling.
@@ -60,7 +60,7 @@ test.describe("SEO", () => {
   test("public pages have unique titles, descriptions and self-referencing canonicals", async ({ request }) => {
     const seen = new Map<string, string>();
 
-    for (const path of ["/", "/providers", "/pharmacy", "/vendors/apply", "/ai"]) {
+    for (const path of ["/", "/providers", "/pharmacy", "/vendors/apply", "/ai", "/online-doctor-kenya", "/sick-off-sheet-online-kenya", "/home-visits-nairobi", "/ambulance-nairobi", "/laboratory-tests-kenya"]) {
       const html = await getHtml(request, path);
 
       const title = titleOf(html);

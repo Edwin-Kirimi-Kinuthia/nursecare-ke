@@ -107,7 +107,7 @@ function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`}>
         <View style={{ height: 200, padding: 16 }}>
           <View style={{ flex: 1, borderRadius: 15, overflow: "hidden", backgroundColor: "#fff", transform: [{ rotate: "-2deg" }] }}>
-            {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
+            {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl.startsWith("/media/medicines/") ? `${d.imageUrl}&w=320` : d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
               : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
           </View>
           <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 22, top: 22 }} />

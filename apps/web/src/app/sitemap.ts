@@ -1,8 +1,7 @@
 import type { MetadataRoute } from "next";
 import { db } from "@carebora/db";
-import { providerService } from "@carebora/core";
 import { absoluteUrl, isIndexableProvider } from "@/lib/seo";
-import { SERVICE_PAGES_UPDATED } from "@/lib/service-pages";
+import { SERVICE_PAGES_UPDATED } from "@/lib/service-page-dates";
 
 /**
  * Regenerate hourly. Sitemaps are cached at build time by default, which would
@@ -36,7 +35,7 @@ const STATIC_ROUTES: Entry[] = [
   { path: "/home-visits-nairobi", changeFrequency: "monthly", priority: 0.8, updated: SERVICE_PAGES_UPDATED },
   { path: "/ambulance-nairobi", changeFrequency: "monthly", priority: 0.8, updated: SERVICE_PAGES_UPDATED },
   { path: "/providers", changeFrequency: "daily", priority: 0.9, updated: SERVICE_PAGES_UPDATED },
-  { path: "/pharmacy", changeFrequency: "daily", priority: 0.7, updated: "2026-10-21" },
+  { path: "/pharmacy", changeFrequency: "daily", priority: 0.7, updated: "2026-11-25" },
   { path: "/how-we-verify-providers", changeFrequency: "monthly", priority: 0.6, updated: SERVICE_PAGES_UPDATED },
   { path: "/about", changeFrequency: "monthly", priority: 0.6, updated: SERVICE_PAGES_UPDATED },
   { path: "/contact", changeFrequency: "monthly", priority: 0.5, updated: SERVICE_PAGES_UPDATED },
@@ -66,7 +65,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // back to the static routes rather than throwing.
   let providerEntries: MetadataRoute.Sitemap = [];
   try {
-    const { providers } = await providerService.list({ limit: 50, offset: 0, verified: true } as never);
+    const providers = await db.providerProfile.findMany({ where: { verificationStatus: "verified", user: { isActive: true, deletedAt: null } }, select: { userId: true, specialty: true, bio: true, verificationStatus: true, updatedAt: true } });
     providerEntries = providers.filter(isIndexableProvider).map((p) => ({
       url: absoluteUrl(`/providers/${p.userId}`),
       lastModified: p.updatedAt,

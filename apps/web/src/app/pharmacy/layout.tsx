@@ -1,12 +1,12 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Online Pharmacy Kenya: Medicine Delivered",
+  title: "Care Bora Pharmacy | Medicines in Kenya",
   description:
     "Order medication online in Kenya from participating pharmacies, delivered to you. Prescription-only medicines need a valid prescription. Pay with M-Pesa.",
   alternates: { canonical: "/pharmacy" },
   openGraph: {
-    title: "Online Pharmacy Kenya: Medicine Delivered · Care Bora Kenya",
+    title: "Care Bora Pharmacy | Medicines in Kenya · Care Bora Kenya",
     description:
       "Order medication online in Kenya from participating pharmacies, delivered to you. Prescription-only medicines need a valid prescription. Pay with M-Pesa.",
     url: "/pharmacy",

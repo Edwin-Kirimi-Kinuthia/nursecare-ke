@@ -44,7 +44,7 @@ function Assistant() {
   if (hidden) return null;
   return <>
     <Animated.View style={{ position: "absolute", right: 12, bottom: insets.bottom + 76, transform: [{ translateX: shake }] }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#087CFF", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><MessageCircle size={29} fill="white" color="#087CFF" strokeWidth={1.5} /><View pointerEvents="none" style={{ position: "absolute", flexDirection: "row", gap: 3 }}>{[0,1,2].map(i => <View key={i} style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: "#087CFF" }} />)}</View></Pressable>
+      <Pressable accessibilityRole="button" accessibilityLabel="Open navigation assistant" onPress={() => setOpen(true)} style={{ backgroundColor: "#234F34", width: 48, height: 48, borderRadius: 24, alignItems: "center", justifyContent: "center", elevation: 3 }}><MessageCircle size={29} fill="white" color="#234F34" strokeWidth={1.5} /><View pointerEvents="none" style={{ position: "absolute", flexDirection: "row", gap: 3 }}>{[0,1,2].map(i => <View key={i} style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: "#234F34" }} />)}</View></Pressable>
     </Animated.View>
     <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1, backgroundColor: "rgba(0,0,0,.35)", justifyContent: "flex-end", padding: 12, paddingBottom: insets.bottom + 12 }}>

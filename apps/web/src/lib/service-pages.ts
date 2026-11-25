@@ -1,3 +1,5 @@
+import { SERVICE_PAGES_UPDATED } from "./service-page-dates";
+import { CARE_IMAGES } from "@/lib/care-imagery";
 import type { Metadata } from "next";
 import type { ServicePageProps } from "@/components/ServicePage";
 import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
@@ -15,17 +17,20 @@ import { AMBULANCE_PHONE, AMBULANCE_PHONE_DISPLAY } from "@/lib/contact";
  */
 
 /** When these pages were last checked against the product. Also feeds the sitemap. */
-export const SERVICE_PAGES_UPDATED = "2026-10-08";
+export { SERVICE_PAGES_UPDATED } from "./service-page-dates";
 
 const EMERGENCY_NUMBERS =
   "In Kenya you can also call 999 or 112.";
 
 export function serviceMetadata(path: string, title: string, description: string): Metadata {
+  const photo = path.includes("laboratory") ? CARE_IMAGES.laboratory : path.includes("home-visits") ? CARE_IMAGES.homeVisit : path.includes("ambulance") ? CARE_IMAGES.portrait : CARE_IMAGES.consultation;
+  const images = [{ url: photo.src.src, width: photo.src.width, height: photo.src.height, alt: photo.alt }];
   return {
     title,
     description,
     alternates: { canonical: path },
-    openGraph: { title: `${title} · Care Bora Kenya`, description, url: path, type: "website" },
+    openGraph: { title: `${title} · Care Bora Kenya`, description, url: path, type: "website", images },
+    twitter: { card: "summary_large_image", title, description, images },
   };
 }
 

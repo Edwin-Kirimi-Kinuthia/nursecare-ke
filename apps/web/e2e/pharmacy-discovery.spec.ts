@@ -29,7 +29,7 @@ test.describe("Public pharmacy discovery", () => {
       expect(product.status()).toBe(200);
       const html = await product.text();
       expect(html).toContain(`${tag} Medicine 0`);
-      expect(html).toContain('"@type":"Drug"');
+      expect(html).toContain('"@type":["Drug","Product"]');
       expect(html).toContain(`rel="canonical" href="${absoluteUrl(`/pharmacy/${ids[0]}`)}"`);
       expect(html).toContain("Prescription only");
       expect((await sitemap()).some(entry => entry.url === absoluteUrl(`/pharmacy/${ids[0]}`))).toBe(true);
