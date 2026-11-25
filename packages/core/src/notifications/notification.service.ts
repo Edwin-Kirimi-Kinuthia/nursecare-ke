@@ -8,14 +8,15 @@ import { renderEmail, p, otp, panel, rows } from "./email-layout";
 let resend: Resend | null = null;
 function getResend(): Resend | null {
   if (!process.env.RESEND_API_KEY) return null;
-  if (!resend) resend = new Resend(process.env.RESEND_API_KEY);
+  if (!resend) resend = new Resend(process.env.RESEND_API_KEY, { baseUrl: process.env.RESEND_API_BASE_URL || undefined });
   return resend;
 }
 
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, html: string, required = false) {
   const client = getResend();
   if (!client) {
     console.error("[notify] RESEND_API_KEY not set — email not sent", { to, subject });
+    if (required) throw ApiError.serviceUnavailable("Email delivery is unavailable. Please try again later.");
     return;
   }
   try {
@@ -23,17 +24,19 @@ async function sendEmail(to: string, subject: string, html: string) {
     // returns { error } instead, e.g. the sandbox sender being restricted to
     // the account owner's own inbox until a domain is verified. Missing that
     // check means every such rejection fails completely silently.
-    const { error } = await client.emails.send({
+    const { data, error } = await client.emails.send({
       from: "CareBora <noreply@app.carebora.co.ke>",
       to,
       subject,
       html,
     });
-    if (error) {
-      console.error("[notify] email rejected by Resend", { to, subject, error });
+    if (error || !data?.id) {
+      console.error("[notify] email rejected by Resend", { subject, error });
+      if (required) throw ApiError.serviceUnavailable("The email could not be sent. Please try again.");
     }
   } catch (err) {
-    console.error("[notify] email failed", { to, subject, err: err instanceof Error ? err.message : err });
+    console.error("[notify] email failed", { subject, err: err instanceof Error ? err.message : err });
+    if (required) throw ApiError.serviceUnavailable("The email could not be sent. Please try again.");
   }
 }
 
@@ -111,7 +114,7 @@ export const notificationService = backgrounded({
         + otp(opts.code)
         + p("The code expires in 15 minutes."),
       footnote: "If you didn't create a Care Bora account, you can safely ignore this email.",
-    }));
+    }), true);
   },
 
   async loginOtpCode(opts: { email: string; fullName: string; code: string }) {
@@ -124,7 +127,7 @@ export const notificationService = backgrounded({
         + p("The code expires in 10 minutes."),
       footnote:
         "If this wasn't you, someone may know your password — change it as soon as you can.",
-    }));
+    }), true);
   },
 
   async changePasswordOtp(opts: { email: string; fullName: string; code: string }) {
@@ -137,7 +140,7 @@ export const notificationService = backgrounded({
         + p("The code expires in 10 minutes."),
       footnote:
         "Didn't request this? Ignore this email — your password won't change without the code.",
-    }));
+    }), true);
   },
 
   async accountInvite(opts: { email: string; fullName: string; token: string }) {
@@ -158,7 +161,7 @@ export const notificationService = backgrounded({
       button: { label: "Reset password", url: `${appBase()}/set-password?token=${opts.token}` },
       footnote:
         "This link expires in 7 days. If you didn't request a reset, ignore this email — your password won't change.",
-    }));
+    }), true);
   },
 
   async appointmentBooked(opts: {

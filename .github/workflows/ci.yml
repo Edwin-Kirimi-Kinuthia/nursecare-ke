@@ -48,6 +48,8 @@ jobs:
           --health-retries 10
     env:
       DATABASE_URL: postgresql://carebora:carebora@localhost:5432/carebora?schema=public
+      RESEND_API_KEY: re_local_ci_fake
+      RESEND_API_BASE_URL: http://127.0.0.1:4319
       JWT_SECRET: ci-test-secret-not-for-production-0123456789abcdef
       PROVIDER_MEETINGS_E2E: "1"
       WHATSAPP_E2E: "1"
@@ -96,9 +98,11 @@ jobs:
       - name: Start server and run E2E
         working-directory: apps/web
         run: |
+          node scripts/mock-email-server.mjs &
+          email_server_pid=$!
           npm run start &
           server_pid=$!
-          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          trap 'kill "$server_pid" "$email_server_pid" 2>/dev/null || true' EXIT
           echo "Waiting for server to become healthy…"
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3000/api/v1/health >/dev/null; then
@@ -109,7 +113,7 @@ jobs:
           done
           npm run e2e
       - name: Test review invitations and marketplace ranking
-        run: npx tsx --test packages/core/test/review-invitations.integration.test.ts packages/core/test/service-feedback.integration.test.ts
+        run: npx tsx --test packages/core/test/auth-recovery.integration.test.ts packages/core/test/review-invitations.integration.test.ts packages/core/test/service-feedback.integration.test.ts
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

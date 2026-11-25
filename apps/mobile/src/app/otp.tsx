@@ -38,14 +38,19 @@ export default function OtpScreen() {
   }
 
   async function resend() {
+    if (busy || cooldown > 0) return;
+    setBusy(true);
     setError(null);
+    setNotice(null);
     try {
-      await api.resendLoginOtp({ email });
+      const { sent } = await api.resendLoginOtp({ email });
+      if (!sent) { setError("Your sign-in attempt has expired. Go back and sign in again to get a new code."); return; }
+      setCode("");
       setNotice("We sent a new code.");
       setCooldown(30);
     } catch (err) {
       setError(errorMessage(err));
-    }
+    } finally { setBusy(false); }
   }
 
   return (
@@ -68,7 +73,7 @@ export default function OtpScreen() {
         style={{ letterSpacing: 8, fontSize: 24, textAlign: "center" }}
       />
       <Button title="Verify and sign in" onPress={() => verify(code)} loading={busy} disabled={code.length !== 6} />
-      <Button title={cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"} variant="ghost" onPress={resend} disabled={cooldown > 0} />
+      <Button title={cooldown > 0 ? `Resend code in ${cooldown}s` : "Resend code"} variant="ghost" onPress={resend} disabled={busy || cooldown > 0} />
       <Button title="Use a different account" variant="ghost" onPress={() => router.back()} />
     </AuthShell>
   );

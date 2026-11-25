@@ -93,7 +93,8 @@ function LoginForm() {
     setBusy(true);
     try {
       const { sent } = await api.resendLoginOtp({ email: form.email });
-      setNotice(sent ? "Code resent — check your inbox." : "Couldn't resend — try logging in again.");
+      if (sent) { setLoginCode(""); setNotice("Code resent — check your inbox."); }
+      else setError("Your sign-in attempt has expired. Go back and sign in again to get a new code.");
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Something went wrong");
     } finally {

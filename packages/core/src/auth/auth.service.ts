@@ -29,6 +29,8 @@ const REFRESH_TTL_SECONDS = Number(process.env.JWT_REFRESH_TTL ?? "2592000");
 const EMAIL_VERIFICATION_TTL_MINUTES = 15;
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 const LOGIN_OTP_TTL_MINUTES = 10;
+// Allow a delayed user to replace an expired code after proving their password.
+const LOGIN_CHALLENGE_TTL_MS = 30 * 60_000;
 const CHANGE_PASSWORD_OTP_TTL_MINUTES = 10;
 
 function hashCode(code: string): string {
@@ -96,53 +98,25 @@ async function spendCodeAttempt(
   return record;
 }
 
-/** Generate a 6-digit email verification code, store its hash, and email it. */
+/** Failed delivery must not consume the send quota or replace a usable code. */
+async function issueEmailedCode(user: Pick<User, "id" | "email" | "fullName">, channel: string, ttlMinutes: number, send: (code: string) => Promise<void>) {
+  await assertCanIssueCode(user.id, channel);
+  const code = generateOtp();
+  const record = await db.verificationCode.create({ data: { userId: user.id, channel, codeHash: hashCode(code), expiresAt: new Date(Date.now() + ttlMinutes * 60_000) } });
+  try { await send(code); }
+  catch (error) { await db.verificationCode.deleteMany({ where: { id: record.id } }); throw error; }
+}
+
 async function issueEmailVerification(user: Pick<User, "id" | "email" | "fullName">) {
-  await assertCanIssueCode(user.id, "email");
-  const code = generateOtp();
-  await db.verificationCode.create({
-    data: {
-      userId: user.id,
-      channel: "email",
-      codeHash: hashCode(code),
-      expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MINUTES * 60 * 1000),
-    },
-  });
-  await notificationService.emailVerificationCode({
-    email: user.email,
-    fullName: user.fullName,
-    code,
-  });
+  await issueEmailedCode(user, "email", EMAIL_VERIFICATION_TTL_MINUTES, code => notificationService.emailVerificationCode({ email: user.email, fullName: user.fullName, code }));
 }
 
-/** Second factor on every password login: a 6-digit code emailed after the password checks out. */
 async function issueLoginOtp(user: Pick<User, "id" | "email" | "fullName">) {
-  await assertCanIssueCode(user.id, "login_otp");
-  const code = generateOtp();
-  await db.verificationCode.create({
-    data: {
-      userId: user.id,
-      channel: "login_otp",
-      codeHash: hashCode(code),
-      expiresAt: new Date(Date.now() + LOGIN_OTP_TTL_MINUTES * 60 * 1000),
-    },
-  });
-  await notificationService.loginOtpCode({ email: user.email, fullName: user.fullName, code });
+  await issueEmailedCode(user, "login_otp", LOGIN_OTP_TTL_MINUTES, code => notificationService.loginOtpCode({ email: user.email, fullName: user.fullName, code }));
 }
 
-/** Second factor on changing your own password while logged in: a 6-digit code emailed after the current password checks out. */
 async function issueChangePasswordOtp(user: Pick<User, "id" | "email" | "fullName">) {
-  await assertCanIssueCode(user.id, "change_password_otp");
-  const code = generateOtp();
-  await db.verificationCode.create({
-    data: {
-      userId: user.id,
-      channel: "change_password_otp",
-      codeHash: hashCode(code),
-      expiresAt: new Date(Date.now() + CHANGE_PASSWORD_OTP_TTL_MINUTES * 60 * 1000),
-    },
-  });
-  await notificationService.changePasswordOtp({ email: user.email, fullName: user.fullName, code });
+  await issueEmailedCode(user, "change_password_otp", CHANGE_PASSWORD_OTP_TTL_MINUTES, code => notificationService.changePasswordOtp({ email: user.email, fullName: user.fullName, code }));
 }
 
 /** Generate an invite/reset token and store its hash. Shared by admin invites and self-service password resets. */
@@ -168,7 +142,8 @@ export async function issuePasswordInvite(user: Pick<User, "id" | "email" | "ful
 /** Self-service "forgot password": email a reset link. */
 async function issuePasswordReset(user: Pick<User, "id" | "email" | "fullName">) {
   const token = await createInviteToken(user.id);
-  await notificationService.passwordResetRequested({ email: user.email, fullName: user.fullName, token });
+  try { await notificationService.passwordResetRequested({ email: user.email, fullName: user.fullName, token }); }
+  catch (error) { await db.verificationCode.deleteMany({ where: { userId: user.id, channel: "invite", codeHash: hashCode(token) } }); throw error; }
 }
 
 export interface RequestMeta {
@@ -331,7 +306,7 @@ export const authService = {
    */
   async forgotPassword(email: string) {
     const user = await db.user.findUnique({ where: { email } });
-    if (user) {
+    if (user?.isActive && !user.deletedAt) {
       await issuePasswordReset(user);
     }
     return { sent: true };
@@ -462,8 +437,8 @@ export const authService = {
     const user = await db.user.findUnique({ where: { email } });
     if (!user) throw ApiError.unauthorized("Invalid or expired code");
 
-    const record = await spendCodeAttempt(user.id, "login_otp", code, () => ApiError.unauthorized("Invalid or expired code"));
-    await db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } });
+    await spendCodeAttempt(user.id, "login_otp", code, () => ApiError.unauthorized("Invalid or expired code"));
+    await db.verificationCode.updateMany({ where: { userId: user.id, channel: "login_otp", consumedAt: null }, data: { consumedAt: new Date() } });
 
     const tokens = await issueSession(user.id, user.role as UserRole, meta);
     return { user: toPublicUser(user), ...tokens };
@@ -472,10 +447,10 @@ export const authService = {
   /** Resend the login code — only while a login attempt (a correct password) is actually in progress. */
   async resendLoginOtp(email: string) {
     const user = await db.user.findUnique({ where: { email } });
-    if (!user) return { sent: false };
+    if (!user || !user.isActive || user.deletedAt) return { sent: false };
 
     const pending = await db.verificationCode.findFirst({
-      where: { userId: user.id, channel: "login_otp", consumedAt: null, expiresAt: { gt: new Date() } },
+      where: { userId: user.id, channel: "login_otp", consumedAt: null, createdAt: { gte: new Date(Date.now() - LOGIN_CHALLENGE_TTL_MS) } },
       orderBy: { createdAt: "desc" },
     });
     if (!pending) return { sent: false };
