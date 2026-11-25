@@ -1,4 +1,5 @@
 "use client";
+import RequestClientReview from "@/components/RequestClientReview";
 import ServiceReviewForm from "@/components/ServiceReviewForm";
 
 import { useEffect, useState } from "react";
@@ -359,6 +360,7 @@ function VisitCard({ visit, onPay }: { visit: HomeVisit; onPay: () => void }) {
         </div>
       </div>
 
+<div id={`review-${visit.id}`}>{visit.status === "completed" && visit.providerId === user?.id && <RequestClientReview serviceType="home_visit" subjectId={visit.id} />}</div>
 {visit.status === "completed" && visit.patientId === user?.id && <ServiceReviewForm serviceType="home_visit" subjectId={visit.id} label={"your home visit"} />}
       <p className="mt-3 text-sm text-slate-600 line-clamp-2">{visit.description}</p>
 

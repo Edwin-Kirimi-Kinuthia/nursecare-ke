@@ -15,6 +15,9 @@ interface OfferRow {
   form: string | null;
   orgId: string;
   orgName: string;
+  ratingAvg: number;
+  ratingCount: number;
+  completedOrders: number;
   branchId: string;
   branchName: string;
   county: string;
@@ -48,13 +51,15 @@ async function queryOffers(opts: {
         d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg&primary=1' ELSE d.image_url END AS "imageUrl",
         d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
         l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
-        o.id AS "orgId", o.name AS "orgName",
+        o.id AS "orgId", o.name AS "orgName", o.rating_avg AS "ratingAvg", o.rating_count AS "ratingCount",
+        COALESCE(deliveries.completed_orders, 0) AS "completedOrders",
         b.id AS "branchId", b.name AS "branchName", b.county,
         round((ST_Distance(b.geog, ST_SetSRID(ST_MakePoint(${opts.lng}, ${opts.lat}), 4326)::geography) / 1000)::numeric, 2)::float AS "distanceKm"
       FROM listings l
       JOIN drugs d ON d.id = l.drug_id
       JOIN organizations o ON o.id = l.org_id
       JOIN org_branches b ON b.org_id = o.id
+      LEFT JOIN (SELECT org_id, count(*)::int AS completed_orders FROM vendor_orders WHERE status='delivered' GROUP BY org_id) deliveries ON deliveries.org_id=o.id
       WHERE l.is_active = true AND l.stock_qty >= l.min_order_qty
         AND d.is_active = true
         AND o.type = 'pharmacy' AND o.status = 'approved'
@@ -74,13 +79,15 @@ async function queryOffers(opts: {
       d.id AS "drugId", d.name AS "drugName", d.category, CASE WHEN d.image_url ~* '^data:image/(png|jpe?g|webp|gif|avif);base64,' THEN '/media/medicines/' || d.id::text || '/0?v=' || floor(extract(epoch from d.updated_at)*1000)::bigint::text || '&format=jpeg&primary=1' ELSE d.image_url END AS "imageUrl",
       d.requires_prescription AS "requiresPrescription", d.form, l.min_order_qty AS "minOrderQty",
       l.id AS "listingId", l.price_kes AS "priceKes", l.stock_qty AS "stockQty",
-      o.id AS "orgId", o.name AS "orgName",
+      o.id AS "orgId", o.name AS "orgName", o.rating_avg AS "ratingAvg", o.rating_count AS "ratingCount",
+        COALESCE(deliveries.completed_orders, 0) AS "completedOrders",
       b.id AS "branchId", b.name AS "branchName", b.county,
       NULL::float AS "distanceKm"
     FROM listings l
     JOIN drugs d ON d.id = l.drug_id
     JOIN organizations o ON o.id = l.org_id
     JOIN org_branches b ON b.org_id = o.id
+      LEFT JOIN (SELECT org_id, count(*)::int AS completed_orders FROM vendor_orders WHERE status='delivered' GROUP BY org_id) deliveries ON deliveries.org_id=o.id
     WHERE l.is_active = true AND l.stock_qty >= l.min_order_qty
       AND d.is_active = true
       AND o.type = 'pharmacy' AND o.status = 'approved'
@@ -124,9 +131,9 @@ export const storefrontService = {
 
     const grouped = [...byDrug.values()].map((offers) => {
       const cheapest = offers.reduce((a, b) => (b.priceKes < a.priceKes ? b : a));
-      const nearest = !query.sort?.startsWith("price_") && query.lat !== undefined
-        ? offers.reduce((a, b) => ((b.distanceKm ?? Infinity) < (a.distanceKm ?? Infinity) ? b : a))
-        : cheapest;
+      const quality = [...offers].sort((a,b) => b.ratingAvg-a.ratingAvg || b.completedOrders-a.completedOrders || a.priceKes-b.priceKes || a.listingId.localeCompare(b.listingId))[0]!;
+      const nearest = query.sort?.startsWith("price_") ? cheapest : query.sort === "nearest" && query.lat !== undefined
+        ? offers.reduce((a,b) => ((b.distanceKm ?? Infinity) < (a.distanceKm ?? Infinity) ? b : a)) : quality;
       const vendorCount = new Set(offers.map((o) => o.orgId)).size;
       return {
         drugId: nearest.drugId,
@@ -145,6 +152,7 @@ export const storefrontService = {
         nearestVendor: {
           orgId: nearest.orgId,
           orgName: nearest.orgName,
+          ratingAvg: nearest.ratingAvg, ratingCount: nearest.ratingCount, completedOrders: nearest.completedOrders,
           branchName: nearest.branchName,
           county: nearest.county,
           distanceKm: nearest.distanceKm,
@@ -153,6 +161,7 @@ export const storefrontService = {
     });
 
     grouped.sort((a, b) => {
+      if (!query.sort || query.sort === "rating") return b.nearestVendor.ratingAvg-a.nearestVendor.ratingAvg || b.nearestVendor.completedOrders-a.nearestVendor.completedOrders || a.unitPriceKes-b.unitPriceKes || a.drugId.localeCompare(b.drugId);
       if (query.sort === "price_desc") return b.unitPriceKes - a.unitPriceKes || a.drugId.localeCompare(b.drugId);
       if (query.sort === "price_asc") return a.unitPriceKes - b.unitPriceKes || a.drugId.localeCompare(b.drugId);
       const distance = (a.nearestVendor.distanceKm ?? Infinity) - (b.nearestVendor.distanceKm ?? Infinity);
@@ -172,13 +181,14 @@ export const storefrontService = {
     const rows = await queryOffers({ drugId, lat: query.lat, lng: query.lng });
     return {
       drug: publicDrugImages(drug),
-      offers: rows.map((r) => ({
+      offers: rows.sort((a,b) => b.ratingAvg-a.ratingAvg || b.completedOrders-a.completedOrders || (a.distanceKm ?? Infinity)-(b.distanceKm ?? Infinity) || a.priceKes-b.priceKes || a.listingId.localeCompare(b.listingId)).map((r) => ({
         listingId: r.listingId,
         priceKes: r.priceKes,
         stockQty: r.stockQty,
         minOrderQty: r.minOrderQty,
         orgId: r.orgId,
         orgName: r.orgName,
+        ratingAvg: r.ratingAvg, ratingCount: r.ratingCount, completedOrders: r.completedOrders,
         branchName: r.branchName,
         county: r.county,
         distanceKm: r.distanceKm,

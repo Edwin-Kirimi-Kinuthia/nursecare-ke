@@ -77,3 +77,5 @@ export { earningsService } from "./payment/earnings.service";
 export { b2cService } from "./payment/b2c.service";
 
 export { serviceReviewService } from "./reviews/service-review.service";
+
+export { reviewInvitationService } from "./reviews/review-invitation.service";

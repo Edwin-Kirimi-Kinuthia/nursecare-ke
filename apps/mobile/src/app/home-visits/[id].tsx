@@ -1,3 +1,4 @@
+import { RequestClientReview } from "@/features/RequestClientReview";
 import { ServiceReviewForm } from "@/features/ServiceReviewForm";
 import { View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
@@ -38,6 +39,7 @@ export default function HomeVisitScreen() {
       ) : null}
       {v.payment?.receiptNumber && <Banner tone="ok">Paid {kes(v.feeKes)} · M-Pesa receipt {v.payment.receiptNumber}</Banner>}
           {v.status === "completed" && v.patientId === user?.id && <ServiceReviewForm serviceType="home_visit" subjectId={v.id} label={"your home visit"} />}
+      {v.status === "completed" && v.providerId === user?.id && <RequestClientReview serviceType="home_visit" subjectId={v.id} />}
       {v.visitNotes && <Card><Text variant="label" tone="muted">PROVIDER NOTES</Text><Text>{v.visitNotes}</Text></Card>}
       {v.status === "cancelled" && v.payment?.failureReason && <Banner tone="danger">{v.payment.failureReason}</Banner>}
     </Screen>

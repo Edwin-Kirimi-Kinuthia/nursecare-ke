@@ -38,7 +38,7 @@ test("phone layout has a compact assistant and pharmacy sort / Rx filters", asyn
   await expect(page.getByRole("dialog", { name: "Care Bora navigation assistant" })).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(help).toBeFocused();
-  await expect(page.getByRole("heading", { name: "Care Bora Pharmacy", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pharmacy", exact: true })).toBeVisible();
   await expect(page.getByLabel("Sort medicines")).toBeHidden();
   await page.getByRole("button", { name: /^Filters/ }).click();
   const price = page.waitForRequest(r => r.url().includes("/storefront/drugs?") && r.url().includes("sort=price_desc"));

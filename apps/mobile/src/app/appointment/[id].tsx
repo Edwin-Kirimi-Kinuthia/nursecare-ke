@@ -1,3 +1,4 @@
+import { RequestClientReview } from "@/features/RequestClientReview";
 import { useEffect, useRef, useState } from "react";
 import { Alert, View } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
@@ -138,6 +139,7 @@ export default function AppointmentScreen() {
       {isProvider && (
         <Button title="Schedule new meeting" variant="secondary" onPress={() => router.push({ pathname: "/appointment/new", params: { clientEmail: a.patient.email ?? "" } })} />
       )}
+      {isProvider && a.status === "completed" && !a.review && <RequestClientReview serviceType="appointment" subjectId={a.id} />}
       {isProvider && a.status === "completed" && a.review && (
         <Card>
           <Text variant="subheading">Patient review</Text>

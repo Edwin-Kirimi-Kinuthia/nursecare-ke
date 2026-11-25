@@ -1,5 +1,4 @@
 import { OrderProgress } from "@/features/OrderProgress";
-import { OrderStatusActions } from "@/features/OrderStatusActions";
 import { orderStatusLabel } from "@carebora/shared";
 import { openUploadedDocument } from "@/lib/documents";
 import { OrderItems } from "@/features/OrderItems";
@@ -318,9 +317,9 @@ function Orders() {
       {orders.map((o: Order) => {
         const n = o.vendorOrders.reduce((a, vo) => a + vo.items.reduce((m, i) => m + i.qty, 0), 0);
         return (
-          <Card key={o.id} style={{ borderRadius: 16 }}>
+          <Pressable key={o.id} accessibilityRole="button" accessibilityLabel={`Open order ${o.id.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/orders/[id]", params: { id: o.id } })}><Card style={{ borderRadius: 16 }}>
             <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Open order details" onPress={() => router.push({ pathname: "/orders/[id]", params: { id: o.id } })}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{o.id.slice(0, 8).toUpperCase()} ↗</Text></Pressable>
+              <Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{o.id.slice(0, 8).toUpperCase()} ↗</Text>
               <Badge label={o.payment?.status ?? "unpaid"} tone={o.payment?.status === "completed" ? "ok" : "neutral"} />
             </View>
             <Meta>{o.patient.fullName} · {dayTime(o.createdAt)}</Meta>
@@ -334,10 +333,10 @@ function Orders() {
                 <Text variant="caption" tone="muted" style={{ flex: 1 }}>{vo.organization.name} · {vo.items.reduce((a, i) => a + i.qty, 0)} item(s)</Text>
                 <Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : vo.status === "cancelled" ? "neutral" : "info"} />
                 </View>
-                <OrderProgress order={vo} /><OrderStatusActions order={vo} admin onUpdated={list.reload} /><OrderItems items={vo.items} />
+                <OrderProgress order={vo} /><OrderItems items={vo.items} />
               </View>
             ))}
-          </Card>
+          </Card></Pressable>
         );
       })}
     </>

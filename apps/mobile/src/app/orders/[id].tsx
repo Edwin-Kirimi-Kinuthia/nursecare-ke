@@ -37,7 +37,7 @@ export default function OrderScreen() {
           </View>
           {v.status === "delivered" && o.patient.id === user?.id && <ServiceReviewForm serviceType="vendor_order" subjectId={v.id} label={v.organization.name} />}
           <OrderProgress order={v} />
-          {user?.role === "admin" && <OrderStatusActions order={v} admin onUpdated={res.reload} />}
+          {user?.role === "admin" && <OrderStatusActions key={v.status} order={v} admin dropdown onUpdated={res.reload} />}
           {v.items.map((i) => (
             <View key={i.id} style={{ flexDirection: "row", justifyContent: "space-between" }}>
               <Text style={{ flex: 1 }}>{i.qty} × {i.drugName}</Text>

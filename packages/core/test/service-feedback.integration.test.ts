@@ -31,7 +31,7 @@ test("verified service feedback, fulfilment, provider ranking and medicine disco
     assert.equal(delivered.dispatchedAt, null);
     assert.equal(delivered.statusHistory.length, 1);
     await orderService.patchVendorOrder(org.id, paid.id, { status: "delivered" });
-    await orderService.requestReview(org.id, paid.id);
+    await orderService.requestReview(org.id, paid.id, false);
     assert.equal(await db.notification.count({ where: { userId: patient.id, type: "service_review_requested" } }), 1);
   });
   await t.test("only the buyer reviews a delivered vendor order, once", async () => {

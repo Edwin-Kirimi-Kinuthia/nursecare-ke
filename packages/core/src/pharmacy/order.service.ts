@@ -1,3 +1,4 @@
+import { reviewInvitationService } from "../reviews/review-invitation.service";
 import { inAppNotifications } from "../notifications/inapp.service";
 import { randomUUID } from "node:crypto";
 import { HOUSE_ORG_SLUG } from "./house-pharmacy";
@@ -354,14 +355,19 @@ export const orderService = {
       if (actorId) await tx.auditLog.create({ data: { actorId, action: "pharmacy.order_status", entityType: "VendorOrder", entityId: vo.id, metadata: { from: vo.status, to: input.status } } });
       return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
     });
-    if (input.status === "delivered") await this.requestReview(orgId, vendorOrderId);
+    if (input.status === "delivered") await this.requestReview(orgId, vendorOrderId, false);
     return result;
   },
 
-  async requestReview(orgId: string, vendorOrderId: string) {
+  async requestReview(orgId: string, vendorOrderId: string, email = true) {
     const vo = await db.vendorOrder.findFirst({ where: { id: vendorOrderId, orgId }, include: { order: { select: { patientId: true } }, organization: { select: { name: true } } } });
     if (!vo) throw ApiError.notFound("Order not found");
     if (vo.status !== "delivered") throw ApiError.badRequest("Mark this order delivered before requesting a review");
+    if (email) {
+      const reviewed = await db.serviceReview.findUnique({ where: { serviceType_subjectId: { serviceType: "vendor_order", subjectId: vo.id } } });
+      if (reviewed) return { ok: true, status: "already_reviewed" as const };
+      return reviewInvitationService.send({ subjectType: "vendor_order", subjectId: vo.id, patientId: vo.order.patientId, serviceName: vo.organization.name, path: `/orders/${vo.orderId}#review-${vo.id}` });
+    }
     await inAppNotifications.create(vo.order.patientId, {
       type: "service_review_requested", title: "How was your pharmacy delivery?",
       body: `Your order from ${vo.organization.name} was delivered. Please rate your experience.`,

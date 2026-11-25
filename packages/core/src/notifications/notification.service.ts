@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { greetingName } from "@carebora/shared";
+import { ApiError, greetingName } from "@carebora/shared";
 import { backgrounded } from "../lib/background";
 import { renderEmail, p, otp, panel, rows } from "./email-layout";
 
@@ -91,6 +91,17 @@ function money(kes: number): string {
 }
 
 export const notificationService = backgrounded({
+  /** Unlike best-effort notices, review invitations must report a failed email honestly. */
+  async reviewInvitation(opts: { email: string; fullName: string; serviceName: string; path: string; idempotencyKey: string }) {
+    const client = getResend();
+    if (!client) throw ApiError.serviceUnavailable("Review email is unavailable. Please try again later.");
+    const origin = (process.env.NEXT_PUBLIC_APP_URL ?? "https://app.carebora.co.ke").replace(/\/$/, "");
+    const html = renderEmail({ heading: "How was your experience?", preheader: "Share your feedback with Care Bora", body: p(`Hi ${firstName(opts.fullName)},`) + p(`Please share your experience with ${esc(opts.serviceName)}. Your honest feedback helps clients choose quality care.`), button: { label: "Leave a review", url: `${origin}${opts.path}` } });
+    try {
+      const result = await client.emails.send({ from: "CareBora <noreply@app.carebora.co.ke>", to: opts.email, subject: "How was your experience? — Care Bora", html }, { idempotencyKey: opts.idempotencyKey });
+      if (result.error || !result.data?.id) throw new Error("Email not accepted");
+    } catch { throw ApiError.serviceUnavailable("The review email could not be sent. Please try again."); }
+  },
   async emailVerificationCode(opts: { email: string; fullName: string; code: string }) {
     await sendEmail(opts.email, "Verify your email — CareBora", renderEmail({
       preheader: `Your verification code is ${opts.code}`,

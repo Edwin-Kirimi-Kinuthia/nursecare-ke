@@ -108,6 +108,8 @@ jobs:
             sleep 1
           done
           npm run e2e
+      - name: Test review invitations and marketplace ranking
+        run: npx tsx --test packages/core/test/review-invitations.integration.test.ts packages/core/test/service-feedback.integration.test.ts
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

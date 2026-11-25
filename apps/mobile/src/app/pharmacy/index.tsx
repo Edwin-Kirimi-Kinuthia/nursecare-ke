@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Image, Pressable, ScrollView, TextInput, View } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Check, Eye, MapPin, Pill, ShoppingCart } from "lucide-react-native";
+import { Check, MapPin, Pill, ShoppingCart } from "lucide-react-native";
 import { KENYA_COUNTIES, medicineUnit } from "@carebora/shared";
 import type { StorefrontDrug } from "@carebora/api-client";
 import { api } from "@/lib/api";
@@ -28,7 +28,7 @@ export default function PharmacyScreen() {
   const [position, setPosition] = useState<{lat:number;lng:number} | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationError, setLocationError] = useState("");
-  const [sort, setSort] = useState("price_asc");
+  const [sort, setSort] = useState("rating");
   const [prescription, setPrescription] = useState("");
   const [category, setCategory] = useState("");
   const [query, setQuery] = useState("");
@@ -59,15 +59,15 @@ export default function PharmacyScreen() {
 
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
-      <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Care Bora Pharmacy" lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya." />
+      <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Pharmacy" lede="Medication and supplies from licensed pharmacies near you, delivered across Kenya." />
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}><View style={{ flex: 1 }}><SearchBox value={query} onChange={setQuery} /></View><Button title={filtersOpen ? "Hide filters" : `Filters${prescription || county ? " •" : ""}`} variant="secondary" size="sm" onPress={() => setFiltersOpen(v => !v)} /></View>
       {filtersOpen && <View style={{ gap: 12, padding: 12, borderWidth: 1, borderColor: "#E2E8F0", borderRadius: 14 }}>
-      <Select label="Your county" value={county} options={counties} onChange={value => { setCounty(value); setPosition(null); if (sort === "nearest") setSort("price_asc"); }} placeholder="All of Kenya" compact />
+      <Select label="Your county" value={county} options={counties} onChange={value => { setCounty(value); setPosition(null); if (sort === "nearest") setSort("rating"); }} placeholder="All of Kenya" compact />
       <Button title={position ? "Refresh my location" : "Use my location: nearest pharmacies"} size="sm" variant="secondary" loading={locating} onPress={locate} />
       {locationError && <Banner tone="warn">{locationError}</Banner>}
-      <Select label="Sort medicines" value={sort} onChange={setSort} options={[...(position ? [{value:"nearest",label:"Nearest pharmacy"}] : []), {value:"price_asc",label:"Price: low to high"},{value:"price_desc",label:"Price: high to low"}]} compact />
+      <Select label="Sort medicines" value={sort} onChange={setSort} options={[{value:"rating",label:"Top rated pharmacies"}, ...(position ? [{value:"nearest",label:"Nearest pharmacy"}] : []), {value:"price_asc",label:"Price: low to high"},{value:"price_desc",label:"Price: high to low"}]} compact />
       <Select label="Prescription" value={prescription} onChange={setPrescription} options={[{value:"",label:"All medicines"},{value:"true",label:"Prescription required"},{value:"false",label:"Over the counter (OTC)"}]} compact />
-      <Button title="Reset filters and sort" variant="ghost" size="sm" onPress={() => { setPrescription(""); setCategory(""); setCounty(""); setPosition(null); setSort("price_asc"); }} />
+      <Button title="Reset filters and sort" variant="ghost" size="sm" onPress={() => { setPrescription(""); setCategory(""); setCounty(""); setPosition(null); setSort("rating"); }} />
       </View>}
       {cats.length > 0 && (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} style={{ flexGrow: 0 }}>
@@ -78,7 +78,7 @@ export default function PharmacyScreen() {
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading && !list.data ? <View style={{ height: 240 }}><Loading /></View>
         : list.data && list.data.drugs.length === 0 ? <Empty icon="search-outline" title="No medication found" hint="Try a different search, category or location — stock varies by pharmacy." />
-        : list.data?.drugs.map((d, i) => <DrugCard key={d.drugId} d={d} index={i} />)}
+        : <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 10 }}>{list.data?.drugs.map((d, i) => <View key={d.drugId} style={{ width: "48%", flexGrow: 1, maxWidth: "49%" }}><DrugCard d={d} index={i} /></View>)}</View>}
       <Footer />
     </Screen>
   );
@@ -105,19 +105,19 @@ function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
   return (
     <View style={{ backgroundColor: TONES[index % 4], borderRadius: 16, overflow: "hidden" }}>
       <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`}>
-        <View style={{ height: 200, padding: 16 }}>
+        <View style={{ height: 120, padding: 8 }}>
           <View style={{ flex: 1, borderRadius: 15, overflow: "hidden", backgroundColor: "#fff", transform: [{ rotate: "-2deg" }] }}>
             {d.imageUrl ? <Image source={{ uri: absoluteUrl(d.imageUrl.startsWith("/media/medicines/") ? `${d.imageUrl}&w=320` : d.imageUrl) }} style={{ width: "100%", height: "100%" }} resizeMode="contain" />
               : <LinearGradient colors={[from, to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1, alignItems: "center", justifyContent: "center" }}><Pill size={56} color="rgba(255,255,255,0.9)" /></LinearGradient>}
           </View>
-          <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 22, top: 22 }} />
-          {qty > 0 && <View style={{ position: "absolute", right: 22, top: 22, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}
-          {out && <Tag text="Out of stock" bg="#E11D48" fg="#fff" style={{ position: "absolute", left: 22, bottom: 22 }} />}
-          {low && <Tag text={`Only ${d.stockQty} left`} bg="#F59E0B" fg="#fff" style={{ position: "absolute", left: 22, bottom: 22 }} />}
+          <Tag text={d.requiresPrescription ? "Rx" : "OTC"} fg={d.requiresPrescription ? "#6D28D9" : "#047857"} style={{ position: "absolute", left: 10, top: 10 }} />
+          {qty > 0 && <View style={{ position: "absolute", right: 10, top: 10, flexDirection: "row", gap: 4, alignItems: "center", backgroundColor: "#0D9488", borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}><Check size={12} color="#fff" /><Text style={{ color: "#fff", fontFamily: "Inter_700Bold", fontSize: 12 }}>{qty}</Text></View>}
+          {out && <Tag text="Out of stock" bg="#E11D48" fg="#fff" style={{ position: "absolute", left: 10, bottom: 10 }} />}
+          {low && <Tag text={`Only ${d.stockQty} left`} bg="#F59E0B" fg="#fff" style={{ position: "absolute", left: 10, bottom: 10 }} />}
         </View>
-        <View style={{ paddingHorizontal: 20, paddingBottom: 4, gap: 3 }}>
+        <View style={{ paddingHorizontal: 10, paddingBottom: 4, gap: 3 }}>
           <Text numberOfLines={1} style={{ color: "#64748B", fontFamily: "Inter_700Bold", fontSize: 11, letterSpacing: 0.8 }}>{d.category.toUpperCase()}</Text>
-          <Text numberOfLines={2} style={{ fontFamily: "Inter_800ExtraBold", fontSize: 17, color: "#0F172A" }}>{d.name}</Text><Text variant="caption" tone="muted">Minimum order: {d.minOrderQty ?? 1} units</Text>
+          <Text numberOfLines={2} style={{ fontFamily: "Inter_800ExtraBold", fontSize: 14, minHeight: 38, color: "#0F172A" }}>{d.name}</Text><Text variant="caption" tone="muted">Minimum order: {d.minOrderQty ?? 1} units</Text>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <MapPin size={13} color="#475569" />
             <Text variant="caption" style={{ flex: 1, color: "#475569" }} numberOfLines={1}>
@@ -126,10 +126,9 @@ function DrugCard({ d, index }: { d: StorefrontDrug; index: number }) {
           </View>
           <Text style={{ fontFamily: "Inter_700Bold", fontSize: 12, color: out || low ? "#FF5151" : "#047857" }}>{out ? "Out of stock" : low ? `Low stock: ${d.stockQty} left` : "In stock"}</Text>
         </View>
-        <Text style={{ textAlign: "center", color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 22, paddingVertical: 8 }}>{kes(d.unitPriceKes ?? d.bestPriceKes)} / {medicineUnit(d.form)}</Text>
+        <Text style={{ textAlign: "center", color: "#0F766E", fontFamily: "Inter_800ExtraBold", fontSize: 16, paddingVertical: 6 }}>{kes(d.unitPriceKes ?? d.bestPriceKes)} / {medicineUnit(d.form)}</Text>
       </Pressable>
-      <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 10, backgroundColor: "rgba(255,255,255,0.8)" }}>
-        <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`View ${d.name} details`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center" }}><Eye size={22} color="#161616" /></Pressable>
+      <View style={{ flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingVertical: 4, backgroundColor: "rgba(255,255,255,0.8)" }}>
         {qty > 0 ? <Stepper qty={qty} onAdd={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} onSub={() => sub(d.listingId, d.minOrderQty ?? 1)} disableAdd={out || qty >= Math.min(100, d.stockQty)} />
           : <Pressable onPress={() => add(d.listingId, d.minOrderQty ?? 1, Math.min(100, d.stockQty))} disabled={out} accessibilityRole="button" accessibilityLabel={`Add ${d.name} to cart`} hitSlop={8} style={{ width: 44, height: 44, alignItems: "center", justifyContent: "center", opacity: out ? 0.35 : 1 }}><ShoppingCart size={22} color="#161616" /></Pressable>}
       </View>

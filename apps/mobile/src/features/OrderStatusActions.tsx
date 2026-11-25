@@ -12,7 +12,7 @@ export function OrderStatusActions({ order, admin = false, dropdown = false, onU
   const [stage, setStage] = useState("");
   const next = ORDER_NEXT_STATUS[order.status];
   const deliverable = ["paid", "processing", "dispatched", "in_delivery"].includes(order.status);
-  const [requested, setRequested] = useState(false);
+  const [requested, setRequested] = useState("");
   if (!next && order.status !== "delivered") return null;
   async function advance(status = next) {
     if (!status || busy) return;
@@ -27,17 +27,17 @@ export function OrderStatusActions({ order, admin = false, dropdown = false, onU
   }
   async function requestReview() {
     setBusy(true); setError("");
-    try { await api.requestOrderReview(order.id, admin); setRequested(true); }
+    try { const r = await api.requestOrderReview(order.id, admin); setRequested(r.status === "already_reviewed" ? "Client has already reviewed" : "Review email sent"); }
     catch (e) { setError(e instanceof Error ? e.message : "Could not request review"); }
     finally { setBusy(false); }
   }
   return <>{error && <Banner tone="danger">{error}</Banner>}
     {dropdown ? next && <View style={{ gap: 12 }}><Select label="Order stage" value={stage || order.status} onChange={setStage} options={[{ value: order.status, label: `${orderStatusLabel(order.status)} (current)` }, ...(["processing", "dispatched", "in_delivery", "delivered"] as const).filter(s => s !== order.status && (s === next || (s === "delivered" && deliverable))).map(s => ({ value: s, label: orderStatusLabel(s) }))]} />
-      <Button title="Update order stage" loading={busy} disabled={!stage || stage === order.status} onPress={() => { if (stage === "delivered") Alert.alert("Confirm delivery", "Confirm the client received this order. We will invite them to review the pharmacy.", [{text:"Cancel",style:"cancel"},{text:"Mark delivered",onPress:() => { void advance(stage as typeof next); }}]); else void advance(stage as typeof next); }} />
+      <Button title="Update order stage" loading={busy} disabled={!stage || stage === order.status} onPress={() => { if (stage === "delivered") Alert.alert("Confirm delivery", "Confirm the client received this order. You can request a review after delivery.", [{text:"Cancel",style:"cancel"},{text:"Mark delivered",onPress:() => { void advance(stage as typeof next); }}]); else void advance(stage as typeof next); }} />
     </View> : <>
     {next && next !== "delivered" && <Button title={`Mark ${orderStatusLabel(next).toLowerCase()}`} size="sm" loading={busy} onPress={() => advance()} />}
-    {deliverable && <Button title="Mark delivered & request review" size="sm" loading={busy} onPress={() => Alert.alert("Confirm delivery", "Confirm that the client received this order. We will invite them to review the pharmacy.", [{text:"Cancel",style:"cancel"},{text:"Mark delivered",onPress:() => { void advance("delivered"); }}])} />}
+    {deliverable && <Button title="Mark delivered" size="sm" loading={busy} onPress={() => Alert.alert("Confirm delivery", "Confirm that the client received this order. You can request a review after delivery.", [{text:"Cancel",style:"cancel"},{text:"Mark delivered",onPress:() => { void advance("delivered"); }}])} />}
     </>}
-    {order.status === "delivered" && <Button title={requested ? "Review requested" : "Request client review"} size="sm" loading={busy} disabled={requested} onPress={requestReview} />}
+    {order.status === "delivered" && <Button title={requested || "Request client review"} size="sm" loading={busy} disabled={!!requested} onPress={requestReview} />}
   </>;
 }

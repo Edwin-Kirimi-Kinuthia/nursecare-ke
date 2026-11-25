@@ -15,7 +15,7 @@ import { CARE_IMAGES } from "@/lib/care-imagery";
 export default function PharmacyPage() {
   const { lat, lng, county, label, loading: locating, requestPreciseLocation, setCounty } = useLocation();
   const [drugs, setDrugs] = useState<StorefrontDrug[]>([]);
-  const [sort, setSort] = useState<"nearest" | "price_asc" | "price_desc">("nearest");
+  const [sort, setSort] = useState<"rating" | "nearest" | "price_asc" | "price_desc">("rating");
   const [prescription, setPrescription] = useState("");
   const [category, setCategory] = useState("");
   const [search, setSearch] = useState("");
@@ -51,7 +51,7 @@ export default function PharmacyPage() {
       <section className="page-banner">
         <div className="mx-auto grid max-w-6xl items-center gap-5 px-4 py-5 sm:py-8 lg:grid-cols-[1.2fr_1fr] lg:gap-16">
           <div>
-          <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Care Bora Pharmacy" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
+          <PageHeader eyebrow="Pharmacy" Icon={Pill} title="Pharmacy" lede="Everyday medicines and supplies from licensed pharmacies, delivered across Kenya. Pay with M-Pesa." />
 
           </div>
           <figure className="hidden sm:block overflow-hidden rounded-2xl bg-[#234f34]">
@@ -79,7 +79,7 @@ export default function PharmacyPage() {
           </div>
           <div id="pharmacy-filters" hidden={!filtersOpen} className="mt-3">
           <div className="flex flex-wrap items-center gap-2">
-            <label className="text-sm">Sort <select aria-label="Sort medicines" value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="rounded-full border border-slate-200 px-3 py-2"><option value="nearest">Nearest pharmacy</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
+            <label className="text-sm">Sort <select aria-label="Sort medicines" value={sort} onChange={e => setSort(e.target.value as typeof sort)} className="rounded-full border border-slate-200 px-3 py-2"><option value="rating">Top rated pharmacies</option><option value="nearest">Nearest pharmacy</option><option value="price_asc">Price: low to high</option><option value="price_desc">Price: high to low</option></select></label>
             <label className="text-sm">Type <select aria-label="Prescription requirement" value={prescription} onChange={e => setPrescription(e.target.value)} className="rounded-full border border-slate-200 px-3 py-2"><option value="">All medicines</option><option value="true">Prescription required</option><option value="false">Over the counter (OTC)</option></select></label>
             <button
               onClick={() => setShowLocationPicker((s) => !s)}
@@ -108,7 +108,7 @@ export default function PharmacyPage() {
             )}
           </div>
 
-          <button onClick={() => { setCategory(""); setPrescription(""); setSort("nearest"); }} className="mt-2 text-sm text-teal-700 underline">Reset filters and sort</button>
+          <button onClick={() => { setCategory(""); setPrescription(""); setSort("rating"); }} className="mt-2 text-sm text-teal-700 underline">Reset filters and sort</button>
           </div>
           {/* One swipeable row on phones; wraps on wider screens. */}
           <div className="-mx-4 mt-3 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

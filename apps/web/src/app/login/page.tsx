@@ -101,7 +101,8 @@ function LoginForm() {
   }
 
   function finishToApp() {
-    router.push("/providers");
+    const next = params.get("next");
+    router.push(next?.startsWith("/") && !next.startsWith("//") && !/[\\\r\n]/.test(next) ? next : "/providers");
     router.refresh();
   }
 

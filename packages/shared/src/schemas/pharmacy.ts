@@ -95,7 +95,7 @@ export type PatchListingInput = z.infer<typeof patchListingSchema>;
 // ── Storefront (public, proximity-ranked) ───────────────────────────────────
 
 export const storefrontQuerySchema = z.object({
-  sort: z.enum(["nearest", "price_asc", "price_desc"]).optional(),
+  sort: z.enum(["rating", "nearest", "price_asc", "price_desc"]).optional(),
   category: z.string().optional(),
   search: z.string().max(100).optional(),
   requiresPrescription: z

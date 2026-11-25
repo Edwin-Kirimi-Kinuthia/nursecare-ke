@@ -12,6 +12,7 @@ import { IS_TILL_MODE, IS_MPESA_SANDBOX } from "@/lib/payments";
 import { TillPayBox } from "@/components/TillPayBox";
 import Stars from "@/components/Stars";
 import PageHeader from "@/components/PageHeader";
+import RequestClientReview from "@/components/RequestClientReview";
 import ReviewModal from "@/components/ReviewModal";
 import MpesaPrompt from "@/components/MpesaPrompt";
 import { PhoneField } from "@/components/PhoneField";
@@ -72,10 +73,14 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (!user) { router.push("/login"); return; }
+    if (!user) { router.push(`/login?next=${encodeURIComponent(window.location.pathname+window.location.search)}`); return; }
     queueMicrotask(async () => {
       const list = await load();
 
+      const reviewId = new URLSearchParams(window.location.search).get("review");
+      if (reviewId) {
+        try { const target = list.find(a => a.id === reviewId) ?? await api.getAppointment(reviewId); if (target.patientId === user.id && target.status === "completed" && !target.review) setReviewAppt(target); } catch { /* Unavailable or not this client's visit. */ }
+      }
       // Arriving from a fresh booking (?pay=<id>): go straight to paying, since
       // the fee is what lets the patient be seen. One-shot — the param is
       // removed so a refresh doesn't reopen it.
@@ -215,6 +220,7 @@ export default function AppointmentsPage() {
                   </div>
                 )}
 
+                {a.status === "completed" && isProvider && !a.review && <RequestClientReview serviceType="appointment" subjectId={a.id} />}
                 {/* Rate a finished appointment — the patient's side only. */}
                 {a.appointmentType === "teleconsult" && a.consultation && a.consultation.status !== "pending" && (
                   <SickOffPanel consultationId={a.consultation.id} canIssue={isProvider} />

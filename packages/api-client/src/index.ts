@@ -752,8 +752,12 @@ export class CareBoraClient {
   createServiceReview(input: import("@carebora/shared").CreateServiceReviewInput) {
     return this.post<ServiceReview>("/service-reviews", input);
   }
+  requestProviderReview(serviceType: "appointment" | "home_visit", subjectId: string) {
+    return this.post<ReviewRequestResult>("/providers/me/review-requests", { serviceType, subjectId });
+  }
+
   requestOrderReview(id: string, admin = false) {
-    return this.post<{ok: boolean}>(`/${admin ? "admin" : "vendor"}/orders/${id}/review-request`, {});
+    return this.post<ReviewRequestResult>(`/${admin ? "admin" : "vendor"}/orders/${id}/review-request`, {});
   }
   listOrganizationReviews(id: string) {
     return this.request<{reviews: ServiceReview[]; ratingAvg: number; ratingCount: number}>(`/organizations/${id}/reviews`);
@@ -1365,6 +1369,7 @@ export interface StorefrontDrug {
   nearestVendor: {
     orgId: string;
     orgName: string;
+    ratingAvg?: number; ratingCount?: number; completedOrders?: number;
     branchName: string;
     county: string;
     distanceKm: number | null;
@@ -1380,6 +1385,7 @@ export interface StorefrontResult {
 }
 
 export interface DrugOffer {
+  ratingAvg?: number; ratingCount?: number; completedOrders?: number;
   listingId: string;
   priceKes: number;
   stockQty: number;
@@ -2011,3 +2017,5 @@ export interface ServiceReview {
   serviceType: string;
   createdAt: string;
 }
+
+export interface ReviewRequestResult { ok: boolean; status: "sent" | "already_sent" | "already_reviewed" }

@@ -119,20 +119,21 @@ test("paid orders can be updated by admins and their vendor, and clients see eac
     await expect(client.getByRole("region", { name: "Test pharmacy 0 delivery progress", exact: true }).getByRole("status")).toHaveText("Paid");
     await admin.goto("/admin"); await admin.getByRole("button", { name: "Orders", exact: true }).click();
     await vendor.goto("/vendor"); await vendor.getByRole("button", { name: "Orders", exact: true }).click();
+    const [adminDetails] = await Promise.all([admin.waitForEvent("popup"), admin.getByRole("article", {name:`Pharmacy order ${orderId.slice(0,8).toUpperCase()}`,exact:true}).getByRole("link").click()]);
     const [details] = await Promise.all([vendor.waitForEvent("popup"), vendor.getByRole("link", { name: new RegExp(`Order #${vendorOrderId.slice(0,8).toUpperCase()}`) }).click()]);
     await expect(details.getByRole("heading", { name: "Pharmacy order details", exact: true })).toBeVisible();
     await expect(details.getByRole("list", { name: "Ordered items" })).toBeVisible();
-    for (const [actor, label, expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered & request review", "Delivered"]] as const) {
-      const active = actor === vendor ? details : actor;
-      if (actor === vendor) {
-        await details.getByRole("button", { name: "Refresh order", exact: true }).click();
-        await expect(details.getByLabel("Order stage")).toHaveValue(expected === "Dispatched" ? "processing" : "in_delivery");
-        await details.getByLabel("Order stage").selectOption(expected === "Dispatched" ? "dispatched" : "delivered");
-      } else await actor.getByRole("button", { name: "Refresh orders", exact: true }).click();
+    for (const [actor, , expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered", "Delivered"]] as const) {
+      const active = actor === vendor ? details : adminDetails;
+      await active.getByRole("button", { name: actor === vendor ? "Refresh order" : "Refresh delivery status", exact: true }).click();
+      const stages = { Preparing: ["paid","processing"], Dispatched: ["processing","dispatched"], "In delivery": ["dispatched","in_delivery"], Delivered: ["in_delivery","delivered"] };
+      const [current, target] = stages[expected];
+      await expect(active.getByLabel("Order stage")).toHaveValue(current);
+      await active.getByLabel("Order stage").selectOption(target);
       if (expected === "Delivered") active.once("dialog", dialog => dialog.accept());
       const [response] = await Promise.all([
         active.waitForResponse(r => r.url().endsWith(`/orders/${vendorOrderId}`) && r.request().method() === "PATCH"),
-        actor === vendor ? details.getByRole("button", { name: "Update order stage", exact: true }).click() : actor.getByRole("article", { name: `Pharmacy order ${orderId.slice(0,8).toUpperCase()}`, exact: true }).getByRole("button", { name: label, exact: true }).click(),
+        active.getByRole("button", { name: "Update order stage", exact: true }).click(),
       ]);
       expect(response.status()).toBe(200);
       await client.getByRole("button", { name: "Refresh delivery status", exact: true }).click(); await expect(client.getByRole("region", { name: "Test pharmacy 0 delivery progress", exact: true }).getByRole("status")).toHaveText(expected);
@@ -201,7 +202,7 @@ test("direct delivery requests one review and only the purchaser can rate the co
   await request.post("/api/v1/payments/till/submit", { headers: headers(patientToken), data: { gatewayRef: placed.payment.gatewayRef, code: `REV${tag.replace(/-/g, "").slice(0,9)}` } });
   await request.post("/api/v1/admin/payments/verifications", { headers: headers(adminToken), data: { id: placed.payment.id, approve: true } });
   expect((await request.patch(`/api/v1/admin/orders/${id}`, { headers: headers(adminToken), data: { status: "delivered" } })).status()).toBe(200);
-  for (let i=0;i<2;i++) expect((await request.post(`/api/v1/vendor/orders/${id}/review-request`, { headers: headers(vendorToken) })).status()).toBe(200);
+  if (!process.env.RESEND_API_KEY) for (let i=0;i<2;i++) expect((await request.post(`/api/v1/vendor/orders/${id}/review-request`, { headers: headers(vendorToken) })).status()).toBe(503);
   expect(await db.notification.count({ where: { userId: patientId, type: "service_review_requested", link: `/orders/${placed.id}` } })).toBe(1);
   expect((await request.post(`/api/v1/vendor/orders/${id}/review-request`, { headers: headers(otherToken) })).status()).toBe(404);
   expect((await request.post("/api/v1/service-reviews", { headers: headers(otherToken), data: review })).status()).toBe(403);
