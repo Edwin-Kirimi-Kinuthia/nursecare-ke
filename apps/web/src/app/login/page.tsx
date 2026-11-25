@@ -9,6 +9,7 @@ import { ArrowLeft, Eye, EyeOff, KeyRound, ShieldCheck } from "lucide-react";
 import { ApiError } from "@carebora/shared";
 import { api } from "@/lib/api";
 import { useAuth } from "@/components/AuthProvider";
+import { internalRedirect } from "@/lib/internal-redirect";
 import { PhoneField } from "@/components/PhoneField";
 import { PasswordField } from "@/components/PasswordField";
 import { NameFields, EMPTY_NAME, composeFullName, type NameParts } from "@/components/NameFields";
@@ -101,8 +102,7 @@ function LoginForm() {
   }
 
   function finishToApp() {
-    const next = params.get("next");
-    router.push(next?.startsWith("/") && !next.startsWith("//") && !/[\\\r\n]/.test(next) ? next : "/providers");
+    router.push(internalRedirect(params.get("next"), window.location.origin));
     router.refresh();
   }
 
