@@ -1,5 +1,6 @@
 "use client";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
+import OrderPagination from "@/components/OrderPagination";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
 import { useSection, SectionShell } from "@/components/dashboard/section";
@@ -7,12 +8,16 @@ import { api, kes, when } from "@/lib/api";
 import { orderStatusLabel } from "@carebora/shared";
 export default function OrdersPage() {
   const { user, loading: authLoading } = useAuth();
-  const fetcher = useCallback(() => user ? api.listOrders({ limit: 50 }) : Promise.resolve(null), [user]);
-  const { data, loading, error, reload } = useSection(fetcher);
+  const [page,setPage]=useState(0);
+  const fetcher = useCallback(() => user ? api.listOrders({ limit: 50, offset: page*50 }) : Promise.resolve(null), [user,page]);
+  const { data, loading, error, reload } = useSection(fetcher, true);
   useEffect(() => { if (!user) return; const timer = setInterval(() => { if (document.visibilityState === "visible") void reload(); }, 15_000); return () => clearInterval(timer); }, [user, reload]);
-  return <div className="mx-auto max-w-4xl px-4 py-10"><h1 className="text-3xl font-semibold">My pharmacy orders</h1>
+  return <div className="mx-auto max-w-4xl px-4 py-10"><h1 className="text-3xl font-semibold">{user?.role === "admin" || user?.role === "vendor" ? "My pharmacy purchases" : "My pharmacy orders"}</h1>
     {authLoading ? <p className="mt-6">Loading…</p> : !user ? <Link className="button-primary mt-6" href="/login">Sign in to view your orders</Link> : <>
+    {(user.role === "admin" || user.role === "vendor") && <div className="mt-5 rounded-xl border border-teal-200 bg-teal-50 p-4"><p className="text-sm">This page lists medicine you purchased with this account. Customer orders are managed in your dashboard.</p><Link className="button-primary mt-3" href={user.role === "admin" ? "/admin?tab=orders" : "/vendor"}>{user.role === "admin" ? "View pharmacy sales orders" : "Open vendor dashboard"}</Link></div>}
     <button className="button-secondary my-5" onClick={() => void reload()}>Refresh orders</button>
-    <SectionShell loading={loading && !data} error={error} onRetry={reload} empty={data?.orders.length === 0} emptyText="No pharmacy orders yet."><div className="space-y-4">{data?.orders.map(o => <Link key={o.id} href={`/orders/${o.id}`} className="block rounded-2xl border border-slate-200 p-5 hover:border-teal-500"><h2 className="font-semibold">Order #{o.id.slice(0,8).toUpperCase()}</h2><p className="mt-1 text-sm text-slate-500">{when(o.createdAt)} · {kes(o.totalKes)}</p>{o.vendorOrders.map(v => <p key={v.id} className="mt-2 text-sm">{v.organization.name} · {orderStatusLabel(v.status)}</p>)}<span className="mt-3 block font-medium text-teal-800">Track order →</span></Link>)}</div></SectionShell></>}
+    {error && data && <p role="alert">Could not refresh orders. Showing the last loaded orders.</p>}
+    <OrderPagination page={page} total={data?.total ?? 0} onChange={setPage} />
+    <SectionShell loading={loading && !data} error={data ? null : error} onRetry={reload} empty={data?.orders.length === 0} emptyText="No pharmacy orders yet."><div className="space-y-4">{data?.orders.map(o => <Link key={o.id} href={`/orders/${o.id}`} className="block rounded-2xl border border-slate-200 p-5 hover:border-teal-500"><h2 className="font-semibold">Order #{o.id.slice(0,8).toUpperCase()}</h2><p className="mt-1 text-sm text-slate-500">{when(o.createdAt)} · {kes(o.totalKes)}</p>{o.vendorOrders.map(v => <p key={v.id} className="mt-2 text-sm">{v.organization.name} · {orderStatusLabel(v.status)}</p>)}<span className="mt-3 block font-medium text-teal-800">Track order →</span></Link>)}</div></SectionShell></>}
   </div>;
 }

@@ -145,6 +145,10 @@ test.describe("Multi-vendor cart split", () => {
         return (await res.json()).data.notifications.filter((n: { type: string }) => n.type === "pharmacy_order_requested").length;
       }).toBe(1);
     }
+    for (const token of [vendorAToken, vendorBToken]) {
+      const notifications = (await (await request.get("/api/v1/notifications", {headers:{Authorization:`Bearer ${token}`}})).json()).data.notifications;
+      expect(notifications.filter((n:{type:string})=>n.type === "pharmacy_order_requested").every((n:{link:string})=>n.link === "/vendor?tab=orders")).toBe(true);
+    }
     const admin = await request.get("/api/v1/admin/orders", { headers: { Authorization: `Bearer ${adminToken}` } });
     const order = (await admin.json()).data.orders.find((o: { id: string }) => o.id === orderId);
     expect(order.vendorOrders.flatMap((vo: { items: object[] }) => vo.items)).toHaveLength(2);

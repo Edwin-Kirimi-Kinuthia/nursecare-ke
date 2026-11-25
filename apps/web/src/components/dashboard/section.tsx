@@ -1,31 +1,35 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AlertCircle, Loader2, RefreshCw } from "lucide-react";
 
 /** Fetches a section's data on mount; exposes loading / error / data + reload.
  *  Each section is independent, so one failing endpoint never blanks the others. */
-export function useSection<T>(fetcher: () => Promise<T>) {
+export function useSection<T>(fetcher: () => Promise<T>, preserveOnRefresh = false) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const sequence = useRef(0);
+  const current = useRef<T | null>(null);
   const reload = useCallback(async () => {
-    setLoading(true);
+    const request = ++sequence.current;
+    setLoading(!preserveOnRefresh || current.current === null);
     setError(null);
     try {
-      setData(await fetcher());
+      const result = await fetcher();
+      if (request === sequence.current) { current.current = result; setData(result); }
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load");
-    } finally {
-      setLoading(false);
-    }
-  }, [fetcher]);
-
-  // Deferred to a microtask so reload()'s setState calls run after — not
-  // synchronously within — the effect (matches the CartProvider hydration
-  // pattern and satisfies the react-hooks set-state-in-effect rule).
-  useEffect(() => { queueMicrotask(() => { reload(); }); }, [reload]);
+      if (request === sequence.current) setError(e instanceof Error ? e.message : "Failed to load");
+    } finally { if (request === sequence.current) setLoading(false); }
+  }, [fetcher, preserveOnRefresh]);
+  useEffect(() => {
+    let active = true;
+    current.current = null;
+    queueMicrotask(() => { if (active) { setData(null); void reload(); } });
+    const requests = sequence;
+    return () => { active = false; requests.current++; };
+  }, [reload]);
   return { data, loading, error, reload };
 }
 

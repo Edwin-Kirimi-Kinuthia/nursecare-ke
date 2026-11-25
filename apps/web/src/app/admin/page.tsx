@@ -2,9 +2,11 @@
 import OrderProgress from "@/components/OrderProgress";
 
 import Link from "next/link";
+import OrderPagination from "@/components/OrderPagination";
+import { useDashboardTab } from "@/components/dashboard/useDashboardTab";
 import OrderItems from "@/components/OrderItems";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users, CalendarDays, Wallet, ShoppingBag, HomeIcon, ShieldCheck,
@@ -33,6 +35,7 @@ import WhatsAppStatus from "@/components/admin/WhatsAppStatus";
 import UploadedDocumentLink from "@/components/UploadedDocumentLink";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "reviews" | "audit" | "pay-verify" | "whatsapp";
+const DASHBOARD_TABS: readonly Tab[] = ["overview", "appointments", "users", "verifications", "organizations", "pharmacy", "orders", "home-visits", "support", "reviews", "audit", "pay-verify", "whatsapp"];
 
 const TONES: Record<string, string> = {
   teal: "from-teal-500 to-emerald-600", indigo: "from-indigo-500 to-violet-600",
@@ -41,9 +44,13 @@ const TONES: Record<string, string> = {
 };
 
 export default function AdminPage() {
+  return <Suspense fallback={<p className="p-8">Loading dashboard…</p>}><DashboardContent /></Suspense>;
+}
+
+function DashboardContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useDashboardTab(DASHBOARD_TABS, "overview");
   const tabsRef = useRef<HTMLDivElement>(null);
   const scrollTabs = (dir: number) => tabsRef.current?.scrollBy({ left: dir * 220, behavior: "smooth" });
 
@@ -92,7 +99,7 @@ export default function AdminPage() {
             <Stat Icon={Users} label="Users" value={stats?.users.total} tone="teal" loading={statsSec.loading} />
             <Stat Icon={CalendarDays} label="Appointments" value={stats?.appointments.total} tone="indigo" loading={statsSec.loading} />
             <Stat Icon={Wallet} label="Earnings" value={stats ? kes(stats.payments.earningsKes) : undefined} tone="emerald" loading={statsSec.loading} />
-            <Stat Icon={ShoppingBag} label="Orders" value={stats?.orders.total} tone="amber" loading={statsSec.loading} />
+            <button aria-label="Open pharmacy orders" className="text-left" onClick={() => setTab("orders")}><Stat Icon={ShoppingBag} label="Orders" value={stats?.orders.total} tone="amber" loading={statsSec.loading} /></button>
             <Stat Icon={HomeIcon} label="Home visits" value={stats?.homeVisits.total} tone="rose" loading={statsSec.loading} />
           </div>
         </div>
@@ -1359,15 +1366,20 @@ const ORDER_STATUS_CLS: Record<string, string> = {
 };
 
 function OrdersTab() {
-  const fetcher = useCallback(() => api.adminListOrders({ limit: 50 }).then((r) => r.orders), []);
-  const { data, loading, error, reload } = useSection(fetcher);
-  const orders = data ?? [];
+  const [page,setPage] = useState(0);
+  const fetcher = useCallback(() => api.adminListOrders({ limit: 50, offset: page*50 }), [page]);
+  const { data, loading, error, reload } = useSection(fetcher, true);
+  const orders = data?.orders ?? [];
   useEffect(() => { const timer = setInterval(() => void reload(), 15_000); return () => clearInterval(timer); }, [reload]);
 
   return (
-    <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+    <>
+    {error && data && <p role="alert" className="mb-3 text-sm text-rose-700">Could not refresh orders. Showing the last loaded orders. {error}</p>}
+    <OrderPagination page={page} total={data?.total ?? 0} onChange={setPage} />
+    <button onClick={() => void reload()} className="mb-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh orders</button>
+    <SectionShell loading={loading && !data} error={data ? null : error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
       <p className="mb-3 text-sm text-slate-600">Manage Care Bora pharmacy orders and oversee orders across all partner vendors. Open an order to update each vendor’s shipment and request a review after delivery.</p>
-      <button onClick={() => void reload()} className="mb-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh orders</button>
+
       <div className="space-y-3">
         {orders.map((o: Order) => {
           const itemCount = o.vendorOrders.reduce((n, vo) => n + vo.items.reduce((m, i) => m + i.qty, 0), 0);
@@ -1402,7 +1414,7 @@ function OrdersTab() {
           );
         })}
       </div>
-    </SectionShell>
+    </SectionShell></>
   );
 }
 

@@ -1,3 +1,5 @@
+import { useDashboardTab } from "@/features/useDashboardTab";
+import { OrderPagination } from "@/features/OrderPagination";
 import { OrderProgress } from "@/features/OrderProgress";
 import { orderStatusLabel } from "@carebora/shared";
 import { openUploadedDocument } from "@/lib/documents";
@@ -31,11 +33,12 @@ import { SupportAdmin } from "@/features/admin/SupportAdmin";
 import { Overview } from "@/features/admin/Overview";
 
 type Tab = "overview" | "appointments" | "users" | "verifications" | "organizations" | "pharmacy" | "orders" | "home-visits" | "support" | "pay-verify" | "reviews" | "audit";
+const DASHBOARD_TABS: readonly Tab[] = ["overview", "appointments", "users", "verifications", "organizations", "pharmacy", "orders", "home-visits", "support", "pay-verify", "reviews", "audit"];
 
 export default function AdminDashboard() {
   const { user } = useAuth();
   const config = useAppConfig();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useDashboardTab(DASHBOARD_TABS,"overview");
   useEffect(() => { if (user && user.role !== "admin") router.replace("/"); }, [user]);
   const stats = useAsync(() => (user?.role === "admin" ? api.adminGetStats() : Promise.resolve(null)), [user?.id]);
   if (!user || user.role !== "admin") return <Loading />;
@@ -50,7 +53,7 @@ export default function AdminDashboard() {
     <Screen onRefresh={stats.reload} refreshing={stats.refreshing} contentContainerStyle={{ paddingBottom: 72 }}>
       <PageHeader eyebrow="Admin" Icon={ShieldCheck} title="Operations dashboard" />
       <TabBar value={tab} tabs={tabs} onChange={setTab} />
-      {tab === "overview" && <Overview stats={stats.data} loading={stats.loading} error={stats.error} />}
+      {tab === "overview" && <><Button title="View pharmacy orders" variant="secondary" onPress={()=>setTab("orders")} /><Overview stats={stats.data} loading={stats.loading} error={stats.error} /></>}
       {tab === "appointments" && <Appointments />}
       {tab === "users" && <Users />}
       {tab === "verifications" && <Verifications />}
@@ -304,15 +307,18 @@ function Organizations() {
 }
 
 function Orders() {
-  const list = useAsync(() => api.adminListOrders({ limit: 50 } as never).then((r) => r.orders), []);
-  const orders = list.data ?? [];
+  const [page,setPage]=useState(0);
+  const list = useAsync(() => api.adminListOrders({ limit: 50, offset: page*50 }), [page]);
+  const orders = list.data?.orders ?? [];
   const reloadOrders = list.reload;
   useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
-  if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
+  if (list.error && !list.data) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
   if (list.loading && !list.data) return <Loading />;
-  if (orders.length === 0) return <Empty icon="cube-outline" title="No orders yet" />;
+  if (orders.length === 0) return <><Button title="Refresh orders" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} /><Empty icon="cube-outline" title="No orders yet" /></>;
   return (
     <>
+      {list.error && <Banner tone="danger">Could not refresh orders. Showing the last loaded orders.</Banner>}
+      <OrderPagination page={page} total={list.data?.total ?? 0} onChange={setPage} />
       <Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
       {orders.map((o: Order) => {
         const n = o.vendorOrders.reduce((a, vo) => a + vo.items.reduce((m, i) => m + i.qty, 0), 0);

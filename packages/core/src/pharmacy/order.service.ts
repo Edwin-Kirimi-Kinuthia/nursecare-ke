@@ -1,3 +1,4 @@
+import { publicDrugImages } from "./drug.service";
 import { reviewInvitationService } from "../reviews/review-invitation.service";
 import { inAppNotifications } from "../notifications/inapp.service";
 import { randomUUID } from "node:crypto";
@@ -18,7 +19,7 @@ import { getEnv } from "../config/env";
 const VENDOR_ORDER_INCLUDE = {
   statusHistory: { orderBy: { createdAt: "asc" as const } },
   organization: { select: { id: true, name: true, type: true } },
-  items: { include: { listing: { include: { drug: true } } } },
+  items: { include: { listing: { select: { id: true, drug: { select: { id: true, name: true, category: true, imageUrl: true, updatedAt: true } } } } } },
 } as const;
 
 const ORDER_INCLUDE = {
@@ -26,6 +27,16 @@ const ORDER_INCLUDE = {
   prescription: { select: { id: true, issuedAt: true } },
   vendorOrders: { include: VENDOR_ORDER_INCLUDE },
 } as const;
+
+/** Present cached photo links rather than embedding uploads in every order refresh. */
+function presentVendorOrder<T extends { items: { listing: { drug: { id: string; imageUrl: string | null; updatedAt: Date } } }[] }>(order: T): T {
+  for (const item of order.items) item.listing.drug.imageUrl = publicDrugImages({ ...item.listing.drug, images: [] }).imageUrl;
+  return order;
+}
+function presentOrder<T extends { vendorOrders: Parameters<typeof presentVendorOrder>[0][] }>(order: T): T {
+  for (const vendorOrder of order.vendorOrders) presentVendorOrder(vendorOrder);
+  return order;
+}
 
 async function attachPayment<T extends { id: string }>(order: T) {
   const payment = await paymentService.getForSubject("order", order.id);
@@ -158,6 +169,7 @@ export const orderService = {
           },
         },
         include: ORDER_INCLUDE,
+        omit: { prescriptionImageUrl: true },
       });
       // Reserve stock conditionally. The `stockQty < qty` check above happens
       // before the transaction, so on its own it's check-then-act: concurrent
@@ -179,9 +191,9 @@ export const orderService = {
       return created;
     }));
 
-    void inAppNotifications.serviceRequested("a pharmacy order", order.id);
+    void inAppNotifications.serviceRequested("a pharmacy order", order.id, "/admin?tab=orders");
     for (const orgId of byOrg.keys()) void inAppNotifications.pharmacyOrderRequested(orgId, order.id);
-    return { ...order, payment: toPaymentSummary(payment), redirect };
+    return { ...presentOrder(order), payment: toPaymentSummary(payment), redirect };
   },
 
   /**
@@ -259,13 +271,14 @@ export const orderService = {
       db.order.findMany({
         where,
         include: ORDER_INCLUDE,
-        orderBy: { createdAt: "desc" },
+        omit: { prescriptionImageUrl: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: query.offset,
         take: query.limit,
       }),
       db.order.count({ where }),
     ]);
-    return { orders: await attachPayments(orders), total, limit: query.limit, offset: query.offset };
+    return { orders: await attachPayments(orders.map(presentOrder)), total, limit: query.limit, offset: query.offset };
   },
 
   /** Platform-wide order oversight (every patient's checkouts, any vendor). */
@@ -273,20 +286,21 @@ export const orderService = {
     const [orders, total] = await Promise.all([
       db.order.findMany({
         include: ORDER_INCLUDE,
-        orderBy: { createdAt: "desc" },
+        omit: { prescriptionImageUrl: true },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: query.offset,
         take: query.limit,
       }),
       db.order.count(),
     ]);
-    return { orders: await attachPayments(orders), total, limit: query.limit, offset: query.offset };
+    return { orders: await attachPayments(orders.map(presentOrder)), total, limit: query.limit, offset: query.offset };
   },
 
   async getById(orderId: string, userId: string, role: UserRole) {
-    const order = await db.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE });
+    const order = await db.order.findUnique({ where: { id: orderId }, include: ORDER_INCLUDE, omit: { prescriptionImageUrl: true } });
     if (!order) throw ApiError.notFound("Order not found");
     if (role !== "admin" && order.patientId !== userId) throw ApiError.forbidden();
-    return attachPayment(order);
+    return attachPayment(presentOrder(order));
   },
 
   // ── Vendor-side fulfilment (one org's slice of an order) ──────────────────
@@ -298,7 +312,7 @@ export const orderService = {
     });
     if (!vendorOrder) throw ApiError.notFound("Order not found");
     const payment = await paymentService.getForSubject("order", vendorOrder.orderId);
-    return { ...vendorOrder, order: { ...vendorOrder.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
+    return { ...presentVendorOrder(vendorOrder), order: { ...vendorOrder.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
   },
 
   async listForOrg(orgId: string, query: VendorOrdersQuery) {
@@ -310,7 +324,7 @@ export const orderService = {
           ...VENDOR_ORDER_INCLUDE,
           order: { select: { id: true, deliveryAddress: true, deliveryNotes: true, phoneNumber: true, patient: { select: { fullName: true } } } },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
         skip: query.offset,
         take: query.limit,
       }),
@@ -319,7 +333,7 @@ export const orderService = {
     const payments = await paymentService.getForSubjects("order", vendorOrders.map((vo) => vo.orderId));
     return { vendorOrders: vendorOrders.map((vo) => {
       const payment = payments.get(vo.orderId);
-      return { ...vo, order: { ...vo.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
+      return { ...presentVendorOrder(vo), order: { ...vo.order, payment: payment ? { status: payment.status, paidAt: payment.paidAt } : null } };
     }), total, limit: query.limit, offset: query.offset };
   },
 
@@ -356,7 +370,7 @@ export const orderService = {
       return tx.vendorOrder.findUniqueOrThrow({ where: { id: vo.id }, include: VENDOR_ORDER_INCLUDE });
     });
     if (input.status === "delivered") await this.requestReview(orgId, vendorOrderId, false);
-    return result;
+    return presentVendorOrder(result);
   },
 
   async requestReview(orgId: string, vendorOrderId: string, email = true) {

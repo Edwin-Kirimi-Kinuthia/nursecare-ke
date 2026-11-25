@@ -1,4 +1,6 @@
-import { useEffect } from "react";
+import { Button } from "@/ui/Button";
+import { OrderPagination } from "@/features/OrderPagination";
+import { useEffect, useState } from "react";
 import { AppState, Pressable, View } from "react-native";
 import { router } from "expo-router";
 import { Package } from "lucide-react-native";
@@ -17,13 +19,16 @@ import { orderTone, orderLabel } from "@/features/orderStatus";
 export default function OrdersScreen() {
   const t = useTheme();
   const { user } = useAuth();
-  const list = useAsync(() => (user ? api.listOrders({ limit: 30 } as never) : Promise.resolve(null)), [user?.id]);
+  const [page,setPage]=useState(0);
+  const list = useAsync(() => (user ? api.listOrders({ limit: 50, offset: page*50 }) : Promise.resolve(null)), [user?.id,page]);
   const reload = list.reload;
   useEffect(() => { if (!user) return; const timer = setInterval(() => { if (AppState.currentState === "active") void reload(); }, 15_000); return () => clearInterval(timer); }, [user, reload]);
   return (
     <Screen onRefresh={list.reload} refreshing={list.refreshing}>
-      <PageHeader eyebrow="Pharmacy" Icon={Package} title="My orders" />
+      <PageHeader eyebrow="Pharmacy" Icon={Package} title={user?.role === "admin" || user?.role === "vendor" ? "My pharmacy purchases" : "My orders"} />
       {!user ? <SignInPrompt icon="cube-outline" title="Sign in to see your orders" hint="Medicine you order will show up here." /> : <>
+      {(user.role === "admin" || user.role === "vendor") && <><Text tone="muted">This page lists medicine you purchased with this account. Customer orders are managed in your dashboard.</Text><Button title={user.role === "admin" ? "View pharmacy sales orders" : "Open vendor dashboard"} variant="secondary" onPress={()=>router.push(user.role === "admin" ? "/admin?tab=orders" as never : "/vendor")} /></>}
+      <OrderPagination page={page} total={list.data?.total ?? 0} onChange={setPage} />
       {list.error && <Banner tone="danger">{list.error}</Banner>}
       {list.loading && !list.data ? <View style={{ height: 200 }}><Loading /></View>
         : list.data && list.data.orders.length === 0 ? <Empty icon="cube-outline" title="No orders yet" hint="Medicine you order will show up here." action={{ label: "Browse pharmacy", onPress: () => router.push("/pharmacy") }} />

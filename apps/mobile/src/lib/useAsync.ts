@@ -44,7 +44,12 @@ export function useAsync<T>(fn: () => Promise<T>, deps: readonly unknown[]) {
 
   // Deferred to a microtask so the state writes land after the effect rather
   // than synchronously inside it, which would cascade a second render.
-  useEffect(() => { queueMicrotask(() => { void run(false); }); }, [run]);
+  useEffect(() => {
+    let active = true;
+    const requests = seq;
+    queueMicrotask(() => { if (active) { setData(null); setError(null); void run(false); } });
+    return () => { active = false; requests.current++; };
+  }, [run]);
   const reload = useCallback(() => run(true), [run]);
   return { data, error, loading, refreshing, reload, setData };
 }

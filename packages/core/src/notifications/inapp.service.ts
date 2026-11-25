@@ -36,13 +36,13 @@ export const inAppNotifications = backgrounded({
   },
 
   /** Fan out service requests to active admins, independent of WhatsApp settings. */
-  async serviceRequested(kind: string, reference: string) {
+  async serviceRequested(kind: string, reference: string, link = "/admin") {
     try {
       const admins = await db.user.findMany({ where: { role: "admin", isActive: true, deletedAt: null }, select: { id: true } });
       await Promise.all(admins.map(({ id }) => inAppNotifications.create(id, {
         type: "service_requested", title: "New service request",
         body: `A customer requested ${kind}. Open the admin portal to review it.`,
-        link: "/admin", eventKey: `service:${kind}:${reference}`,
+        link, eventKey: `service:${kind}:${reference}`,
       })));
     } catch { console.error("[notifications] Could not notify administrators"); }
   },
@@ -57,7 +57,7 @@ export const inAppNotifications = backgrounded({
       await Promise.all(members.map(({ userId }) => inAppNotifications.create(userId, {
         type: "pharmacy_order_requested", title: "New pharmacy order",
         body: "A customer placed an order with your pharmacy. Open Orders in your vendor portal to review it.",
-        link: "/vendor", eventKey: `pharmacy:${orgId}:${reference}`,
+        link: "/vendor?tab=orders", eventKey: `pharmacy:${orgId}:${reference}`,
       })));
     } catch { console.error("[notifications] Could not notify pharmacy team"); }
   },

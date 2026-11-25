@@ -1,3 +1,5 @@
+import { useDashboardTab } from "@/features/useDashboardTab";
+import { OrderPagination } from "@/features/OrderPagination";
 import { OrderItems } from "@/features/OrderItems";
 import { orderStatusLabel } from "@carebora/shared";
 import { useEffect, useMemo, useState } from "react";
@@ -26,11 +28,12 @@ import { Badge, Banner, Empty, Loading } from "@/ui/parts";
 import { PageHeader } from "@/ui/PageHeader";
 
 type Tab = "overview" | "branches" | "team" | "catalogue" | "orders" | "dispatch" | "fleet" | "labtests" | "laborders";
+const DASHBOARD_TABS: readonly Tab[] = ["overview", "branches", "team", "catalogue", "orders", "dispatch", "fleet", "labtests", "laborders"];
 const ORG_TONE = { pending: "warn", in_review: "info", approved: "ok", suspended: "danger", rejected: "danger" } as const;
 
 export default function VendorDashboard() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useDashboardTab(DASHBOARD_TABS,"overview");
   const org = useAsync(() => (user?.role === "vendor" ? api.getVendorOrg() : Promise.resolve(null)), [user?.id]);
 
   useEffect(() => { if (user && user.role !== "vendor") router.replace("/"); }, [user]);
@@ -248,14 +251,15 @@ function ListingSheet({ listing, onClose, onSaved }: { listing?: Listing; onClos
 }
 
 function Orders() {
-  const list = useAsync(() => api.listVendorOrders({ limit: 50 }).then(r => r.vendorOrders), []);
+  const [page,setPage]=useState(0);
+  const list = useAsync(() => api.listVendorOrders({ limit: 50, offset: page*50 }), [page]);
   const reloadOrders = list.reload;
   useEffect(() => { const timer = setInterval(() => void reloadOrders(), 15_000); return () => clearInterval(timer); }, [reloadOrders]);
-  if (list.error) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
+  if (list.error && !list.data) return <><Banner tone="danger">{list.error}</Banner><Button title="Retry orders" onPress={() => void list.reload()} /></>;
   if (list.loading && !list.data) return <Loading />;
-  if (!list.data?.length) return <Empty icon="cube-outline" title="No orders yet" />;
-  return <><Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
-    {list.data.map(vo => <Pressable key={vo.id} accessibilityRole="button" accessibilityLabel={`Open order ${vo.orderId.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/vendor/orders/[id]", params: { id: vo.id } } as never)}>
+  if (!list.data?.vendorOrders.length) return <><Button title="Refresh orders" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} /><Empty icon="cube-outline" title="No orders yet" /></>;
+  return <>{list.error && <Banner tone="danger">Could not refresh orders. Showing the last loaded orders.</Banner>}<OrderPagination page={page} total={list.data?.total ?? 0} onChange={setPage} /><Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
+    {list.data.vendorOrders.map(vo => <Pressable key={vo.id} accessibilityRole="button" accessibilityLabel={`Open order ${vo.orderId.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/vendor/orders/[id]", params: { id: vo.id } } as never)}>
       <Card style={{ borderRadius: 16 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.orderId.slice(0,8).toUpperCase()} ↗</Text><Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : "info"} /></View>
         <Meta>{vo.organization.name} · Vendor reference #{vo.id.slice(0,8).toUpperCase()}</Meta>
         <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta><Text>{vo.items.length} medicine(s) · {vo.items.reduce((total,item) => total+item.qty,0)} units · {kes(vo.subtotalKes)}</Text><Meta>{vo.order?.deliveryAddress}</Meta><OrderItems items={vo.items} /><Text variant="caption" tone="muted">View order and update delivery</Text>

@@ -36,7 +36,8 @@ function careLinksFor(user: PublicUser | null): NavLink[] {
   // links as a patient, and the API now allows exactly that.
   const links: NavLink[] = [
     { href: "/appointments", label: "Appointments", Icon: CalendarDays },
-    { href: "/orders", label: "My pharmacy orders", Icon: ShoppingCart },
+    ...(user.role === "admin" ? [{ href: "/admin?tab=orders", label: "Pharmacy sales orders", Icon: ShoppingCart }] : []),
+    { href: "/orders", label: user.role === "admin" || user.role === "vendor" ? "My pharmacy purchases" : "My pharmacy orders", Icon: ShoppingCart },
     { href: "/home-visits", label: "Home visits", Icon: Home },
     { href: "/ambulance", label: "Ambulance", Icon: Ambulance, tone: "rose" },
     { href: "/labs", label: "Lab tests", Icon: FlaskConical },

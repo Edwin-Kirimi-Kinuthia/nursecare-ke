@@ -1,9 +1,11 @@
 "use client";
 
 import Link from "next/link";
+import OrderPagination from "@/components/OrderPagination";
+import { useDashboardTab } from "@/components/dashboard/useDashboardTab";
 import OrderItems from "@/components/OrderItems";
 
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Building2, MapPin, Users, Plus, BadgeCheck, Ban, X, Pill, ShoppingBag, Search, Pencil,
@@ -27,6 +29,7 @@ import { useSection, SectionShell } from "@/components/dashboard/section";
 import { useLocation } from "@/components/LocationProvider";
 
 type Tab = "overview" | "branches" | "team" | "catalogue" | "orders" | "dispatch" | "fleet" | "labtests" | "laborders";
+const DASHBOARD_TABS: readonly Tab[] = ["overview", "branches", "team", "catalogue", "orders", "dispatch", "fleet", "labtests", "laborders"];
 
 const STATUS_CLS: Record<string, string> = {
   pending: "bg-amber-100 text-amber-700",
@@ -37,9 +40,13 @@ const STATUS_CLS: Record<string, string> = {
 };
 
 export default function VendorDashboardPage() {
+  return <Suspense fallback={<p className="p-8">Loading dashboard…</p>}><DashboardContent /></Suspense>;
+}
+
+function DashboardContent() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("overview");
+  const [tab, setTab] = useDashboardTab(DASHBOARD_TABS, "overview");
 
   useEffect(() => {
     if (authLoading) return;
@@ -509,12 +516,14 @@ const VENDOR_ORDER_STATUS_CLS: Record<string, string> = {
 };
 
 function VendorOrdersTab() {
-  const fetcher = useCallback(() => api.listVendorOrders({ limit: 50 }).then(r => r.vendorOrders), []);
-  const { data, loading, error, reload } = useSection(fetcher);
-  const orders = data ?? [];
+  const [page,setPage] = useState(0);
+  const fetcher = useCallback(() => api.listVendorOrders({ limit: 50, offset: page*50 }), [page]);
+  const { data, loading, error, reload } = useSection(fetcher, true);
+  const orders = data?.vendorOrders ?? [];
   useEffect(() => { const timer = setInterval(() => void reload(), 15_000); return () => clearInterval(timer); }, [reload]);
-  return <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
-    <button onClick={() => void reload()} className="button-secondary mb-3">Refresh orders</button>
+  return <>{error && data && <p role="alert" className="mb-3 text-sm text-rose-700">Could not refresh orders. Showing the last loaded orders. {error}</p>}<OrderPagination page={page} total={data?.total ?? 0} onChange={setPage} /><button onClick={() => void reload()} className="button-secondary mb-3">Refresh orders</button>
+    <SectionShell loading={loading && !data} error={data ? null : error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+
     <div className="space-y-3">{orders.map(vo => <article key={vo.id} aria-label={`Pharmacy order ${vo.orderId.slice(0,8).toUpperCase()}`}>
       <Link href={`/vendor/orders/${vo.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-teal-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-teal-600">
         <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-teal-800">Order #{vo.orderId.slice(0,8).toUpperCase()} ↗</h2><span className={`rounded-full px-2.5 py-1 text-xs ${VENDOR_ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100"}`}>{orderStatusLabel(vo.status)}</span></div>
@@ -525,7 +534,7 @@ function VendorOrdersTab() {
         <p className="mt-3 text-sm font-medium text-teal-700">View order and update delivery · Opens in a new tab</p>
       </Link>
     </article>)}</div>
-  </SectionShell>;
+  </SectionShell></>;
 }
 
 // ── Ambulance dispatch ───────────────────────────────────────────────────────

@@ -112,7 +112,7 @@ export default function AccountScreen() {
       </Card>
 
       {user.role === "admin" && (
-        <Card><Text variant="subheading">Administrator</Text><Text tone="muted">Manage the platform from the operations dashboard.</Text><Button title="Open dashboard" size="sm" onPress={() => router.push("/admin")} /></Card>
+        <Card><Text variant="subheading">Administrator</Text><Text tone="muted">Manage the platform from the operations dashboard.</Text><Button title="Open dashboard" size="sm" onPress={() => router.push("/admin")} /><Button title="Pharmacy sales orders" size="sm" variant="secondary" onPress={() => router.push("/admin?tab=orders" as never)} /></Card>
       )}
       {isVendor && (
         <Card><Text variant="subheading">Vendor</Text><Text tone="muted">Manage your listings, orders and branches.</Text><Button title="Open vendor dashboard" size="sm" onPress={() => router.push("/vendor")} /></Card>
