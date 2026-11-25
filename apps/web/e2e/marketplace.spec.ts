@@ -161,8 +161,10 @@ test.describe("Multi-vendor cart split", () => {
       await page.context().addCookies([{ name: "cb_access", value: token, url: test.info().project.use.baseURL! }]);
       await page.goto(route);
       await page.getByRole("button", { name: "Orders", exact: true }).click();
-      const reference = route === "/admin" ? orderId : token === vendorAToken ? vendorOrderAId : vendorOrderBId;
+      const reference = orderId;
       const card = page.getByRole("article", { name: `Pharmacy order ${reference.slice(0, 8).toUpperCase()}`, exact: true });
+      await expect(card.getByText(`Order #${orderId.slice(0,8).toUpperCase()} ↗`, {exact:true})).toBeVisible();
+      for (const name of names) await expect(card.getByText(name,{exact:true})).toBeVisible();
       const detail = route === "/vendor" ? (await Promise.all([page.waitForEvent("popup"), card.getByRole("link").click()]))[0] : page;
       const contents = route === "/vendor" ? detail.getByRole("article") : card;
       for (const name of names) await expect(contents.getByText(name, { exact: true })).toBeVisible();

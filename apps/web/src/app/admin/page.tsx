@@ -1366,6 +1366,7 @@ function OrdersTab() {
 
   return (
     <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
+      <p className="mb-3 text-sm text-slate-600">Manage Care Bora pharmacy orders and oversee orders across all partner vendors. Open an order to update each vendor’s shipment and request a review after delivery.</p>
       <button onClick={() => void reload()} className="mb-3 rounded-lg border border-slate-200 px-3 py-2 text-sm font-semibold">Refresh orders</button>
       <div className="space-y-3">
         {orders.map((o: Order) => {

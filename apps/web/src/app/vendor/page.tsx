@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import OrderItems from "@/components/OrderItems";
 
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -514,11 +515,13 @@ function VendorOrdersTab() {
   useEffect(() => { const timer = setInterval(() => void reload(), 15_000); return () => clearInterval(timer); }, [reload]);
   return <SectionShell loading={loading} error={error} onRetry={reload} empty={orders.length === 0} emptyText="No orders yet.">
     <button onClick={() => void reload()} className="button-secondary mb-3">Refresh orders</button>
-    <div className="space-y-3">{orders.map(vo => <article key={vo.id} aria-label={`Pharmacy order ${vo.id.slice(0,8).toUpperCase()}`}>
+    <div className="space-y-3">{orders.map(vo => <article key={vo.id} aria-label={`Pharmacy order ${vo.orderId.slice(0,8).toUpperCase()}`}>
       <Link href={`/vendor/orders/${vo.id}`} target="_blank" rel="noopener noreferrer" className="block rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-teal-500 hover:shadow-md focus-visible:outline-2 focus-visible:outline-teal-600">
-        <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-teal-800">Order #{vo.id.slice(0,8).toUpperCase()} ↗</h2><span className={`rounded-full px-2.5 py-1 text-xs ${VENDOR_ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100"}`}>{orderStatusLabel(vo.status)}</span></div>
+        <div className="flex items-center justify-between gap-3"><h2 className="font-semibold text-teal-800">Order #{vo.orderId.slice(0,8).toUpperCase()} ↗</h2><span className={`rounded-full px-2.5 py-1 text-xs ${VENDOR_ORDER_STATUS_CLS[vo.status] ?? "bg-slate-100"}`}>{orderStatusLabel(vo.status)}</span></div>
+        <p className="mt-1 text-xs text-slate-500">{vo.organization.name} · Vendor reference #{vo.id.slice(0,8).toUpperCase()}</p>
         <p className="mt-2 text-sm text-slate-600">{vo.order?.patient.fullName} · {when(vo.createdAt)}</p>
-        <p className="mt-1 text-sm">{vo.items.length} item(s) · {kes(vo.subtotalKes)}</p><p className="mt-1 text-sm text-slate-500">{vo.order?.deliveryAddress}</p>
+        <p className="mt-1 text-sm">{vo.items.length} medicine(s) · {vo.items.reduce((total,item) => total+item.qty,0)} units · {kes(vo.subtotalKes)}</p><p className="mt-1 text-sm text-slate-500">{vo.order?.deliveryAddress}</p>
+        <OrderItems items={vo.items} />
         <p className="mt-3 text-sm font-medium text-teal-700">View order and update delivery · Opens in a new tab</p>
       </Link>
     </article>)}</div>

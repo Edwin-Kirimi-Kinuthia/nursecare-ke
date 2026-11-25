@@ -21,7 +21,7 @@ export default function VendorOrderScreen() {
     <Text variant="heading">Pharmacy order details</Text>
     {list.error && <Banner tone="danger">{list.error}</Banner>}<Button title="Refresh order" variant="secondary" onPress={() => void reload()} />
     {list.loading && !order ? <Loading /> : order && <Card>
-      <Text variant="heading">Order #{order.id.slice(0,8).toUpperCase()}</Text><Text tone="muted">{dayTime(order.createdAt)}</Text>
+      <Text variant="heading">Order #{order.orderId.slice(0,8).toUpperCase()}</Text><Text tone="muted">{order.organization.name} · Vendor reference #{order.id.slice(0,8).toUpperCase()}</Text><Text tone="muted">{dayTime(order.createdAt)}</Text>
       <Text variant="subheading">Delivery details</Text><Text>{order.order?.patient.fullName}</Text><Text>{order.order?.deliveryAddress}</Text><Text>Contact: {order.order?.phoneNumber}</Text>{order.order?.deliveryNotes ? <Text>Notes: {order.order.deliveryNotes}</Text> : null}
       <OrderItems items={order.items} /><Text>Total: {kes(order.subtotalKes)}</Text><Text>Payment: {order.order?.payment?.status.replaceAll("_"," ") ?? "unpaid"}</Text>
       <OrderProgress order={order} /><Text variant="subheading">Update delivery</Text><OrderStatusActions key={order.status} order={order} dropdown onUpdated={reload} />

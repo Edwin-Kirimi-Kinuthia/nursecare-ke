@@ -120,7 +120,7 @@ test("paid orders can be updated by admins and their vendor, and clients see eac
     await admin.goto("/admin"); await admin.getByRole("button", { name: "Orders", exact: true }).click();
     await vendor.goto("/vendor"); await vendor.getByRole("button", { name: "Orders", exact: true }).click();
     const [adminDetails] = await Promise.all([admin.waitForEvent("popup"), admin.getByRole("article", {name:`Pharmacy order ${orderId.slice(0,8).toUpperCase()}`,exact:true}).getByRole("link").click()]);
-    const [details] = await Promise.all([vendor.waitForEvent("popup"), vendor.getByRole("link", { name: new RegExp(`Order #${vendorOrderId.slice(0,8).toUpperCase()}`) }).click()]);
+    const [details] = await Promise.all([vendor.waitForEvent("popup"), vendor.getByRole("link", { name: new RegExp(`Order #${orderId.slice(0,8).toUpperCase()}`) }).click()]);
     await expect(details.getByRole("heading", { name: "Pharmacy order details", exact: true })).toBeVisible();
     await expect(details.getByRole("list", { name: "Ordered items" })).toBeVisible();
     for (const [actor, , expected] of [[admin, "Mark preparing", "Preparing"], [vendor, "Mark dispatched", "Dispatched"], [admin, "Mark in delivery", "In delivery"], [vendor, "Mark delivered", "Delivered"]] as const) {

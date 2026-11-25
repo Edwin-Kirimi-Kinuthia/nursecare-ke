@@ -1,3 +1,4 @@
+import { OrderItems } from "@/features/OrderItems";
 import { orderStatusLabel } from "@carebora/shared";
 import { useEffect, useMemo, useState } from "react";
 import { Alert, Pressable, View } from "react-native";
@@ -254,9 +255,10 @@ function Orders() {
   if (list.loading && !list.data) return <Loading />;
   if (!list.data?.length) return <Empty icon="cube-outline" title="No orders yet" />;
   return <><Button title="Refresh orders" size="sm" variant="secondary" onPress={() => void list.reload()} loading={list.refreshing} />
-    {list.data.map(vo => <Pressable key={vo.id} accessibilityRole="button" accessibilityLabel={`Open order ${vo.id.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/vendor/orders/[id]", params: { id: vo.id } } as never)}>
-      <Card style={{ borderRadius: 16 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.id.slice(0,8).toUpperCase()} ↗</Text><Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : "info"} /></View>
-        <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta><Text>{vo.items.length} item(s) · {kes(vo.subtotalKes)}</Text><Meta>{vo.order?.deliveryAddress}</Meta><Text variant="caption" tone="muted">View order and update delivery</Text>
+    {list.data.map(vo => <Pressable key={vo.id} accessibilityRole="button" accessibilityLabel={`Open order ${vo.orderId.slice(0,8).toUpperCase()} details`} onPress={() => router.push({ pathname: "/vendor/orders/[id]", params: { id: vo.id } } as never)}>
+      <Card style={{ borderRadius: 16 }}><View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}><Text style={{ fontFamily: "Inter_700Bold", color: "#0F766E" }}>Order #{vo.orderId.slice(0,8).toUpperCase()} ↗</Text><Badge label={orderStatusLabel(vo.status)} tone={vo.status === "delivered" ? "ok" : "info"} /></View>
+        <Meta>{vo.organization.name} · Vendor reference #{vo.id.slice(0,8).toUpperCase()}</Meta>
+        <Meta>{vo.order?.patient.fullName} · {dayTime(vo.createdAt)}</Meta><Text>{vo.items.length} medicine(s) · {vo.items.reduce((total,item) => total+item.qty,0)} units · {kes(vo.subtotalKes)}</Text><Meta>{vo.order?.deliveryAddress}</Meta><OrderItems items={vo.items} /><Text variant="caption" tone="muted">View order and update delivery</Text>
       </Card>
     </Pressable>)}
   </>;
