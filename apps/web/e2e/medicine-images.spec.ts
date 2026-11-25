@@ -23,13 +23,15 @@ test("medicine responses exclude inline photos; public images are resized, compr
     expect(await catalogue.text()).not.toContain("data:image");
     const offers = await request.get(`/api/v1/storefront/drugs/${drug.id}/offers`);
     expect(await offers.text()).not.toContain("data:image");
-    const image = await request.get(`${publicDrug.imageUrl}&w=320`);
+    const image = await request.get(`${publicDrug.imageUrl}&w=320&format=webp`);
+    const nativeImage = await request.get(publicDrug.imageUrl);
+    expect(nativeImage.headers()["content-type"]).toBe("image/jpeg");
     expect(image.status()).toBe(200); expect(image.headers()["content-type"]).toBe("image/webp");
     expect(image.headers()["cache-control"]).toContain("s-maxage=604800");
     const bytes = await image.body();
     expect((await sharp(bytes).metadata()).width).toBe(320);
     expect(bytes.length).toBeLessThan(png.length);
-    expect((await request.get(`${publicDrug.imageUrl}&w=320`, { headers: { "If-None-Match": image.headers().etag } })).status()).toBe(304);
+    expect((await request.get(`${publicDrug.imageUrl}&w=320&format=webp`, { headers: { "If-None-Match": image.headers().etag } })).status()).toBe(304);
     expect((await request.get(`${publicDrug.imageUrl}&w=99999`)).status()).toBe(400);
     const html = await (await request.get(`/pharmacy/${drug.id}`)).text();
     const schema = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map(m => JSON.parse(m[1]));
