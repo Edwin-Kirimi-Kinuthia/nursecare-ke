@@ -563,6 +563,7 @@ export const authService = {
       throw ApiError.unauthorized("You were signed out after a period of inactivity");
     }
     return db.$transaction(async tx => {
+      await lockAuthUser(tx, session.userId);
       const claimed = await tx.session.updateMany({ where: { id: session.id, revokedAt: null, expiresAt: { gt: new Date() } }, data: { revokedAt: new Date() } });
       if (claimed.count !== 1) throw ApiError.unauthorized("Session expired or invalid");
       const tokens = await issueSession(session.userId, session.user.role as UserRole, meta, tx);

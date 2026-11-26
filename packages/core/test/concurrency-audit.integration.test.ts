@@ -84,3 +84,17 @@ test("a disabled account cannot change its password through an old reset link",a
   await assert.rejects(()=>authService.setPassword(token,"DisabledPassword123!"),/disabled/i);
   assert.equal((await db.credentials.findUniqueOrThrow({where:{userId:id}})).passwordHash,before.passwordHash);
 }));
+
+test("password reset and refresh rotation cannot leave an earlier session active",async()=>userFixture(async(id)=>{
+  for(let attempt=0;attempt<5;attempt++) {
+    const before=await issueSession(id,"patient"),token=randomUUID();
+    await db.verificationCode.create({data:{userId:id,channel:"invite",codeHash:hash(token),expiresAt:new Date(Date.now()+600_000)}});
+    const [rotation,reset]=await Promise.allSettled([authService.refresh(before.refreshToken),authService.setPassword(token,"ChangedPassword123!")]);
+    assert.equal(reset.status,"fulfilled");
+    if(rotation.status==="fulfilled") {
+      const session=await db.session.findFirstOrThrow({where:{refreshTokenHash:hash(rotation.value.refreshToken)}});
+      assert.ok(session.revokedAt,"a refresh racing the password reset must not survive it");
+    }
+    assert.equal(await db.session.count({where:{userId:id,revokedAt:null}}),1);
+  }
+}));
