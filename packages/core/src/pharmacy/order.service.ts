@@ -218,33 +218,13 @@ export const orderService = {
       const platformFee = Math.round((vo.subtotalKes * commissionPercent) / 100);
       const vendorNet = vo.subtotalKes - platformFee;
 
-      await db.$transaction([
-        db.vendorOrder.update({ where: { id: vo.id }, data: { status: "paid", statusHistory: { create: { status: "paid" } } } }),
-        db.ledgerEntry.create({
-          data: {
-            paymentId,
-            type: "platform_fee",
-            orgId: vo.orgId,
-            amountKes: platformFee,
-            description: isHouse
-              ? `Care Bora Pharmacy sale, kept in full (vendor order ${vo.id.slice(0, 8)})`
-              : `${commissionPercent}% platform commission (vendor order ${vo.id.slice(0, 8)})`,
-          },
-        }),
-        ...(vendorNet > 0
-          ? [
-              db.ledgerEntry.create({
-                data: {
-                  paymentId,
-                  type: "vendor_payout",
-                  orgId: vo.orgId,
-                  amountKes: vendorNet,
-                  description: `Vendor net payout (vendor order ${vo.id.slice(0, 8)})`,
-                },
-              }),
-            ]
-          : []),
-      ]);
+      await db.$transaction(async tx => {
+        const claimed = await tx.vendorOrder.updateMany({ where: { id: vo.id, status: "pending" }, data: { status: "paid" } });
+        if (!claimed.count) return;
+        await tx.vendorOrderStatusEvent.create({ data: { vendorOrderId: vo.id, status: "paid" } });
+        await tx.ledgerEntry.create({ data: { paymentId, type: "platform_fee", orgId: vo.orgId, amountKes: platformFee, description: isHouse ? `Care Bora Pharmacy sale, kept in full (vendor order ${vo.id.slice(0, 8)})` : `${commissionPercent}% platform commission (vendor order ${vo.id.slice(0, 8)})` } });
+        if (vendorNet > 0) await tx.ledgerEntry.create({ data: { paymentId, type: "vendor_payout", orgId: vo.orgId, amountKes: vendorNet, description: `Vendor net payout (vendor order ${vo.id.slice(0, 8)})` } });
+      });
     }
   },
 
@@ -257,7 +237,9 @@ export const orderService = {
     if (!vendorOrders.length) return;
     await db.$transaction(async (tx) => {
       for (const vo of vendorOrders) {
-        await tx.vendorOrder.update({ where: { id: vo.id }, data: { status: "cancelled", statusHistory: { create: { status: "cancelled" } } } });
+        const claimed = await tx.vendorOrder.updateMany({ where: { id: vo.id, status: "pending" }, data: { status: "cancelled" } });
+        if (!claimed.count) continue;
+        await tx.vendorOrderStatusEvent.create({ data: { vendorOrderId: vo.id, status: "cancelled" } });
         for (const item of vo.items) {
           await tx.listing.update({ where: { id: item.listingId }, data: { stockQty: { increment: item.qty } } });
         }

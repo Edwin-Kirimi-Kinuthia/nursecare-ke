@@ -113,7 +113,7 @@ jobs:
           done
           npm run e2e
       - name: Test review invitations and marketplace ranking
-        run: npx tsx --test packages/core/test/auth-recovery.integration.test.ts packages/core/test/review-invitations.integration.test.ts packages/core/test/service-feedback.integration.test.ts
+        run: npx tsx --test packages/core/test/concurrency-audit.integration.test.ts packages/core/test/auth-recovery.integration.test.ts packages/core/test/review-invitations.integration.test.ts packages/core/test/service-feedback.integration.test.ts
       - name: Upload Playwright report
         if: ${{ !cancelled() }}
         uses: actions/upload-artifact@v4

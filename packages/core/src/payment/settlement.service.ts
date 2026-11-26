@@ -55,8 +55,9 @@ async function logEvent(source: string, payload: unknown, dedupeKey: string, pay
 async function settleAndDispatch(gatewayRef: string, outcome: Parameters<typeof paymentService.settle>[1]) {
   const payment = await paymentService.settle(gatewayRef, outcome);
   if (!payment) return false;
-  if (outcome.success) await afterSettled(payment);
-  else await afterFailed(payment);
+  // A delayed or replayed callback cannot override a terminal payment state.
+  if (payment.status === "completed") await afterSettled(payment);
+  else if (payment.status === "failed") await afterFailed(payment);
   return true;
 }
 

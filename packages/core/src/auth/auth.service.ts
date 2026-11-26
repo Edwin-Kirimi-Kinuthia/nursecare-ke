@@ -98,6 +98,27 @@ async function spendCodeAttempt(
   return record;
 }
 
+/** Claim consumption inside the transaction that applies the authorized change. */
+async function consumeCode(tx: Prisma.TransactionClient, id: string, invalid: () => ApiError) {
+  const claimed = await tx.verificationCode.updateMany({
+    where: { id, consumedAt: null, expiresAt: { gt: new Date() } },
+    data: { consumedAt: new Date() },
+  });
+  if (claimed.count !== 1) throw invalid();
+}
+
+async function lockAuthUser(tx: Prisma.TransactionClient, userId: string) {
+  await tx.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${"auth:" + userId}, 0))`;
+  const user = await tx.user.findUnique({ where: { id: userId } });
+  if (!user?.isActive || user.deletedAt) throw ApiError.forbidden("This account is disabled");
+}
+
+/** Password changes invalidate earlier recovery links, pending codes and refresh sessions. */
+async function invalidatePasswordCredentials(tx: Prisma.TransactionClient, userId: string) {
+  await tx.verificationCode.updateMany({ where: { userId, channel: { in: ["invite", "login_otp", "change_password_otp"] }, consumedAt: null }, data: { consumedAt: new Date() } });
+  await tx.session.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } });
+}
+
 /** Failed delivery must not consume the send quota or replace a usable code. */
 async function issueEmailedCode(user: Pick<User, "id" | "email" | "fullName">, channel: string, ttlMinutes: number, send: (code: string) => Promise<void>) {
   await assertCanIssueCode(user.id, channel);
@@ -166,12 +187,12 @@ export function toPublicUser(u: User): PublicUser {
 }
 
 /** Create a session row (hashed refresh token) and mint an access token. */
-export async function issueSession(userId: string, role: UserRole, meta?: RequestMeta) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true } });
+export async function issueSession(userId: string, role: UserRole, meta?: RequestMeta, client: Prisma.TransactionClient = db) {
+  const user = await client.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true } });
   if (!user?.isActive || user.deletedAt) throw ApiError.forbidden("This account is disabled");
   const accessToken = await signAccessToken({ sub: userId, role });
   const refreshToken = generateRefreshToken();
-  await db.session.create({
+  await client.session.create({
     data: {
       userId,
       refreshTokenHash: hashRefreshToken(refreshToken),
@@ -242,10 +263,10 @@ export const authService = {
   /** Confirm a code emailed by `requestEmailVerification` and mark the email verified. */
   async verifyEmail(userId: string, code: string): Promise<PublicUser> {
     const record = await spendCodeAttempt(userId, "email", code, () => ApiError.badRequest("Invalid or expired code"));
-    const [, user] = await db.$transaction([
-      db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
-      db.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } }),
-    ]);
+    const user = await db.$transaction(async tx => {
+      await consumeCode(tx, record.id, () => ApiError.badRequest("Invalid or expired code"));
+      return tx.user.update({ where: { id: userId }, data: { emailVerifiedAt: new Date() } });
+    });
     return toPublicUser(user);
   },
 
@@ -261,17 +282,15 @@ export const authService = {
     if (!record || record.expiresAt < new Date()) {
       throw ApiError.badRequest("This invite link is invalid or has expired");
     }
-    const [, , user] = await db.$transaction([
-      db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
-      db.credentials.upsert({
-        where: { userId: record.userId },
-        update: { passwordHash: hashPassword(password) },
-        create: { userId: record.userId, passwordHash: hashPassword(password) },
-      }),
-      db.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } }),
-    ]);
-    const tokens = await issueSession(user.id, user.role as UserRole, undefined);
-    return { user: toPublicUser(user), ...tokens };
+    return db.$transaction(async tx => {
+      await lockAuthUser(tx, record.userId);
+      await consumeCode(tx, record.id, () => ApiError.badRequest("This invite link is invalid or has expired"));
+      await tx.credentials.upsert({ where: { userId: record.userId }, update: { passwordHash: hashPassword(password) }, create: { userId: record.userId, passwordHash: hashPassword(password) } });
+      await invalidatePasswordCredentials(tx, record.userId);
+      const user = await tx.user.update({ where: { id: record.userId }, data: { emailVerifiedAt: new Date() } });
+      const tokens = await issueSession(user.id, user.role as UserRole, undefined, tx);
+      return { user: toPublicUser(user), ...tokens };
+    });
   },
 
   /**
@@ -292,10 +311,12 @@ export const authService = {
   /** Step 2: confirm the emailed code and set the new password. */
   async confirmChangePassword(userId: string, code: string, newPassword: string) {
     const record = await spendCodeAttempt(userId, "change_password_otp", code, () => ApiError.badRequest("Invalid or expired code"));
-    await db.$transaction([
-      db.verificationCode.update({ where: { id: record.id }, data: { consumedAt: new Date() } }),
-      db.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } }),
-    ]);
+    await db.$transaction(async tx => {
+      await lockAuthUser(tx, userId);
+      await consumeCode(tx, record.id, () => ApiError.badRequest("Invalid or expired code"));
+      await tx.credentials.update({ where: { userId }, data: { passwordHash: hashPassword(newPassword) } });
+      await invalidatePasswordCredentials(tx, userId);
+    });
     return { changed: true };
   },
 
@@ -437,11 +458,14 @@ export const authService = {
     const user = await db.user.findUnique({ where: { email } });
     if (!user) throw ApiError.unauthorized("Invalid or expired code");
 
-    await spendCodeAttempt(user.id, "login_otp", code, () => ApiError.unauthorized("Invalid or expired code"));
-    await db.verificationCode.updateMany({ where: { userId: user.id, channel: "login_otp", consumedAt: null }, data: { consumedAt: new Date() } });
-
-    const tokens = await issueSession(user.id, user.role as UserRole, meta);
-    return { user: toPublicUser(user), ...tokens };
+    const record = await spendCodeAttempt(user.id, "login_otp", code, () => ApiError.unauthorized("Invalid or expired code"));
+    return db.$transaction(async tx => {
+      await lockAuthUser(tx, user.id);
+      await consumeCode(tx, record.id, () => ApiError.unauthorized("Invalid or expired code"));
+      await tx.verificationCode.updateMany({ where: { userId: user.id, channel: "login_otp", consumedAt: null }, data: { consumedAt: new Date() } });
+      const tokens = await issueSession(user.id, user.role as UserRole, meta, tx);
+      return { user: toPublicUser(user), ...tokens };
+    });
   },
 
   /** Resend the login code — only while a login attempt (a correct password) is actually in progress. */
@@ -538,12 +562,12 @@ export const authService = {
       await db.session.update({ where: { id: session.id }, data: { revokedAt: new Date() } });
       throw ApiError.unauthorized("You were signed out after a period of inactivity");
     }
-    await db.session.update({
-      where: { id: session.id },
-      data: { revokedAt: new Date() },
+    return db.$transaction(async tx => {
+      const claimed = await tx.session.updateMany({ where: { id: session.id, revokedAt: null, expiresAt: { gt: new Date() } }, data: { revokedAt: new Date() } });
+      if (claimed.count !== 1) throw ApiError.unauthorized("Session expired or invalid");
+      const tokens = await issueSession(session.userId, session.user.role as UserRole, meta, tx);
+      return { user: toPublicUser(session.user), ...tokens };
     });
-    const tokens = await issueSession(session.userId, session.user.role as UserRole, meta);
-    return { user: toPublicUser(session.user), ...tokens };
   },
 
   /** Revoke a session (logout). Silently no-ops if the token is already gone. */
