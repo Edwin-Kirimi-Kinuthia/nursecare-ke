@@ -192,7 +192,7 @@ jobs:
           if [[ "$RELEASE_PLATFORM" == android ]]; then
             tag="mobile-v$RELEASE_VERSION"
             title="Care Bora Android $RELEASE_VERSION"
-            notes="Service photos, automatic pharmacy categories, safer licence viewing and document downloads, and in-app updates. Manual provider withdrawals remain available. The release APK passed a fresh native startup check."
+            notes="Smaller direct Android download through native-library and JavaScript compression. All supported CPU architectures, video consultations, and in-app updates are retained. The release APK passed a fresh native startup check."
           else
             tag="desktop-v$RELEASE_VERSION"
             title="Care Bora desktop $RELEASE_VERSION"
