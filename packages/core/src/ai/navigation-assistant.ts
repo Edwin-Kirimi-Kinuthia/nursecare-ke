@@ -5,7 +5,7 @@ import { SITE_TOPICS } from "./site-knowledge";
 
 export interface AssistantActor { userId: string; role: UserRole }
 type Complete = (system: string, user: string) => Promise<string | null>;
-const looksLikeSecret = (value: string) => /^\s*\d{6}\s*$|\b(?:otp|verification code|login code)\s*(?:is|:|=)?\s*\d{6}\b|\bpassword\s*[:=]\s*\S{3,}/i.test(value);
+const looksLikeSecret = (value: string) => /^\s*\d{6}\s*$|\b(?:otp|verification code|login code|code)\s*(?:is|:|=)?\s*\d{6}\b|\bpassword\s*[:=]\s*\S{3,}/i.test(value);
 const DEFAULT_SUGGESTIONS = ["How do I book a doctor?", "Find medicine", "Track my pharmacy order"];
 const rolesAllow = (id: string, role?: UserRole) => id === "admin-orders" ? role === "admin" : id === "vendor-orders" ? role === "vendor" : id === "earnings" ? Boolean(role && (role === "vendor" || PROVIDER_ROLES.includes(role))) : true;
 function reply(message: string, serviceIds: string[], suggestions = DEFAULT_SUGGESTIONS, actor?: AssistantActor, actions: NavigationAction[] = [], source: "guide" | "ai" = "guide"): NavigationReply {

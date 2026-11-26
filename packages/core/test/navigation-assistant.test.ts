@@ -59,3 +59,10 @@ test("tracking help distinguishes appointments, labs and withdrawals from pharma
     const r=await navigationAssistant({message:message!},{userId:"provider",role:"doctor"});assert.ok(r.serviceIds.includes(service!));assert.ok(!r.serviceIds.includes("orders"));
   }
 });
+
+test("common account-recovery wording works without AI credits and does not confuse order references",async()=>{
+  for(const message of ["I can't remember my password", "Help me recover access because the secret I use to enter has slipped my mind.", "I am locked out"]) {
+    const r=await navigationAssistant({message});assert.ok(r.message.includes("reset link"));
+  }
+  const order=await navigationAssistant({message:"I forgot my order number"});assert.ok(order.serviceIds.includes("orders"));assert.ok(!order.message.includes("reset link"));
+});
