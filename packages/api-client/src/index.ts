@@ -183,8 +183,8 @@ export class CareBoraClient {
     return this.request<Withdrawal>(`/admin/withdrawals/${id}`, { method: "PATCH", body: JSON.stringify(input) });
   }
 
-  navigateAssistant(message: string) {
-    return this.request<import("@carebora/shared").NavigationReply>("/ai/navigate", { method: "POST", body: JSON.stringify({ message }) });
+  navigateAssistant(message: string, context: import("@carebora/shared").NavigationContext = {}) {
+    return this.request<import("@carebora/shared").NavigationReply>("/ai/navigate", { method: "POST", body: JSON.stringify({ message, ...context }) });
   }
 
   constructor(private readonly opts: ClientOptions) {}

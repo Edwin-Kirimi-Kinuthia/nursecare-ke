@@ -2506,7 +2506,12 @@
           "AI"
         ],
         "summary": "Find trusted service links with AI navigation help and a service-guide fallback.",
-        "security": [],
+        "security": [
+          {},
+          {
+            "bearerAuth": []
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2518,6 +2523,37 @@
                     "type": "string",
                     "minLength": 1,
                     "maxLength": 500
+                  },
+                  "history": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "role": {
+                          "type": "string",
+                          "enum": [
+                            "user",
+                            "assistant"
+                          ]
+                        },
+                        "content": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 1200
+                        }
+                      },
+                      "required": [
+                        "role",
+                        "content"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "maxItems": 8
+                  },
+                  "page": {
+                    "type": "string",
+                    "maxLength": 160,
+                    "pattern": "^\\/[a-zA-Z0-9/_()-]*$"
                   }
                 },
                 "required": [

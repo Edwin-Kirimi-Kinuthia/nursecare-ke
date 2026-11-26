@@ -10,7 +10,7 @@ test("service shortcuts, navigation assistant and desktop back button", async ({
   const answer = page.waitForResponse(r => r.url().endsWith("/api/v1/ai/navigate") && r.request().method() === "POST");
   await page.getByRole("button", { name: "Send question" }).click();
   expect((await answer).status()).toBe(200);
-  await expect(page.getByRole("dialog").getByRole("link", { name: "Pharmacy" })).toBeVisible();
+  await expect(page.getByRole("dialog").getByRole("link", { name: "Pharmacy", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Close assistant", exact: true }).click();
   await services.locator('a.group[href="/sick-off-sheet-online-kenya"]').click();
   await expect(page).toHaveURL(/\/sick-off-sheet-online-kenya$/, { timeout: 15000 });

@@ -189,3 +189,7 @@ Use Node 22.13+ for Expo SDK 58. The existing EAS project ID is stored in `app.j
 ### Direct Android download size
 
 The APK compresses native libraries (`useLegacyPackaging`) and its JavaScript bundle (`enableBundleCompression`) through `expo-build-properties`. It retains all four supported CPU architectures and the existing WebRTC ProGuard rules. This reduces the download; Android extracts native libraries during installation, so installed size is different from download size. Compare actual signed APK sizes, and run the native startup check before updating the public download. Native packaging changes require a new app version and APK; an OTA update cannot shrink an installed APK.
+
+### JS updates for the existing 1.0.5 / 1.0.6 binaries
+
+The chatbot changes add no native modules. Version 1.0.6 differs from 1.0.5 only in Android APK compression, so both native runtimes can receive these JavaScript updates. Export and publish normally for 1.0.6. For the older Android/iOS binaries, set `CAREBORA_OTA_APP_VERSION=1.0.5` on both `expo export` and `eas update`, using a separate export directory. This intentionally keeps the app-version runtime policy; do not use this override for native builds or for changes requiring new native modules. Any additional compatible version must be reviewed in `app.config.js` first.

@@ -8,7 +8,12 @@ export const processWithdrawalSchema = z.object({
   status: z.enum(["processing", "paid", "failed"]),
   reference: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{10}$/, "Enter the 10-character M-Pesa receipt").optional(),
 });
-export const navigationQuestionSchema = z.object({ message: z.string().trim().min(1).max(500) });
+export const navigationQuestionSchema = z.object({
+  message: z.string().trim().min(1).max(500),
+  history: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().trim().min(1).max(1200) })).max(8).optional(),
+  page: z.string().max(160).regex(/^\/[a-zA-Z0-9/_()-]*$/).optional(),
+});
+export type NavigationQuestion = z.infer<typeof navigationQuestionSchema>;
 
 export const b2cResultSchema = z.object({ Result: z.object({
   ResultCode: z.coerce.number().int(), ResultDesc: z.string().max(2000),
