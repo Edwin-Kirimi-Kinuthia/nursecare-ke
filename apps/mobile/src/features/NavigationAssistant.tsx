@@ -30,12 +30,12 @@ function Assistant({ signedIn }: { signedIn: boolean }) {
     if (hidden || open) return;
     let cancelled = false;
     let animation: Animated.CompositeAnimation | undefined;
-    const timer = setTimeout(async () => {
+    const timer = setInterval(async () => {
       if (await AccessibilityInfo.isReduceMotionEnabled() || cancelled || AppState.currentState !== "active") return;
       animation = Animated.sequence([-6, 6, -6, 6, 0].map(toValue => Animated.timing(shake, { toValue, duration: 100, useNativeDriver: true })));
       animation.start();
-    }, 30_000);
-    return () => { cancelled = true; clearTimeout(timer); animation?.stop(); shake.setValue(0); };
+    }, 8_000);
+    return () => { cancelled = true; clearInterval(timer); animation?.stop(); shake.setValue(0); };
   }, [hidden, open, shake]);
   function reset() { sequence.current++; pending.current = false; setBusy(false); setTurns(welcome()); setQuestion(""); input.current?.focus(); }
   async function ask(value = question) {

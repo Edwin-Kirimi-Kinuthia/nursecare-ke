@@ -34,12 +34,12 @@ export function AppHeader() {
             <IconButton label="Go back" onPress={() => router.back()}><ChevronLeft size={26} color={t.text} /></IconButton>
           ) : null}
           <IconButton label="Open menu" onPress={() => setOpen(true)}><Menu size={24} color={t.text} /></IconButton>
-          <Pressable onPress={() => router.navigate("/")} accessibilityRole="link" accessibilityLabel="Care Bora home"
+          <Pressable onPress={() => router.push("/")} accessibilityRole="link" accessibilityLabel="Care Bora home"
             style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
             <Image source={require("../../assets/brand/logo-mark.png")} style={{ width: 36, height: 36 }} resizeMode="contain" />
             <Text style={{ fontFamily: "Inter_800ExtraBold", fontSize: 18, letterSpacing: -0.3 }}>Care Bora</Text>
           </Pressable>
-          <IconButton label={`Cart, ${count} items`} onPress={() => router.navigate("/cart")}>
+          <IconButton label={`Cart, ${count} items`} onPress={() => router.push("/cart")}>
             <ShoppingCart size={22} color={t.textMuted} />
             {count > 0 && (
               <View style={{ position: "absolute", top: 2, right: 0, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: "#0D9488", alignItems: "center", justifyContent: "center", paddingHorizontal: 4 }}>
@@ -50,12 +50,12 @@ export function AppHeader() {
           {user ? (
             <>
               <IconButton label="Notifications" onPress={() => router.push("/notifications")}><Bell size={22} color={t.textMuted} /></IconButton>
-              <Pressable onPress={() => router.navigate("/account")} accessibilityRole="button" accessibilityLabel="My profile">
+              <Pressable onPress={() => router.push("/account")} accessibilityRole="button" accessibilityLabel="My profile">
                 <Avatar name={user.fullName} uri={user.avatarUrl} size={36} />
               </Pressable>
             </>
           ) : (
-            <Pressable onPress={() => router.navigate("/login")} accessibilityRole="button"
+            <Pressable onPress={() => router.push("/login")} accessibilityRole="button"
               style={{ backgroundColor: NAVY, borderRadius: 14, paddingHorizontal: 16, height: 40, justifyContent: "center" }}>
               <Text style={{ color: "#fff", fontFamily: "Inter_600SemiBold", fontSize: 15 }}>Log in</Text>
             </Pressable>
@@ -115,7 +115,7 @@ function MenuDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   function go(i: Item) {
     onClose();
     if (i.run) i.run();
-    else if (i.to) router.navigate(i.to as never);
+    else if (i.to) router.push(i.to as never);
     else if (i.site) void openSite(i.site);
     else if (i.href) void Linking.openURL(i.href);
   }

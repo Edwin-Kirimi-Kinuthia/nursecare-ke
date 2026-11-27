@@ -46,7 +46,7 @@ export default function HomeScreen() {
       .sort((a, b) => +new Date(a.slot.startsAt) - +new Date(b.slot.startsAt))[0] ?? null;
   }, [user?.id]);
 
-  const openFeature = (f: (typeof FEATURES)[number]) => router.navigate(f.to as never);
+  const openFeature = (f: (typeof FEATURES)[number]) => router.push(f.to as never);
 
   return (
     <Screen onRefresh={next.reload} refreshing={next.refreshing} gap={0} contentContainerStyle={{ padding: 0, paddingBottom: 72 }}>

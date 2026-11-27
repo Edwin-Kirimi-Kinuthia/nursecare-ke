@@ -1,3 +1,4 @@
+import { AndroidBackNavigation } from "@/features/AndroidBackNavigation";
 import { NavigationAssistant } from "@/features/NavigationAssistant";
 import { useEffect } from "react";
 import { Linking, View } from "react-native";
@@ -135,6 +136,7 @@ function Gate() {
           <Stack.Screen name="forgot" options={{ title: "" }} />
         </Stack.Protected>
       </Stack>
+      <AndroidBackNavigation />
       <WhatsAppButton />
       <NavigationAssistant />
     </View>

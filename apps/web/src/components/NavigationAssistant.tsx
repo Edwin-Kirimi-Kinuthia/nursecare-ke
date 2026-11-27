@@ -28,8 +28,8 @@ function Assistant({ signedIn }: { signedIn: boolean }) {
   const latest = turns.at(-1)?.reply;
   useEffect(() => {
     if (open || hidden) return;
-    const timer = setTimeout(() => { if (document.visibilityState === "visible") setNudge(true); }, 30_000);
-    return () => clearTimeout(timer);
+    const timer = setInterval(() => { if (document.visibilityState === "visible") setNudge(true); }, 8_000);
+    return () => clearInterval(timer);
   }, [open, hidden]);
   useEffect(() => { if (open && !busy) input.current?.focus(); }, [open, busy]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [turns, busy, open]);

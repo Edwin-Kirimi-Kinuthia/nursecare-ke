@@ -47,19 +47,19 @@ export function Footer() {
 
       <View>
         <Head>Care</Head>
-        <Link label="Find a doctor" onPress={() => router.navigate("/doctors")} />
-        <Link label="Pharmacy" onPress={() => router.navigate("/pharmacy")} />
-        <Link label="Home visits" onPress={() => router.navigate("/home-visits")} />
-        <Link label="Ambulance line" onPress={() => router.navigate("/ambulance")} />
+        <Link label="Find a doctor" onPress={() => router.push("/doctors")} />
+        <Link label="Pharmacy" onPress={() => router.push("/pharmacy")} />
+        <Link label="Home visits" onPress={() => router.push("/home-visits")} />
+        <Link label="Ambulance line" onPress={() => router.push("/ambulance")} />
       </View>
 
       <View>
         <Head>Care Bora</Head>
         <Link label="About us" onPress={() => void openSite("/about")} />
         <Link label="How we verify providers" onPress={() => void openSite("/how-we-verify-providers")} />
-        <Link label="Join as a provider" onPress={() => router.navigate("/apply/provider")} />
+        <Link label="Join as a provider" onPress={() => router.push("/apply/provider")} />
         <Link label="Privacy policy" onPress={() => void openSite("/privacy")} />
-        <Link label="Delete your account" onPress={() => router.navigate("/delete-account")} />
+        <Link label="Delete your account" onPress={() => router.push("/delete-account")} />
       </View>
 
       <View>
@@ -75,7 +75,7 @@ export function Footer() {
         {supportPhones.map((p) => <Line key={p} Icon={Phone} label={p} onPress={() => callNumber(p)} />)}
         <Line Icon={Mail} label={supportEmail} onPress={() => void emailTo(supportEmail)} />
         <Line Icon={MessageCircle} label={`WhatsApp ${WHATSAPP_DISPLAY}`} onPress={() => void Linking.openURL(WHATSAPP_URL)} />
-        <Pressable onPress={() => router.navigate("/support/new")} accessibilityRole="link" style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 }}>
+        <Pressable onPress={() => router.push("/support/new")} accessibilityRole="link" style={{ flexDirection: "row", alignItems: "center", gap: 8, paddingVertical: 6 }}>
           <MessageSquare size={16} color="#0F766E" />
           <Text style={{ color: "#0F766E", fontFamily: "Inter_500Medium", fontSize: 14 }}>Message us / request a document</Text>
         </Pressable>
